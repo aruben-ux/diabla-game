@@ -45,6 +45,8 @@ var _paperdoll_panel: Panel
 func setup(inv: Inventory, player: Node) -> void:
 	inventory = inv
 	player_ref = player
+	if not _grid_container:
+		_build_ui()
 	inventory.inventory_changed.connect(_refresh)
 	inventory.gold_changed.connect(_on_gold_changed)
 	_refresh()
@@ -53,7 +55,6 @@ func setup(inv: Inventory, player: Node) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_build_ui()
 
 
 func _unhandled_input(event: InputEvent) -> void:

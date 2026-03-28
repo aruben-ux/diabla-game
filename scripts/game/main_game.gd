@@ -586,7 +586,7 @@ func _on_drop_item_on_ground(item: ItemData) -> void:
 	var player_node := player_container.get_node_or_null(str(my_id))
 	if not player_node:
 		return
-	var drop_pos := player_node.global_position + Vector3(randf_range(-1.0, 1.0), 0.5, randf_range(-1.0, 1.0))
+	var drop_pos: Vector3 = player_node.global_position + Vector3(randf_range(-1.0, 1.0), 0.5, randf_range(-1.0, 1.0))
 	var loot := preload("res://scenes/loot/loot_drop.tscn").instantiate()
 	loot.name = "Dropped_%d" % randi()
 	player_node.get_parent().add_child(loot)
