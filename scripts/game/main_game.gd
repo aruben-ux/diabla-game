@@ -435,6 +435,19 @@ func _on_server_lost() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
+func respawn_player_in_town(peer_id: int) -> void:
+	## Called by player.gd _server_respawn_intent to teleport a respawned player to town.
+	if not multiplayer.is_server():
+		return
+	var old_floor: int = _player_floors.get(peer_id, 0)
+	_player_locations[peer_id] = ActiveLevel.TOWN
+	_player_floors[peer_id] = 0
+	var offset := Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+	_sync_player_to_town.rpc(peer_id, _town_spawn + offset)
+	if old_floor > 0:
+		_maybe_cleanup_floor(old_floor)
+
+
 # --- Player spawning ---
 
 func _spawn_existing_players() -> void:

@@ -328,19 +328,25 @@ func _server_skill_intent(slot: int, target_pos: Vector3) -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != get_multiplayer_authority():
 		return
+	if stats.health <= 0.0:
+		return
 	if skill_manager.try_use_skill(slot, target_pos):
+		# Broadcast to all clients: stat correction + VFX for other players
 		_sync_skill_cast.rpc(slot, target_pos, stats.mana, stats.health)
 
 
-## Broadcast skill execution to all clients for visual feedback + stat sync.
+## Broadcast skill results to clients: sync stats + show VFX on non-caster clients.
 @rpc("authority", "call_remote", "reliable")
 func _sync_skill_cast(slot: int, target_pos: Vector3, new_mana: float, new_health: float) -> void:
 	stats.mana = new_mana
 	stats.health = new_health
+	if is_multiplayer_authority():
+		return  # Caster already has local prediction feedback
 	var skill: SkillData = skill_manager.skills[slot]
 	if skill:
 		skill_manager.cooldowns[slot] = skill.cooldown
 		skill_manager._execute_skill(skill, target_pos)
+		skill_manager.skill_used.emit(slot, skill)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -441,6 +447,9 @@ func _use_skill(slot: int) -> void:
 	if target_pos == Vector3.INF:
 		target_pos = global_position
 	if _is_server_auth:
+		# Local prediction: immediate VFX + cooldown for the caster
+		skill_manager.try_use_skill(slot, target_pos)
+		# Server validates and applies damage
 		_server_skill_intent.rpc_id(1, slot, target_pos)
 	else:
 		_cast_skill.rpc(slot, target_pos)
@@ -462,7 +471,10 @@ func _on_player_died() -> void:
 func _sync_player_died() -> void:
 	is_moving = false
 	is_attacking = false
-	_play_animation("idle")
+	_left_mouse_held = false
+	# Fall-over animation
+	var tween := create_tween()
+	tween.tween_property(model, "rotation:x", -PI / 2.0, 0.5).set_ease(Tween.EASE_IN)
 
 
 func request_respawn() -> void:
@@ -482,6 +494,10 @@ func _server_respawn_intent() -> void:
 	if stats.health > 0.0:
 		return
 	_do_respawn.rpc()
+	# Teleport to town
+	var main_game := get_tree().current_scene
+	if main_game and main_game.has_method("respawn_player_in_town"):
+		main_game.respawn_player_in_town(get_multiplayer_authority())
 
 
 @rpc("authority", "call_local", "reliable")
@@ -490,6 +506,9 @@ func _do_respawn() -> void:
 	stats.mana = stats.max_mana
 	move_target = global_position
 	is_moving = false
+	is_attacking = false
+	# Reset fall-over animation
+	model.rotation.x = 0.0
 
 
 func _process_movement(delta: float) -> void:

@@ -18,6 +18,9 @@ const GRAVITY := 9.8
 @export var attack_cooldown: float = 0.7
 @export var xp_reward: float = 25.0
 
+static var _monster_data: Dictionary = {}
+static var _monster_data_loaded := false
+
 enum EnemyType { GRUNT, MAGE, BRUTE }
 
 @onready var model = $Model
@@ -41,6 +44,8 @@ var _remote_initialized := false
 
 
 func _ready() -> void:
+	_load_monster_data()
+	_apply_monster_data()
 	health = max_health
 	add_to_group("enemies")
 	dissolve_shader = load("res://assets/shaders/dissolve.gdshader")
@@ -91,6 +96,12 @@ func _state_chase(delta: float) -> void:
 		target = null
 		return
 
+	# Drop aggro if target is dead
+	if target.get("stats") and target.stats.health <= 0.0:
+		state = State.IDLE
+		target = null
+		return
+
 	var to_target := target.global_position - global_position
 	to_target.y = 0.0
 	var distance := to_target.length()
@@ -123,6 +134,12 @@ func _state_chase(delta: float) -> void:
 
 func _state_attack(delta: float) -> void:
 	if not is_instance_valid(target):
+		state = State.IDLE
+		target = null
+		return
+
+	# Stop attacking dead targets
+	if target.get("stats") and target.stats.health <= 0.0:
 		state = State.IDLE
 		target = null
 		return
@@ -196,31 +213,56 @@ func _sync_health(new_health: float) -> void:
 	health = new_health
 
 
+static func _load_monster_data() -> void:
+	if _monster_data_loaded:
+		return
+	_monster_data_loaded = true
+	var file := FileAccess.open("res://data/monster_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK:
+			_monster_data = json.data
+		file.close()
+
+
+func _apply_monster_data() -> void:
+	var type_key := EnemyType.keys()[enemy_type]
+	if not _monster_data_loaded or not _monster_data.has("monsters"):
+		return
+	var monsters: Dictionary = _monster_data["monsters"]
+	if not monsters.has(type_key):
+		return
+	var stats: Dictionary = monsters[type_key]
+	max_health = stats.get("max_health", max_health)
+	move_speed = stats.get("move_speed", move_speed)
+	attack_damage = stats.get("attack_damage", attack_damage)
+	attack_range = stats.get("attack_range", attack_range)
+	aggro_range = stats.get("aggro_range", aggro_range)
+	attack_cooldown = stats.get("attack_cooldown", attack_cooldown)
+	xp_reward = stats.get("xp_reward", xp_reward)
+
+
 func _build_model() -> void:
 	match enemy_type:
 		EnemyType.GRUNT:
 			model.build_enemy_grunt()
 		EnemyType.MAGE:
 			model.build_enemy_mage()
-			move_speed = 4.0
-			attack_range = 7.0
-			aggro_range = 16.0
-			attack_cooldown = 0.9
 		EnemyType.BRUTE:
 			model.build_enemy_brute()
-			max_health = 80.0
-			health = max_health
-			attack_damage = 14.0
-			move_speed = 3.5
-			attack_cooldown = 1.0
 
 
 func _apply_floor_scaling() -> void:
 	if floor_level <= 1:
 		return
-	# Each floor adds 25% to health/damage and 15% to XP
-	var scale_factor := 1.0 + (floor_level - 1) * 0.25
-	var xp_factor := 1.0 + (floor_level - 1) * 0.15
+	var hp_dmg_pct := 0.25
+	var xp_pct := 0.15
+	if _monster_data_loaded and _monster_data.has("floor_scaling"):
+		var fs: Dictionary = _monster_data["floor_scaling"]
+		hp_dmg_pct = fs.get("health_damage_per_floor", 0.25)
+		xp_pct = fs.get("xp_per_floor", 0.15)
+	var scale_factor := 1.0 + (floor_level - 1) * hp_dmg_pct
+	var xp_factor := 1.0 + (floor_level - 1) * xp_pct
 	max_health *= scale_factor
 	health = max_health
 	attack_damage *= scale_factor
@@ -302,7 +344,15 @@ func _set_dissolve_amount(amount: float) -> void:
 
 func _drop_loot() -> void:
 	# Drop gold
-	var gold_amount := randi_range(5, 15) * floor_level
+	var g_min := 5
+	var g_max := 15
+	var type_key := EnemyType.keys()[enemy_type]
+	if _monster_data_loaded and _monster_data.has("monsters"):
+		var m: Dictionary = _monster_data["monsters"]
+		if m.has(type_key):
+			g_min = int(m[type_key].get("gold_min", 5))
+			g_max = int(m[type_key].get("gold_max", 15))
+	var gold_amount := randi_range(g_min, g_max) * floor_level
 	_loot_counter += 1
 	var gold_name := "Gold_%d" % _loot_counter
 	_spawn_gold_drop.rpc(gold_name, gold_amount, global_position + Vector3(randf_range(-0.5, 0.5), 0, randf_range(-0.5, 0.5)))
@@ -358,6 +408,9 @@ func _find_nearest_player() -> Node3D:
 
 	for player in get_tree().get_nodes_in_group("players"):
 		if not is_instance_valid(player):
+			continue
+		# Skip dead players
+		if player.get("stats") and player.stats.health <= 0.0:
 			continue
 		var dist := global_position.distance_to(player.global_position)
 		if dist < nearest_dist:
