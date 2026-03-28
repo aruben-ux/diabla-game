@@ -58,6 +58,8 @@ class Character(Base):
     defense = Column(Float, default=5.0)
     move_speed = Column(Float, default=7.0)
     gold = Column(Integer, default=0)
+    health_potions = Column(Integer, default=0)
+    mana_potions = Column(Integer, default=0)
     inventory_items = Column(JSONB, default=list)
     equipment = Column(JSONB, default=dict)
     play_time_seconds = Column(Float, default=0.0)

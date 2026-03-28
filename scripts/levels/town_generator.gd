@@ -1,11 +1,16 @@
 extends Node3D
 
-## Procedural town generator. Builds a small walled town with:
-##   - Central plaza with fountain
-##   - Surrounding buildings (future shop/vendor/quest locations)
-##   - Cobblestone paths between buildings
-##   - Dungeon entrance stairs at the edge of town
-##   - Ambient lighting and decoration
+## Procedural town generator — expanded town with named districts:
+##   - Central plaza with fountain (spawn point, heals on interact)
+##   - Ring road connecting all districts
+##   - NW: Town Hall / Elder's house
+##   - N : Marketplace with open-air stalls
+##   - NE: Alchemist / Potion shop
+##   - E : General goods store
+##   - W : Tavern / Inn (largest building)
+##   - SE: Blacksmith / Armory with forge
+##   - S : Dungeon entrance with guard towers
+##   - Gardens, benches, barrels, crates, and well scattered about
 
 signal town_generated(spawn_position: Vector3, stairs_position: Vector3)
 
@@ -13,10 +18,10 @@ var TILE_SIZE := 3.0
 var WALL_HEIGHT := 5.0
 var BUILDING_HEIGHT := 4.5
 var ROOF_EXTRA := 1.5
-var TOWN_WIDTH := 30
-var TOWN_HEIGHT := 30
+var TOWN_WIDTH := 40
+var TOWN_HEIGHT := 40
 
-# Grid values: 0=void, 1=plaza, 2=wall, 3=path, 4=building, 5=stairs
+# Grid values: 0=void, 1=plaza, 2=wall, 3=path, 4=building, 5=stairs, 6=garden
 var grid: Array = []
 
 # Materials
@@ -26,9 +31,10 @@ var path_material: StandardMaterial3D
 var building_material: StandardMaterial3D
 var roof_material: StandardMaterial3D
 var stairs_material: StandardMaterial3D
+var garden_material: StandardMaterial3D
 
-# Building placement data: array of Rect2i
-var buildings: Array[Rect2i] = []
+# Building placement data — each entry: {rect: Rect2i, label: String, height: float}
+var buildings: Array[Dictionary] = []
 var stairs_rect := Rect2i(0, 0, 0, 0)
 var _spawn_pos := Vector3.ZERO
 var _stairs_pos := Vector3.ZERO
@@ -66,6 +72,7 @@ func generate() -> void:
 	_carve_plaza()
 	_place_buildings()
 	_place_stairs()
+	_place_gardens()
 	_carve_paths()
 	_build_town_walls()
 	_build_mesh()
@@ -86,12 +93,12 @@ func _init_grid() -> void:
 		grid.append(col)
 
 
-# --- Central Plaza ---
+# --- Central Plaza (circular, radius 6 for more room) ---
 
 func _carve_plaza() -> void:
 	var cx := TOWN_WIDTH / 2
 	var cy := TOWN_HEIGHT / 2
-	var radius := 5
+	var radius := 6
 
 	for x in range(cx - radius, cx + radius + 1):
 		for y in range(cy - radius, cy + radius + 1):
@@ -104,49 +111,55 @@ func _carve_plaza() -> void:
 	_spawn_pos = Vector3(cx * TILE_SIZE, 0.5, cy * TILE_SIZE)
 
 
-# --- Buildings ---
+# --- Buildings (named for NPC/vendor system) ---
 
 func _place_buildings() -> void:
 	buildings.clear()
 
-	# Predefined building plots around the plaza
-	var plots: Array[Rect2i] = [
-		# Top-left area
-		Rect2i(3, 3, 5, 4),
-		Rect2i(3, 8, 4, 3),
-		# Top-right area
-		Rect2i(22, 3, 5, 4),
-		Rect2i(23, 8, 4, 3),
-		# Bottom-left area
-		Rect2i(3, 22, 5, 5),
-		Rect2i(3, 18, 4, 3),
-		# Bottom-right area
-		Rect2i(22, 22, 5, 5),
-		Rect2i(23, 18, 4, 3),
-		# Side buildings
-		Rect2i(11, 2, 3, 3),
-		Rect2i(17, 2, 3, 3),
+	# Each building: {rect, label, height}
+	# Heights vary for visual interest
+	var plots: Array[Dictionary] = [
+		# NW — Town Hall / Elder's house (large, tall)
+		{"rect": Rect2i(3, 3, 6, 5), "label": "Town Hall", "height": 6.0},
+		# N — Marketplace building (wide)
+		{"rect": Rect2i(15, 2, 7, 4), "label": "Marketplace", "height": 4.0},
+		# NE — Alchemist / Potion shop
+		{"rect": Rect2i(30, 3, 5, 4), "label": "Alchemist", "height": 5.0},
+		# W — Tavern / Inn (the biggest building)
+		{"rect": Rect2i(2, 16, 7, 6), "label": "Tavern", "height": 5.5},
+		# E — General Goods
+		{"rect": Rect2i(31, 16, 6, 5), "label": "General Store", "height": 4.5},
+		# SW — Residence
+		{"rect": Rect2i(3, 30, 5, 5), "label": "Residence", "height": 4.0},
+		# SE — Blacksmith / Armory
+		{"rect": Rect2i(31, 30, 6, 5), "label": "Blacksmith", "height": 4.5},
+		# Inner ring — small buildings near plaza
+		{"rect": Rect2i(11, 5, 3, 3), "label": "Healer", "height": 4.0},
+		{"rect": Rect2i(26, 5, 3, 3), "label": "Jeweler", "height": 4.0},
+		# Market stalls (open-air, low roofs)
+		{"rect": Rect2i(15, 7, 3, 2), "label": "Fruit Stall", "height": 2.8},
+		{"rect": Rect2i(19, 7, 3, 2), "label": "Weapon Stall", "height": 2.8},
+		{"rect": Rect2i(23, 7, 3, 2), "label": "Armor Stall", "height": 2.8},
 	]
 
 	for plot in plots:
-		# Validate plot fits in grid
-		if plot.position.x + plot.size.x >= TOWN_WIDTH - 1:
+		var rect: Rect2i = plot["rect"]
+		if rect.position.x + rect.size.x >= TOWN_WIDTH - 1:
 			continue
-		if plot.position.y + plot.size.y >= TOWN_HEIGHT - 1:
+		if rect.position.y + rect.size.y >= TOWN_HEIGHT - 1:
 			continue
 
 		buildings.append(plot)
-		for x in range(plot.position.x, plot.position.x + plot.size.x):
-			for y in range(plot.position.y, plot.position.y + plot.size.y):
+		for x in range(rect.position.x, rect.position.x + rect.size.x):
+			for y in range(rect.position.y, rect.position.y + rect.size.y):
 				grid[x][y] = 4
 
 
-# --- Dungeon Stairs ---
+# --- Dungeon Stairs (south-center, flanked by guard towers) ---
 
 func _place_stairs() -> void:
-	# Place stairs at the bottom-center of town
 	var sx := TOWN_WIDTH / 2 - 2
-	var sy := TOWN_HEIGHT - 4
+	var sy := TOWN_HEIGHT - 5
 	stairs_rect = Rect2i(sx, sy, 4, 3)
 
 	for x in range(sx, sx + 4):
@@ -156,28 +169,79 @@ func _place_stairs() -> void:
 
 	_stairs_pos = Vector3((sx + 2) * TILE_SIZE, 0.5, (sy + 1) * TILE_SIZE)
 
+	# Guard tower plots (small, tall buildings flanking the entrance)
+	var left_tower := {"rect": Rect2i(sx - 3, sy - 1, 2, 2), "label": "Guard Tower", "height": 7.0}
+	var right_tower := {"rect": Rect2i(sx + 5, sy - 1, 2, 2), "label": "Guard Tower", "height": 7.0}
+	for tower in [left_tower, right_tower]:
+		var rect: Rect2i = tower["rect"]
+		buildings.append(tower)
+		for x in range(rect.position.x, rect.position.x + rect.size.x):
+			for y in range(rect.position.y, rect.position.y + rect.size.y):
+				if x >= 0 and x < TOWN_WIDTH and y >= 0 and y < TOWN_HEIGHT:
+					grid[x][y] = 4
 
-# --- Paths ---
+
+# --- Gardens (green patches between buildings) ---
+
+func _place_gardens() -> void:
+	# Place small garden plots in open areas
+	var garden_spots: Array[Rect2i] = [
+		Rect2i(10, 12, 3, 3),   # West of plaza
+		Rect2i(27, 12, 3, 3),   # East of plaza
+		Rect2i(10, 25, 3, 3),   # SW area
+		Rect2i(27, 25, 3, 3),   # SE area
+		Rect2i(17, 28, 4, 3),   # South of plaza
+	]
+
+	for spot in garden_spots:
+		for x in range(spot.position.x, spot.position.x + spot.size.x):
+			for y in range(spot.position.y, spot.position.y + spot.size.y):
+				if x >= 0 and x < TOWN_WIDTH and y >= 0 and y < TOWN_HEIGHT:
+					if grid[x][y] == 0:
+						grid[x][y] = 6
+
+
+# --- Paths (ring road + radial streets + building connections) ---
 
 func _carve_paths() -> void:
 	var cx := TOWN_WIDTH / 2
 	var cy := TOWN_HEIGHT / 2
 
 	# Main roads from plaza to edges (N, S, E, W)
-	_carve_road(cx, cy - 5, cx, 1, 2)        # North
-	_carve_road(cx, cy + 5, cx, TOWN_HEIGHT - 2, 2)  # South
-	_carve_road(cx - 5, cy, 1, cy, 2)        # West
-	_carve_road(cx + 5, cy, TOWN_WIDTH - 2, cy, 2)   # East
+	_carve_road(cx, cy - 6, cx, 1, 2)                # North
+	_carve_road(cx, cy + 6, cx, TOWN_HEIGHT - 2, 2)  # South
+	_carve_road(cx - 6, cy, 1, cy, 2)                # West
+	_carve_road(cx + 6, cy, TOWN_WIDTH - 2, cy, 2)   # East
 
-	# Side streets to buildings
+	# Ring road — a rectangular loop around the plaza
+	var ring_inner := 10
+	var ring_outer := TOWN_WIDTH - 10
+	var ring_top := 10
+	var ring_bottom := TOWN_HEIGHT - 10
+	# Top segment
+	_carve_road(ring_inner, ring_top, ring_outer, ring_top, 1)
+	# Bottom segment
+	_carve_road(ring_inner, ring_bottom, ring_outer, ring_bottom, 1)
+	# Left segment
+	_carve_road(ring_inner, ring_top, ring_inner, ring_bottom, 1)
+	# Right segment
+	_carve_road(ring_outer, ring_top, ring_outer, ring_bottom, 1)
+
+	# Diagonal shortcuts (NW-SE, NE-SW) — use stepped L-shapes
+	_carve_road(ring_inner, ring_top, cx - 6, cy, 1)
+	_carve_road(ring_outer, ring_top, cx + 6, cy, 1)
+	_carve_road(ring_inner, ring_bottom, cx - 6, cy, 1)
+	_carve_road(ring_outer, ring_bottom, cx + 6, cy, 1)
+
+	# Connect each building to the nearest path
 	for b in buildings:
-		var bx := b.position.x + b.size.x / 2
-		var by := b.position.y + b.size.y / 2
-		# Connect building to nearest main road axis
+		var rect: Rect2i = b["rect"]
+		var bx := rect.position.x + rect.size.x / 2
+		var by := rect.position.y + rect.size.y / 2
 		if bx < cx:
-			_carve_road(b.position.x + b.size.x, by, cx, by, 1)
+			_carve_road(rect.position.x + rect.size.x, by, mini(cx, ring_inner + 1), by, 1)
 		else:
-			_carve_road(b.position.x, by, cx, by, 1)
+			_carve_road(rect.position.x, by, maxi(cx, ring_outer - 1), by, 1)
 
 
 func _carve_road(x1: int, y1: int, x2: int, y2: int, half_w: int) -> void:
@@ -220,7 +284,8 @@ func _has_floor_neighbor(x: int, y: int) -> bool:
 			var nx := x + dx
 			var ny := y + dy
 			if nx >= 0 and nx < TOWN_WIDTH and ny >= 0 and ny < TOWN_HEIGHT:
-				if grid[nx][ny] == 1 or grid[nx][ny] == 3 or grid[nx][ny] == 5:
+				var t := grid[nx][ny]
+				if t == 1 or t == 3 or t == 5 or t == 6:
 					return true
 	return false
 
@@ -234,8 +299,8 @@ func _build_mesh() -> void:
 	var floor_positions := []
 	var wall_positions := []
 	var path_positions := []
-	var building_data := []  # {pos, rect}
 	var stairs_positions := []
+	var garden_positions := []
 
 	for x in TOWN_WIDTH:
 		for y in TOWN_HEIGHT:
@@ -249,13 +314,16 @@ func _build_mesh() -> void:
 					path_positions.append(world_pos)
 				5:  # Stairs
 					stairs_positions.append(world_pos)
+				6:  # Garden
+					garden_positions.append(world_pos)
 
 	_build_floor_chunks(floor_positions, "Plaza", ground_material)
 	_build_floor_chunks(path_positions, "Path", path_material)
+	_build_floor_chunks(garden_positions, "Garden", garden_material)
 	_build_wall_blocks(wall_positions)
 	_build_buildings()
 	_build_stairs_mesh(stairs_positions)
-	_build_collision(floor_positions + path_positions + stairs_positions, wall_positions)
+	_build_collision(floor_positions + path_positions + stairs_positions + garden_positions, wall_positions)
 
 
 func _build_floor_chunks(positions: Array, group_name: String, mat: StandardMaterial3D) -> void:
@@ -306,16 +374,15 @@ func _build_wall_blocks(positions: Array) -> void:
 
 func _build_buildings() -> void:
 	for i in buildings.size():
-		var b := buildings[i]
-		_build_single_building(b, i)
+		var b: Dictionary = buildings[i]
+		_build_single_building(b["rect"], i, b.get("height", BUILDING_HEIGHT), b.get("label", ""))
 
 
-func _build_single_building(rect: Rect2i, idx: int) -> void:
+func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> void:
 	var x1 := rect.position.x * TILE_SIZE
 	var z1 := rect.position.y * TILE_SIZE
 	var x2 := (rect.position.x + rect.size.x) * TILE_SIZE
 	var z2 := (rect.position.y + rect.size.y) * TILE_SIZE
-	var h := BUILDING_HEIGHT
 
 	# --- Walls ---
 	var st := SurfaceTool.new()
@@ -402,6 +469,30 @@ func _build_single_building(rect: Rect2i, idx: int) -> void:
 	light.light_color = Color(1.0, 0.9, 0.7)
 	light.shadow_enabled = false
 	add_child(light)
+
+	# Building name sign above the front door
+	if label != "":
+		var sign_label := Label3D.new()
+		sign_label.text = label
+		sign_label.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.15)
+		sign_label.pixel_size = 0.01
+		sign_label.font_size = 36
+		sign_label.modulate = Color(0.95, 0.88, 0.65)
+		sign_label.outline_modulate = Color(0.1, 0.05, 0.0)
+		sign_label.outline_size = 6
+		sign_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		add_child(sign_label)
+
+		# Hanging sign board behind the text
+		var sign_board := MeshInstance3D.new()
+		var board_mesh := BoxMesh.new()
+		board_mesh.size = Vector3(label.length() * 0.22 + 0.4, 0.5, 0.06)
+		sign_board.mesh = board_mesh
+		sign_board.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.1)
+		var wood_mat := StandardMaterial3D.new()
+		wood_mat.albedo_color = Color(0.35, 0.22, 0.1)
+		sign_board.material_override = wood_mat
+		add_child(sign_board)
 
 
 func _build_stairs_mesh(positions: Array) -> void:
@@ -529,16 +620,36 @@ func _place_props() -> void:
 	# Fountain in plaza center
 	_build_fountain()
 
-	# Signposts near buildings
-	_build_signpost(Vector3(buildings[0].position.x * TILE_SIZE - 2.0, 0, (buildings[0].position.y + buildings[0].size.y) * TILE_SIZE + 1.0), "Shop (Coming Soon)")
-	if buildings.size() > 2:
-		_build_signpost(Vector3(buildings[2].position.x * TILE_SIZE - 2.0, 0, (buildings[2].position.y + buildings[2].size.y) * TILE_SIZE + 1.0), "Armory (Coming Soon)")
+	# Stone benches around the plaza
+	_build_plaza_benches()
 
-	# Stairs sign
-	_build_signpost(_stairs_pos + Vector3(-3.0, 0, -2.0), "Dungeon Entrance")
+	# Town well near the tavern
+	_build_well(Vector3(10 * TILE_SIZE, 0, 14 * TILE_SIZE))
+
+	# Blacksmith forge (outdoor anvil + fire near the blacksmith building)
+	_build_forge()
+
+	# Barrel & crate clusters scattered around
+	_build_barrel_cluster(Vector3(14 * TILE_SIZE, 0, 8 * TILE_SIZE), 3)
+	_build_barrel_cluster(Vector3(24 * TILE_SIZE, 0, 8 * TILE_SIZE), 2)
+	_build_barrel_cluster(Vector3(4 * TILE_SIZE, 0, 23 * TILE_SIZE), 4)
+	_build_barrel_cluster(Vector3(35 * TILE_SIZE, 0, 23 * TILE_SIZE), 3)
+
+	# Trees in garden areas
+	_place_garden_trees()
+
+	# Signposts at key locations
+	_build_signpost(_stairs_pos + Vector3(-4.0, 0, -2.0), "Dungeon Entrance")
+	_build_signpost(Vector3(TOWN_WIDTH / 2 * TILE_SIZE, 0, 9 * TILE_SIZE), "Marketplace")
 
 	# Lanterns along paths
 	_place_path_lanterns()
+
+	# Market awnings over stalls
+	_build_market_awnings()
+
+	# Decorative plaza ring (stone border)
+	_build_plaza_ring()
 
 
 func _build_fountain() -> void:
@@ -643,6 +754,390 @@ func _build_fountain() -> void:
 	fountain_body.add_child(fl)
 
 	add_child(fountain_body)
+
+
+func _build_plaza_ring() -> void:
+	# Decorative stone ring on the plaza floor around the fountain
+	var cx := (TOWN_WIDTH / 2) * TILE_SIZE
+	var cz := (TOWN_HEIGHT / 2) * TILE_SIZE
+	var ring_segments := 32
+	var inner_r := 4.0
+	var outer_r := 4.6
+	var ring_h := 0.15
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	for i in ring_segments:
+		var a0: float = TAU * i / ring_segments
+		var a1: float = TAU * (i + 1) / ring_segments
+		var cos0 := cos(a0)
+		var sin0 := sin(a0)
+		var cos1 := cos(a1)
+		var sin1 := sin(a1)
+
+		# Top face of ring segment
+		var p0 := Vector3(cos0 * inner_r, ring_h, sin0 * inner_r)
+		var p1 := Vector3(cos0 * outer_r, ring_h, sin0 * outer_r)
+		var p2 := Vector3(cos1 * outer_r, ring_h, sin1 * outer_r)
+		var p3 := Vector3(cos1 * inner_r, ring_h, sin1 * inner_r)
+		_add_quad(st, p0, p1, p2, p3)
+
+	st.generate_normals()
+	var mesh := st.commit()
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = Vector3(cx, 0, cz)
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.45, 0.42, 0.4)
+	ring_mat.roughness = 0.5
+	mi.material_override = ring_mat
+	add_child(mi)
+
+
+func _build_plaza_benches() -> void:
+	var cx := (TOWN_WIDTH / 2) * TILE_SIZE
+	var cz := (TOWN_HEIGHT / 2) * TILE_SIZE
+	var bench_dist := 5.5
+
+	# 4 benches at cardinal directions, just outside the stone ring
+	var offsets := [
+		Vector3(bench_dist, 0, 0),
+		Vector3(-bench_dist, 0, 0),
+		Vector3(0, 0, bench_dist),
+		Vector3(0, 0, -bench_dist),
+	]
+	for off in offsets:
+		_build_bench(Vector3(cx, 0, cz) + off, off.z != 0.0)
+
+
+func _build_bench(pos: Vector3, rotated: bool) -> void:
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.5, 0.33, 0.15)
+	wood_mat.roughness = 0.85
+
+	# Seat plank
+	var seat := MeshInstance3D.new()
+	var seat_mesh := BoxMesh.new()
+	if rotated:
+		seat_mesh.size = Vector3(0.3, 0.08, 1.4)
+	else:
+		seat_mesh.size = Vector3(1.4, 0.08, 0.3)
+	seat.mesh = seat_mesh
+	seat.position = pos + Vector3(0, 0.45, 0)
+	seat.material_override = wood_mat
+	add_child(seat)
+
+	# Two legs
+	var leg_mesh := BoxMesh.new()
+	leg_mesh.size = Vector3(0.1, 0.45, 0.1)
+	var iron_mat := StandardMaterial3D.new()
+	iron_mat.albedo_color = Color(0.25, 0.22, 0.2)
+	for i in [-1, 1]:
+		var leg := MeshInstance3D.new()
+		leg.mesh = leg_mesh
+		if rotated:
+			leg.position = pos + Vector3(0, 0.225, i * 0.5)
+		else:
+			leg.position = pos + Vector3(i * 0.5, 0.225, 0)
+		leg.material_override = iron_mat
+		add_child(leg)
+
+
+func _build_well(pos: Vector3) -> void:
+	# Circular stone well
+	var well_mat := StandardMaterial3D.new()
+	well_mat.albedo_color = Color(0.42, 0.4, 0.38)
+	well_mat.roughness = 0.8
+
+	# Base cylinder (wall)
+	var base := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.9
+	cyl.bottom_radius = 1.0
+	cyl.height = 0.8
+	base.mesh = cyl
+	base.position = pos + Vector3(0, 0.4, 0)
+	base.material_override = well_mat
+	add_child(base)
+
+	# Cross-beam (wooden support above)
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.45, 0.3, 0.15)
+
+	var beam := MeshInstance3D.new()
+	var beam_mesh := BoxMesh.new()
+	beam_mesh.size = Vector3(0.1, 1.5, 0.1)
+	beam.mesh = beam_mesh
+	beam.position = pos + Vector3(-0.7, 1.5, 0)
+	beam.material_override = wood_mat
+	add_child(beam)
+
+	var beam2 := MeshInstance3D.new()
+	beam2.mesh = beam_mesh
+	beam2.position = pos + Vector3(0.7, 1.5, 0)
+	beam2.material_override = wood_mat
+	add_child(beam2)
+
+	# Horizontal beam
+	var hbeam := MeshInstance3D.new()
+	var hbeam_mesh := BoxMesh.new()
+	hbeam_mesh.size = Vector3(1.6, 0.1, 0.1)
+	hbeam.mesh = hbeam_mesh
+	hbeam.position = pos + Vector3(0, 2.3, 0)
+	hbeam.material_override = wood_mat
+	add_child(hbeam)
+
+	# Bucket (small box dangling)
+	var bucket := MeshInstance3D.new()
+	var bucket_mesh := BoxMesh.new()
+	bucket_mesh.size = Vector3(0.2, 0.15, 0.2)
+	bucket.mesh = bucket_mesh
+	bucket.position = pos + Vector3(0, 1.8, 0)
+	bucket.material_override = wood_mat
+	add_child(bucket)
+
+	# Rope (thin cylinder)
+	var rope := MeshInstance3D.new()
+	var rope_mesh := CylinderMesh.new()
+	rope_mesh.top_radius = 0.015
+	rope_mesh.bottom_radius = 0.015
+	rope_mesh.height = 0.5
+	rope.mesh = rope_mesh
+	rope.position = pos + Vector3(0, 2.05, 0)
+	var rope_mat := StandardMaterial3D.new()
+	rope_mat.albedo_color = Color(0.55, 0.45, 0.3)
+	rope.material_override = rope_mat
+	add_child(rope)
+
+
+func _build_forge() -> void:
+	# Find the Blacksmith building
+	var smith_rect: Rect2i
+	var found := false
+	for b in buildings:
+		if b.get("label", "") == "Blacksmith":
+			smith_rect = b["rect"]
+			found = true
+			break
+	if not found:
+		return
+
+	var forge_x: float = (smith_rect.position.x + smith_rect.size.x / 2) * TILE_SIZE
+	var forge_z: float = (smith_rect.position.y + smith_rect.size.y) * TILE_SIZE + 3.0
+
+	# Anvil (dark metallic box)
+	var anvil := MeshInstance3D.new()
+	var anvil_mesh := BoxMesh.new()
+	anvil_mesh.size = Vector3(0.6, 0.5, 0.35)
+	anvil.mesh = anvil_mesh
+	anvil.position = Vector3(forge_x, 0.25, forge_z)
+	var iron_mat := StandardMaterial3D.new()
+	iron_mat.albedo_color = Color(0.2, 0.2, 0.22)
+	iron_mat.metallic = 0.8
+	iron_mat.roughness = 0.4
+	anvil.material_override = iron_mat
+	add_child(anvil)
+
+	# Forge fire pit (short box with emissive glow)
+	var pit := MeshInstance3D.new()
+	var pit_mesh := BoxMesh.new()
+	pit_mesh.size = Vector3(1.0, 0.4, 1.0)
+	pit.mesh = pit_mesh
+	pit.position = Vector3(forge_x + 2.0, 0.2, forge_z)
+	var fire_mat := StandardMaterial3D.new()
+	fire_mat.albedo_color = Color(0.3, 0.15, 0.05)
+	fire_mat.emission_enabled = true
+	fire_mat.emission = Color(1.0, 0.4, 0.1)
+	fire_mat.emission_energy_multiplier = 2.0
+	pit.material_override = fire_mat
+	add_child(pit)
+
+	# Fire particles
+	var fire := GPUParticles3D.new()
+	fire.position = Vector3(forge_x + 2.0, 0.6, forge_z)
+	fire.amount = 20
+	fire.lifetime = 0.8
+	fire.explosiveness = 0.1
+	fire.visibility_aabb = AABB(Vector3(-2, -2, -2), Vector3(4, 4, 4))
+
+	var pmat := ParticleProcessMaterial.new()
+	pmat.direction = Vector3(0, 1, 0)
+	pmat.spread = 15.0
+	pmat.initial_velocity_min = 0.5
+	pmat.initial_velocity_max = 1.5
+	pmat.gravity = Vector3(0, -1, 0)
+	pmat.scale_min = 0.05
+	pmat.scale_max = 0.12
+	pmat.color = Color(1.0, 0.6, 0.1, 0.9)
+	fire.process_material = pmat
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.15, 0.15)
+	var fire_draw_mat := StandardMaterial3D.new()
+	fire_draw_mat.albedo_color = Color(1.0, 0.5, 0.1, 0.8)
+	fire_draw_mat.emission_enabled = true
+	fire_draw_mat.emission = Color(1.0, 0.5, 0.1)
+	fire_draw_mat.emission_energy_multiplier = 3.0
+	fire_draw_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fire_draw_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	quad.material = fire_draw_mat
+	fire.draw_pass_1 = quad
+	add_child(fire)
+
+	# Smoke particles above the forge
+	var smoke := GPUParticles3D.new()
+	smoke.position = Vector3(forge_x + 2.0, 1.5, forge_z)
+	smoke.amount = 10
+	smoke.lifetime = 2.5
+	smoke.explosiveness = 0.0
+	smoke.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 8, 6))
+
+	var smat := ParticleProcessMaterial.new()
+	smat.direction = Vector3(0, 1, 0)
+	smat.spread = 10.0
+	smat.initial_velocity_min = 0.3
+	smat.initial_velocity_max = 0.8
+	smat.gravity = Vector3(0, 0.5, 0)
+	smat.scale_min = 0.1
+	smat.scale_max = 0.3
+	smat.color = Color(0.4, 0.4, 0.4, 0.3)
+	smoke.process_material = smat
+
+	var smoke_quad := QuadMesh.new()
+	smoke_quad.size = Vector2(0.3, 0.3)
+	var smoke_mat := StandardMaterial3D.new()
+	smoke_mat.albedo_color = Color(0.5, 0.5, 0.5, 0.25)
+	smoke_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke_quad.material = smoke_mat
+	smoke.draw_pass_1 = smoke_quad
+	add_child(smoke)
+
+	# Forge light
+	var forge_light := OmniLight3D.new()
+	forge_light.position = Vector3(forge_x + 2.0, 1.0, forge_z)
+	forge_light.omni_range = 6.0
+	forge_light.light_energy = 1.5
+	forge_light.light_color = Color(1.0, 0.6, 0.2)
+	forge_light.shadow_enabled = false
+	add_child(forge_light)
+
+
+func _build_barrel_cluster(pos: Vector3, count: int) -> void:
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.45, 0.3, 0.15)
+	wood_mat.roughness = 0.9
+
+	var iron_band_mat := StandardMaterial3D.new()
+	iron_band_mat.albedo_color = Color(0.25, 0.22, 0.2)
+
+	for i in count:
+		var offset := Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
+		# Barrel (cylinder)
+		var barrel := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.3
+		cyl.bottom_radius = 0.35
+		cyl.height = 0.8
+		barrel.mesh = cyl
+		barrel.position = pos + offset + Vector3(0, 0.4, 0)
+		barrel.material_override = wood_mat
+		add_child(barrel)
+
+	# Add a crate or two next to barrels
+	if count >= 3:
+		var crate := MeshInstance3D.new()
+		var crate_mesh := BoxMesh.new()
+		crate_mesh.size = Vector3(0.6, 0.5, 0.6)
+		crate.mesh = crate_mesh
+		crate.position = pos + Vector3(2.0, 0.25, 0)
+		crate.material_override = wood_mat
+		add_child(crate)
+
+
+func _place_garden_trees() -> void:
+	var tree_color := Color(0.2, 0.45, 0.15)
+	var trunk_color := Color(0.4, 0.25, 0.1)
+
+	# Place trees on garden tiles (sparse — skip some)
+	var placed_count := 0
+	for x in TOWN_WIDTH:
+		for y in TOWN_HEIGHT:
+			if grid[x][y] != 6:
+				continue
+			# Every other garden tile, roughly
+			placed_count += 1
+			if placed_count % 3 != 0:
+				continue
+
+			var world_pos := Vector3(x * TILE_SIZE, 0, y * TILE_SIZE)
+			_build_tree(world_pos, tree_color, trunk_color)
+
+
+func _build_tree(pos: Vector3, leaf_color: Color, trunk_color: Color) -> void:
+	var trunk_mat := StandardMaterial3D.new()
+	trunk_mat.albedo_color = trunk_color
+	trunk_mat.roughness = 0.9
+
+	# Trunk
+	var trunk := MeshInstance3D.new()
+	var tcyl := CylinderMesh.new()
+	tcyl.top_radius = 0.08
+	tcyl.bottom_radius = 0.12
+	tcyl.height = 1.8
+	trunk.mesh = tcyl
+	trunk.position = pos + Vector3(0, 0.9, 0)
+	trunk.material_override = trunk_mat
+	add_child(trunk)
+
+	# Canopy (sphere)
+	var canopy := MeshInstance3D.new()
+	canopy.mesh = SphereMesh.new()
+	canopy.position = pos + Vector3(0, 2.3, 0)
+	canopy.scale = Vector3(1.0, 0.8, 1.0)
+	var leaf_mat := StandardMaterial3D.new()
+	leaf_mat.albedo_color = leaf_color
+	leaf_mat.roughness = 0.95
+	canopy.material_override = leaf_mat
+	add_child(canopy)
+
+
+func _build_market_awnings() -> void:
+	# Colorful cloth awnings over market stall buildings
+	var awning_colors := [
+		Color(0.7, 0.15, 0.1),  # Red
+		Color(0.1, 0.2, 0.65),  # Blue
+		Color(0.6, 0.55, 0.1),  # Gold
+	]
+	var color_idx := 0
+
+	for b in buildings:
+		var label: String = b.get("label", "")
+		if "Stall" not in label:
+			continue
+		var rect: Rect2i = b["rect"]
+		var h: float = b.get("height", BUILDING_HEIGHT)
+
+		var bx1: float = rect.position.x * TILE_SIZE - TILE_SIZE / 2.0
+		var bx2: float = (rect.position.x + rect.size.x) * TILE_SIZE - TILE_SIZE / 2.0
+		var bz2: float = (rect.position.y + rect.size.y) * TILE_SIZE - TILE_SIZE / 2.0
+
+		# Awning — a thin angled quad extending from the front wall
+		var awning := MeshInstance3D.new()
+		var awning_mesh := BoxMesh.new()
+		awning_mesh.size = Vector3(bx2 - bx1 + 0.5, 0.05, 2.0)
+		awning.mesh = awning_mesh
+		awning.position = Vector3((bx1 + bx2) / 2.0, h - 0.3, bz2 + 1.0)
+		awning.rotation.x = -0.15  # Slight tilt
+
+		var awning_mat := StandardMaterial3D.new()
+		awning_mat.albedo_color = awning_colors[color_idx % awning_colors.size()]
+		awning_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		awning.material_override = awning_mat
+		add_child(awning)
+
+		color_idx += 1
 
 
 func _build_signpost(pos: Vector3, text: String) -> void:
@@ -830,6 +1325,11 @@ func _create_materials() -> void:
 
 	stairs_material = _make_stone_material(
 		Color(0.45, 0.42, 0.50), Color(0.28, 0.26, 0.32), 0.7, 0.4)
+
+	garden_material = StandardMaterial3D.new()
+	garden_material.albedo_color = Color(0.25, 0.42, 0.15)
+	garden_material.roughness = 0.95
+	garden_material.uv1_triplanar = true
 
 
 func _make_stone_material(base_color: Color, dark_color: Color, roughness: float, tex_scale: float) -> StandardMaterial3D:

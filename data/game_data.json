@@ -284,8 +284,8 @@
         "min_split_size": 12,
         "corridor_width": 3,
         "wall_height": 4.0,
-        "town_width": 30,
-        "town_height": 30,
+        "town_width": 40,
+        "town_height": 40,
         "town_wall_height": 5.0,
         "building_height": 4.5,
         "roof_extra": 1.5

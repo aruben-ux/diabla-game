@@ -52,6 +52,8 @@ class CharacterResponse(BaseModel):
     defense: float
     move_speed: float
     gold: int
+    health_potions: int
+    mana_potions: int
     inventory_items: list
     equipment: dict
     play_time_seconds: float
@@ -78,6 +80,8 @@ class CharacterUpdate(BaseModel):
     defense: float | None = None
     move_speed: float | None = None
     gold: int | None = None
+    health_potions: int | None = None
+    mana_potions: int | None = None
     inventory_items: list | None = None
     equipment: dict | None = None
     play_time_seconds: float | None = None

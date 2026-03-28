@@ -187,6 +187,8 @@ def _to_response(char: Character) -> CharacterResponse:
         defense=char.defense,
         move_speed=char.move_speed,
         gold=char.gold,
+        health_potions=char.health_potions or 0,
+        mana_potions=char.mana_potions or 0,
         inventory_items=char.inventory_items or [],
         equipment=char.equipment or {},
         play_time_seconds=char.play_time_seconds,
