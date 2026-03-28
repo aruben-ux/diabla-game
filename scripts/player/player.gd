@@ -136,7 +136,7 @@ func _setup_name_label() -> void:
 		_name_label.visible = false
 
 
-@rpc("authority", "call_remote", "reliable")
+@rpc("any_peer", "call_remote", "reliable")
 func _sync_player_name(p_name: String) -> void:
 	player_name = p_name
 	if _name_label:
