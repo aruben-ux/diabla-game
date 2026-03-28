@@ -20,6 +20,7 @@ var _stairs_up_area: Area3D
 var _stairs_down_area: Area3D
 var _stair_props_container: Node3D
 var _particles_node: GPUParticles3D
+var _chest_container: Node3D
 var _flicker_time := 0.0
 
 
@@ -69,6 +70,9 @@ func _cleanup_floor() -> void:
 		_particles_node.queue_free()
 		_particles_node = null
 		_stair_props_container = null
+	if _chest_container and is_instance_valid(_chest_container):
+		_chest_container.queue_free()
+		_chest_container = null
 
 	# Clear lights
 	for child in light_container.get_children():
@@ -107,7 +111,108 @@ func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vect
 	_create_stairs_trigger(stairs_up, true)
 	_create_stairs_trigger(stairs_down, false)
 
+	# Spawn treasure chests in some rooms
+	_spawn_treasure_chests(room_list)
+
 	level_ready.emit(spawn_position, stairs_up_position, stairs_down_position)
+
+
+func _spawn_treasure_chests(room_list: Array) -> void:
+	_chest_container = Node3D.new()
+	_chest_container.name = "ChestContainer"
+	add_child(_chest_container)
+
+	var tile_size: float = generator.TILE_SIZE
+
+	# Skip first room (spawn) and last room (stairs down) — place chests in others
+	for i in range(1, room_list.size() - 1):
+		# ~50% chance per room to have a chest
+		if randf() > 0.5:
+			continue
+		var room: Rect2i = room_list[i]
+		# Place chest near a wall inside the room
+		var cx := (room.position.x + randi_range(1, room.size.x - 2)) * tile_size
+		var cz := (room.position.y + randi_range(1, room.size.y - 2)) * tile_size
+		_build_chest(Vector3(cx, 0.0, cz))
+
+
+func _build_chest(pos: Vector3) -> void:
+	var chest_script := preload("res://scripts/loot/treasure_chest.gd")
+
+	var body := StaticBody3D.new()
+	body.position = pos
+	body.collision_layer = 128 | 1  # layer 8 (interactable) + layer 1 (physical)
+	body.collision_mask = 0
+	body.add_to_group("interactables")
+	body.set_script(chest_script)
+	body.setup(current_floor)
+
+	# Collision shape
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.2, 0.8, 0.8)
+	col.shape = box
+	col.position = Vector3(0, 0.4, 0)
+	body.add_child(col)
+
+	# Chest body (base box)
+	var base_mat := StandardMaterial3D.new()
+	base_mat.albedo_color = Color(0.45, 0.28, 0.12)
+	base_mat.roughness = 0.7
+
+	var base_mi := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(1.0, 0.5, 0.7)
+	base_mi.mesh = base_mesh
+	base_mi.position = Vector3(0, 0.25, 0)
+	base_mi.material_override = base_mat
+	body.add_child(base_mi)
+
+	# Metal trim band
+	var trim_mat := StandardMaterial3D.new()
+	trim_mat.albedo_color = Color(0.6, 0.55, 0.3)
+	trim_mat.metallic = 0.8
+	trim_mat.roughness = 0.4
+
+	var trim_mi := MeshInstance3D.new()
+	var trim_mesh := BoxMesh.new()
+	trim_mesh.size = Vector3(1.05, 0.08, 0.75)
+	trim_mi.mesh = trim_mesh
+	trim_mi.position = Vector3(0, 0.5, 0)
+	trim_mi.material_override = trim_mat
+	body.add_child(trim_mi)
+
+	# Lid (opens on interact)
+	var lid_mi := MeshInstance3D.new()
+	var lid_mesh := BoxMesh.new()
+	lid_mesh.size = Vector3(1.0, 0.15, 0.7)
+	lid_mi.mesh = lid_mesh
+	# Pivot at back edge: offset mesh forward, then position lid node at back
+	lid_mi.position = Vector3(0, 0.075, 0.175)
+	lid_mi.material_override = base_mat
+
+	var lid_pivot := Node3D.new()
+	lid_pivot.name = "LidPivot"
+	lid_pivot.position = Vector3(0, 0.5, -0.35)
+	body.add_child(lid_pivot)
+	lid_pivot.add_child(lid_mi)
+	body.set_lid(lid_pivot)
+
+	# Lock / clasp
+	var lock_mat := StandardMaterial3D.new()
+	lock_mat.albedo_color = Color(0.7, 0.6, 0.2)
+	lock_mat.metallic = 0.9
+	lock_mat.roughness = 0.3
+
+	var lock_mi := MeshInstance3D.new()
+	var lock_mesh := BoxMesh.new()
+	lock_mesh.size = Vector3(0.12, 0.12, 0.05)
+	lock_mi.mesh = lock_mesh
+	lock_mi.position = Vector3(0, 0.45, 0.36)
+	lock_mi.material_override = lock_mat
+	body.add_child(lock_mi)
+
+	_chest_container.add_child(body)
 
 
 func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:

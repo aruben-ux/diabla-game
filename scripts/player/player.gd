@@ -314,7 +314,7 @@ func _check_pending_interact() -> void:
 		_pending_interact = null
 		if target.has_method("interact"):
 			if _is_server_auth:
-				_server_fountain_heal_intent.rpc_id(1)
+				_server_interact_intent.rpc_id(1, target.global_position)
 			else:
 				target.interact(self)
 
@@ -678,7 +678,7 @@ func _do_respawn(new_health: float, new_mana: float) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _server_fountain_heal_intent() -> void:
+func _server_interact_intent(target_pos: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender := multiplayer.get_remote_sender_id()
@@ -686,9 +686,21 @@ func _server_fountain_heal_intent() -> void:
 		return
 	if stats.health <= 0.0:
 		return
-	stats.health = stats.max_health
-	stats.mana = stats.max_mana
-	_sync_fountain_heal.rpc(stats.health, stats.mana)
+	# Find the nearest interactable to the given position
+	var best: Node3D = null
+	var best_dist := 2.0  # Must be within 2m of reported position
+	for node in get_tree().get_nodes_in_group("interactables"):
+		var d := (node as Node3D).global_position.distance_to(target_pos)
+		if d < best_dist:
+			best_dist = d
+			best = node as Node3D
+	if best and best.has_method("interact"):
+		# Verify player is actually close enough
+		var player_dist := global_position.distance_to(best.global_position)
+		if player_dist <= INTERACT_RANGE + 1.0:
+			best.interact(self)
+			# Sync health/mana changes to client
+			_sync_fountain_heal.rpc(stats.health, stats.mana)
 
 
 @rpc("any_peer", "call_remote", "reliable")

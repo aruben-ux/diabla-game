@@ -549,7 +549,7 @@ func _build_fountain() -> void:
 	var fountain_body := StaticBody3D.new()
 	fountain_body.name = "Fountain"
 	fountain_body.position = Vector3(cx, 0.0, cz)
-	fountain_body.collision_layer = 128  # layer 8
+	fountain_body.collision_layer = 128 | 1  # layer 8 (interactable) + layer 1 (physical)
 	fountain_body.collision_mask = 0
 	fountain_body.add_to_group("interactables")
 	fountain_body.set_script(preload("res://scripts/levels/fountain.gd"))
