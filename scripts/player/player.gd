@@ -313,10 +313,11 @@ func _check_pending_interact() -> void:
 		var target := _pending_interact
 		_pending_interact = null
 		if target.has_method("interact"):
+			# Client plays local interact effects (animation etc.)
+			target.interact(self)
+			# Server handles authoritative side-effects (loot drops, stat changes)
 			if _is_server_auth:
 				_server_interact_intent.rpc_id(1, target.global_position)
-			else:
-				target.interact(self)
 
 
 ## Server-authoritative mode: server simulates all players.
@@ -431,7 +432,7 @@ func _raycast_ground() -> Vector3:
 	return Vector3.INF
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _set_move_target(target: Vector3) -> void:
 	move_target = target
 	is_moving = true
@@ -490,7 +491,7 @@ func _server_skill_intent(slot: int, target_pos: Vector3) -> void:
 
 
 ## Broadcast skill results to clients: sync stats + show VFX on non-caster clients.
-@rpc("authority", "call_remote", "reliable")
+@rpc("any_peer", "call_remote", "reliable")
 func _sync_skill_cast(slot: int, target_pos: Vector3, new_mana: float, new_health: float) -> void:
 	stats.mana = new_mana
 	stats.health = new_health
@@ -503,7 +504,7 @@ func _sync_skill_cast(slot: int, target_pos: Vector3, new_mana: float, new_healt
 		skill_manager.skill_used.emit(slot, skill)
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _perform_attack() -> void:
 	_play_animation("attack")
 
@@ -609,7 +610,7 @@ func _use_skill(slot: int) -> void:
 		_cast_skill.rpc(slot, target_pos)
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _cast_skill(slot: int, target_pos: Vector3) -> void:
 	skill_manager.try_use_skill(slot, target_pos)
 
@@ -621,7 +622,7 @@ func _on_player_died() -> void:
 		_sync_player_died.rpc()
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _sync_player_died() -> void:
 	is_moving = false
 	is_attacking = false
@@ -699,6 +700,9 @@ func _server_interact_intent(target_pos: Vector3) -> void:
 		var player_dist := global_position.distance_to(best.global_position)
 		if player_dist <= INTERACT_RANGE + 1.0:
 			best.interact(self)
+			# Server-only effects (loot drops etc.)
+			if best.has_method("server_interact"):
+				best.server_interact(self)
 			# Sync health/mana changes to client
 			_sync_fountain_heal.rpc(stats.health, stats.mana)
 

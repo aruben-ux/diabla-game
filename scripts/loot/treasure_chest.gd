@@ -24,6 +24,10 @@ func interact(player: Node) -> void:
 	display_name = "Empty Chest"
 	interact_hint = ""
 	_animate_open()
+
+
+func server_interact(player: Node) -> void:
+	## Called by the server to drop loot. Client calls interact() for animation only.
 	_drop_contents(player)
 
 
