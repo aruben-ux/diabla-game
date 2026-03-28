@@ -215,6 +215,12 @@ class GameEditor:
         self._part_color = [0.5, 0.5, 0.5, 1.0]
         self.emissive_var: tk.BooleanVar | None = None
 
+        # Preview camera rotation (right-click drag)
+        self._view_angle: float = 0.0  # radians around Y axis
+        self._drag_start_x: int | None = None
+        self._drag_start_angle: float = 0.0
+        self._part_hit_boxes: list = []  # [(x1,y1,x2,y2, path), ...]
+
         self._load_data()
         self._build_ui()
         self._init_all_tabs()
@@ -521,11 +527,17 @@ class GameEditor:
             row=ri + 3, column=0, columnspan=2, sticky="ew", padx=6, pady=(4, 6))
 
         # Preview canvas
-        pvf = ttk.LabelFrame(right, text="Preview (Front View)")
+        pvf = ttk.LabelFrame(right, text="Preview")
         pvf.pack(fill="both", expand=True, padx=2, pady=2)
         self.canvas = tk.Canvas(pvf, bg="#1a1a2e", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Configure>", lambda e: self._redraw_preview())
+        # Left-click to select part
+        self.canvas.bind("<Button-1>", self._on_canvas_click)
+        # Right-click drag to rotate camera
+        self.canvas.bind("<ButtonPress-3>", self._on_canvas_drag_start)
+        self.canvas.bind("<B3-Motion>", self._on_canvas_drag)
+        self.canvas.bind("<ButtonRelease-3>", self._on_canvas_drag_end)
 
     # ── Tab Population / Collection ───────────────────────────────────
 
@@ -927,11 +939,73 @@ class GameEditor:
         self._refresh_tree()
         self._redraw_preview()
 
+    # ── Visual: Canvas Interaction ────────────────────────────────────
+
+    def _on_canvas_drag_start(self, event) -> None:
+        self._drag_start_x = event.x
+        self._drag_start_angle = self._view_angle
+
+    def _on_canvas_drag(self, event) -> None:
+        if self._drag_start_x is None:
+            return
+        dx = event.x - self._drag_start_x
+        self._view_angle = self._drag_start_angle + dx * 0.01
+        self._redraw_preview()
+
+    def _on_canvas_drag_end(self, _event) -> None:
+        self._drag_start_x = None
+
+    def _on_canvas_click(self, event) -> None:
+        """Select the top-most part whose bounding box contains the click."""
+        mx, my = event.x, event.y
+        # Iterate in reverse so top-drawn (last) parts get priority
+        for x1, y1, x2, y2, path in reversed(self._part_hit_boxes):
+            if x1 <= mx <= x2 and y1 <= my <= y2:
+                self._sel_part_path = path
+                self._vis_load_props()
+                # Also select in treeview
+                iid = self._path_to_iid(path)
+                if iid:
+                    self.parts_tree.selection_set(iid)
+                    self.parts_tree.see(iid)
+                self._redraw_preview()
+                return
+        # Clicked empty space — deselect
+        self._sel_part_path = None
+        self.parts_tree.selection_set()
+        self._redraw_preview()
+
+    def _path_to_iid(self, path: tuple | None) -> str | None:
+        if not path:
+            return None
+        if path[0] == "root":
+            return f"r_{path[1]}"
+        elif path[0] == "pivot_node":
+            return f"p_{path[1]}"
+        elif path[0] == "pivot":
+            return f"p_{path[1]}_{path[2]}"
+        return None
+
+    def _rotate_xz(self, x: float, z: float) -> float:
+        """Rotate a point around Y axis by _view_angle, return projected X."""
+        import math
+        cos_a = math.cos(self._view_angle)
+        sin_a = math.sin(self._view_angle)
+        return x * cos_a + z * sin_a
+
+    def _rotate_scale_xz(self, sx: float, sz: float) -> float:
+        """Compute apparent width of a box after Y rotation."""
+        import math
+        cos_a = abs(math.cos(self._view_angle))
+        sin_a = abs(math.sin(self._view_angle))
+        return sx * cos_a + sz * sin_a
+
     # ── Visual: Preview ───────────────────────────────────────────────
 
     def _redraw_preview(self) -> None:
         c = self.canvas
         c.delete("all")
+        self._part_hit_boxes.clear()
         w, h = c.winfo_width(), c.winfo_height()
         if w < 10 or h < 10:
             return
@@ -942,46 +1016,62 @@ class GameEditor:
         spx = min(w, h) * 0.35
         cx, gy = w // 2, h - 40
         c.create_line(20, gy, w - 20, gy, fill="#333", width=1, dash=(4, 4))
+        # Show angle indicator
+        import math
+        deg = math.degrees(self._view_angle) % 360
+        c.create_text(w - 8, 12, text=f"{deg:.0f}\u00b0", fill="#555", anchor="ne", font=("Consolas", 9))
         sel = self._get_part(self._sel_part_path) if self._sel_part_path else None
-        for p in vis.get("parts", []):
-            self._draw_part(c, p, cx, gy, spx, 0, 0, p is sel)
-        for pv in vis.get("pivots", []):
+        for i, p in enumerate(vis.get("parts", [])):
+            self._draw_part(c, p, cx, gy, spx, 0, 0, p is sel, ("root", i))
+        for pi, pv in enumerate(vis.get("pivots", [])):
             pp = pv.get("position", [0, 0, 0])
+            rpx = self._rotate_xz(pp[0], pp[2])
             if pv is sel:
-                px, py = cx + pp[0] * spx, gy - pp[1] * spx
+                px, py = cx + rpx * spx, gy - pp[1] * spx
                 c.create_oval(px - 5, py - 5, px + 5, py + 5, outline="#ffff00", width=2)
-            for cp in pv.get("parts", []):
-                self._draw_part(c, cp, cx, gy, spx, pp[0], pp[1], cp is sel)
+            for ci, cp in enumerate(pv.get("parts", [])):
+                self._draw_part(c, cp, cx, gy, spx, pp[0], pp[1], cp is sel, ("pivot", pi, ci), pp[2])
 
     def _draw_part(self, c: tk.Canvas, part: dict, cx: int, gy: int,
-                   spx: float, ox: float, oy: float, selected: bool) -> None:
+                   spx: float, ox: float, oy: float, selected: bool,
+                   path: tuple = None, oz: float = 0.0) -> None:
         pos = part.get("position", [0, 0, 0])
         scl = part.get("scale", [0.1, 0.1, 0.1])
         mesh = part.get("mesh", "box")
         color = _color_to_hex(part.get("color", [0.5, 0.5, 0.5, 1.0]))
-        px = cx + (pos[0] + ox) * spx
+        # Rotate world-space X/Z by view angle
+        world_x = pos[0] + ox
+        world_z = pos[2] + oz
+        rx = self._rotate_xz(world_x, world_z)
+        px = cx + rx * spx
         py = gy - (pos[1] + oy) * spx
+        # Apparent width depends on rotation
         if mesh == "sphere":
-            rx, ry = scl[0] * spx, scl[1] * spx
-            c.create_oval(px - rx, py - ry, px + rx, py + ry, fill=color, outline="")
+            app_w = self._rotate_scale_xz(scl[0], scl[2]) if len(scl) > 2 else scl[0]
+            rx_s, ry_s = app_w * spx, scl[1] * spx
+            c.create_oval(px - rx_s, py - ry_s, px + rx_s, py + ry_s, fill=color, outline="")
             if part.get("emissive"):
-                c.create_oval(px - rx - 2, py - ry - 2, px + rx + 2, py + ry + 2, outline=color, width=2)
+                c.create_oval(px - rx_s - 2, py - ry_s - 2, px + rx_s + 2, py + ry_s + 2, outline=color, width=2)
+            bx1, by1, bx2, by2 = px - rx_s, py - ry_s, px + rx_s, py + ry_s
         elif mesh == "cylinder":
-            hw, hh = scl[0] * spx, scl[1] * spx
+            app_w = self._rotate_scale_xz(scl[0], scl[2] if len(scl) > 2 else scl[0])
+            hw, hh = app_w * spx, scl[1] * spx
             c.create_rectangle(px - hw, py - hh, px + hw, py + hh, fill=color, outline="")
-        else:
-            hw, hh = scl[0] * 0.5 * spx, scl[1] * 0.5 * spx
+            bx1, by1, bx2, by2 = px - hw, py - hh, px + hw, py + hh
+        else:  # box
+            app_w = self._rotate_scale_xz(scl[0] * 0.5, scl[2] * 0.5 if len(scl) > 2 else scl[0] * 0.5)
+            hw, hh = app_w * spx, scl[1] * 0.5 * spx
             c.create_rectangle(px - hw, py - hh, px + hw, py + hh, fill=color, outline="")
+            bx1, by1, bx2, by2 = px - hw, py - hh, px + hw, py + hh
         if selected:
+            pad = 3
             if mesh == "sphere":
-                rx, ry = scl[0] * spx + 3, scl[1] * spx + 3
-                c.create_oval(px - rx, py - ry, px + rx, py + ry, outline="#00ff00", width=2, dash=(3, 3))
+                c.create_oval(bx1 - pad, by1 - pad, bx2 + pad, by2 + pad, outline="#00ff00", width=2, dash=(3, 3))
             else:
-                if mesh == "cylinder":
-                    hw, hh = scl[0] * spx + 3, scl[1] * spx + 3
-                else:
-                    hw, hh = scl[0] * 0.5 * spx + 3, scl[1] * 0.5 * spx + 3
-                c.create_rectangle(px - hw, py - hh, px + hw, py + hh, outline="#00ff00", width=2, dash=(3, 3))
+                c.create_rectangle(bx1 - pad, by1 - pad, bx2 + pad, by2 + pad, outline="#00ff00", width=2, dash=(3, 3))
+        # Store hit box for click selection
+        if path:
+            self._part_hit_boxes.append((bx1, by1, bx2, by2, path))
 
 
 def main() -> None:

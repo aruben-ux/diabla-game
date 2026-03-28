@@ -713,6 +713,42 @@ func _sync_fountain_heal(new_health: float, new_mana: float) -> void:
 	stats.mana = new_mana
 
 
+## --- Chest loot spawning (called on server, RPCs to all peers) ---
+
+static var _chest_loot_counter: int = 0
+
+
+func rpc_spawn_gold(amount: int, pos: Vector3) -> void:
+	_chest_loot_counter += 1
+	var loot_name := "ChestGold_%d" % _chest_loot_counter
+	_sync_spawn_gold.rpc(loot_name, amount, pos)
+
+
+func rpc_spawn_loot(item_dict: Dictionary, pos: Vector3) -> void:
+	_chest_loot_counter += 1
+	var loot_name := "ChestLoot_%d" % _chest_loot_counter
+	_sync_spawn_loot.rpc(loot_name, item_dict, pos)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _sync_spawn_gold(loot_name: String, amount: int, pos: Vector3) -> void:
+	var gold := preload("res://scenes/loot/gold_drop.tscn").instantiate()
+	gold.name = loot_name
+	get_parent().add_child(gold)
+	gold.global_position = pos
+	gold.setup(amount)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _sync_spawn_loot(loot_name: String, item_dict: Dictionary, pos: Vector3) -> void:
+	var loot := preload("res://scenes/loot/loot_drop.tscn").instantiate()
+	loot.name = loot_name
+	get_parent().add_child(loot)
+	loot.global_position = pos
+	var item_data := ItemData.from_dict(item_dict)
+	loot.setup(item_data)
+
+
 func _process_movement(delta: float) -> void:
 	# Gravity
 	if not is_on_floor():
