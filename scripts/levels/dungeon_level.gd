@@ -114,6 +114,12 @@ func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vect
 	# Spawn treasure chests in some rooms
 	_spawn_treasure_chests(room_list)
 
+	# Log interactables for debug
+	var interactables := get_tree().get_nodes_in_group("interactables")
+	print("[Dungeon] After generation: %d interactables in group. is_server=%s" % [interactables.size(), multiplayer.is_server()])
+	for n in interactables:
+		print("[Dungeon]   - %s at %s" % [n.name, (n as Node3D).global_position])
+
 	level_ready.emit(spawn_position, stairs_up_position, stairs_down_position)
 
 
