@@ -13,6 +13,7 @@ var interact_hint: String = "Click to pick up"
 var _base_y: float
 var _time: float = 0.0
 var _is_auto_pickup: bool = false
+var is_local_only: bool = false
 
 
 func _ready() -> void:
@@ -68,6 +69,11 @@ func _on_body_entered(body: Node3D) -> void:
 	if not body.is_in_group("players") or not item:
 		return
 
+	if is_local_only:
+		if body.is_multiplayer_authority():
+			_local_pickup(body)
+		return
+
 	if multiplayer.is_server():
 		var peer_id := body.get_multiplayer_authority()
 		_sync_pickup.rpc(peer_id, item.to_dict())
@@ -82,18 +88,16 @@ func interact(player: Node) -> void:
 	if not player.is_in_group("players"):
 		return
 
+	if is_local_only:
+		_local_pickup(player)
+		return
+
 	if multiplayer.is_server():
 		# Server handles actual pickup
 		var peer_id := player.get_multiplayer_authority()
 		_sync_pickup.rpc(peer_id, item.to_dict())
 	else:
-		# Client: just show floating text — server will handle the actual item via _sync_pickup
-		EventBus.show_floating_text.emit(
-			global_position + Vector3(0, 1.5, 0),
-			item.display_name,
-			ItemData.get_rarity_color(item.rarity)
-		)
-		# Visual: hide immediately
+		# Client hint — server will handle via _server_interact_intent
 		visible = false
 
 
@@ -124,4 +128,13 @@ func _sync_pickup(peer_id: int, item_dict: Dictionary) -> void:
 				ItemData.get_rarity_color(pickup_item.rarity)
 			)
 			break
+	queue_free()
+
+
+func _local_pickup(player: Node) -> void:
+	## Direct local pickup for items dropped from inventory (not on server).
+	var pickup_item := item
+	if not player.pick_up_item(pickup_item):
+		return  # Inventory full — keep the drop on the ground
+	item = null
 	queue_free()

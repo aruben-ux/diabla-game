@@ -277,7 +277,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			print("[Player] Left click %s, target=%s" % ["pressed" if event.pressed else "released", current_target])
 			_left_mouse_held = event.pressed
 			if event.pressed:
 				# Check for interactable click (fountain etc.)
@@ -400,7 +399,6 @@ func _physics_process_lan(delta: float) -> void:
 
 func _handle_move_click() -> void:
 	var hit_pos := _raycast_ground()
-	print("[Player] _handle_move_click hit_pos=%s server_auth=%s" % [hit_pos, _is_server_auth])
 	if hit_pos != Vector3.INF:
 		is_attacking = false
 		if _is_server_auth:
@@ -592,13 +590,21 @@ func _sync_health(new_health: float) -> void:
 	stats.health = new_health
 
 
-func pick_up_item(item: ItemData) -> void:
+func pick_up_item(item: ItemData) -> bool:
 	if inventory.add_item(item):
 		EventBus.show_floating_text.emit(
 			global_position + Vector3(0, 2.5, 0),
 			"+ " + item.display_name,
 			ItemData.get_rarity_color(item.rarity)
 		)
+		return true
+	else:
+		EventBus.show_floating_text.emit(
+			global_position + Vector3(0, 2.5, 0),
+			"Inventory Full!",
+			Color.RED
+		)
+		return false
 
 
 func add_gold(amount: int) -> void:

@@ -592,6 +592,7 @@ func _on_drop_item_on_ground(item: ItemData) -> void:
 	player_node.get_parent().add_child(loot)
 	loot.global_position = drop_pos
 	loot.setup(item)
+	loot.is_local_only = true
 
 
 func _on_show_floating_text(world_pos: Vector3, text: String, color: Color) -> void:

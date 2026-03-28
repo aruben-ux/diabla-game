@@ -40,6 +40,7 @@ var _tooltip: Panel
 var _tooltip_label: RichTextLabel
 var _gold_label: Label
 var _paperdoll_panel: Panel
+var _tooltip_from_equip: bool = false
 
 
 func setup(inv: Inventory, player: Node) -> void:
@@ -86,7 +87,8 @@ func _build_ui() -> void:
 	# Main panel (right side of screen)
 	var main_panel := Panel.new()
 	main_panel.name = "MainPanel"
-	var panel_w := CELL_SIZE * GRID_COLS + 24 + 160  # grid + margin + paperdoll
+	var paperdoll_w := 260
+	var panel_w := paperdoll_w + 24 + CELL_SIZE * GRID_COLS + 16
 	var panel_h := CELL_SIZE * GRID_ROWS + 80
 	main_panel.size = Vector2(panel_w, panel_h)
 	main_panel.position = Vector2(get_viewport_rect().size.x - panel_w - 16, get_viewport_rect().size.y - panel_h - 16)
@@ -124,7 +126,7 @@ func _build_ui() -> void:
 	_paperdoll_panel = Panel.new()
 	_paperdoll_panel.name = "Paperdoll"
 	_paperdoll_panel.position = Vector2(8, 48)
-	_paperdoll_panel.size = Vector2(148, CELL_SIZE * GRID_ROWS + 20)
+	_paperdoll_panel.size = Vector2(paperdoll_w, CELL_SIZE * GRID_ROWS + 20)
 	var pd_sb := StyleBoxFlat.new()
 	pd_sb.bg_color = Color(0.1, 0.1, 0.13, 1.0)
 	pd_sb.corner_radius_top_left = 4
@@ -134,26 +136,48 @@ func _build_ui() -> void:
 	_paperdoll_panel.add_theme_stylebox_override("panel", pd_sb)
 	main_panel.add_child(_paperdoll_panel)
 
-	# Equipment slot layout (paperdoll style)
+	# Equipment slot layout — positions and sizes matching item grid dimensions
+	# Sizes: weapon 1x3, helmet 2x2, chest 2x3, boots 2x2, ring 1x1, amulet 1x1, shield 2x2
+	var cs := CELL_SIZE
+	var gap := 4
+	var pad := 6
+	# Row 1 (y=pad): helmet + amulet
+	# Row 2 (y=pad+2*cs+gap): weapon + chest + shield
+	# Row 3 (y=pad+2*cs+gap+3*cs+gap): ring + boots
+	var row1_y := pad
+	var row2_y := row1_y + 2 * cs + gap
+	var row3_y := row2_y + 3 * cs + gap
+	var col_weapon_x := pad
+	var col_chest_x := pad + 1 * cs + gap
+	var col_shield_x := col_chest_x + 2 * cs + gap
 	var equip_layout := {
-		"helmet": Vector2(42, 4),
-		"amulet": Vector2(100, 4),
-		"weapon": Vector2(4, 56),
-		"chest": Vector2(50, 56),
-		"shield": Vector2(100, 56),
-		"gloves": Vector2(4, 162),
-		"ring": Vector2(100, 162),
-		"boots": Vector2(42, 220),
+		"helmet":  Vector2(col_chest_x, row1_y),
+		"amulet":  Vector2(col_shield_x, row1_y),
+		"weapon":  Vector2(col_weapon_x, row2_y),
+		"chest":   Vector2(col_chest_x, row2_y),
+		"shield":  Vector2(col_shield_x, row2_y),
+		"ring":    Vector2(col_weapon_x, row3_y),
+		"boots":   Vector2(col_chest_x, row3_y),
+	}
+	var equip_sizes := {
+		"weapon":  Vector2(1 * cs, 3 * cs),
+		"helmet":  Vector2(2 * cs, 2 * cs),
+		"chest":   Vector2(2 * cs, 3 * cs),
+		"boots":   Vector2(2 * cs, 2 * cs),
+		"ring":    Vector2(1 * cs, 1 * cs),
+		"amulet":  Vector2(1 * cs, 1 * cs),
+		"shield":  Vector2(2 * cs, 2 * cs),
 	}
 	# Only create slots that exist in inventory.equipment
 	for slot_name in inventory.equipment:
-		var pos: Vector2 = equip_layout.get(slot_name, Vector2(4, 280))
-		var slot_panel := _create_equip_slot(slot_name, pos)
+		var pos: Vector2 = equip_layout.get(slot_name, Vector2(pad, 400))
+		var sz: Vector2 = equip_sizes.get(slot_name, Vector2(cs, cs))
+		var slot_panel := _create_equip_slot(slot_name, pos, sz)
 		_paperdoll_panel.add_child(slot_panel)
 		_equip_slots[slot_name] = slot_panel
 
 	# ── Grid (right side of panel) ──
-	var grid_x := 164
+	var grid_x := paperdoll_w + 16
 	_grid_container = Control.new()
 	_grid_container.name = "GridContainer"
 	_grid_container.position = Vector2(grid_x, 48)
@@ -189,11 +213,11 @@ func _build_ui() -> void:
 	_tooltip.add_child(_tooltip_label)
 
 
-func _create_equip_slot(slot_name: String, pos: Vector2) -> Panel:
+func _create_equip_slot(slot_name: String, pos: Vector2, slot_size: Vector2 = Vector2(48, 48)) -> Panel:
 	var panel := Panel.new()
 	panel.name = "Equip_" + slot_name
 	panel.position = pos
-	panel.size = Vector2(44, 44)
+	panel.size = slot_size
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = COLOR_EQUIP_SLOT_BG
 	sb.border_width_left = 1
@@ -204,12 +228,13 @@ func _create_equip_slot(slot_name: String, pos: Vector2) -> Panel:
 	panel.add_theme_stylebox_override("panel", sb)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# Slot label
+	# Slot label (centered in slot)
 	var label := Label.new()
-	label.text = slot_name.left(4).capitalize()
+	label.text = slot_name.capitalize()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.position = Vector2(0, 12)
-	label.size = Vector2(44, 20)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.position = Vector2.ZERO
+	label.size = slot_size
 	label.add_theme_font_size_override("font_size", 10)
 	label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	label.name = "SlotLabel"
@@ -219,17 +244,18 @@ func _create_equip_slot(slot_name: String, pos: Vector2) -> Panel:
 	var item_rect := ColorRect.new()
 	item_rect.name = "ItemRect"
 	item_rect.position = Vector2(2, 2)
-	item_rect.size = Vector2(40, 40)
+	item_rect.size = slot_size - Vector2(4, 4)
 	item_rect.visible = false
 	item_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(item_rect)
 
 	var item_label := Label.new()
 	item_label.name = "ItemLabel"
-	item_label.position = Vector2(2, 10)
-	item_label.size = Vector2(40, 24)
+	item_label.position = Vector2(2, 2)
+	item_label.size = slot_size - Vector2(4, 4)
 	item_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	item_label.add_theme_font_size_override("font_size", 9)
+	item_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	item_label.add_theme_font_size_override("font_size", 10)
 	item_label.clip_text = true
 	item_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(item_label)
@@ -319,7 +345,8 @@ func _handle_grid_hover() -> void:
 		return
 	var cell := _get_grid_cell_under_mouse()
 	if cell.x < 0:
-		_hide_tooltip()
+		if not _tooltip_from_equip:
+			_hide_tooltip()
 		return
 	var entry := inventory.get_entry_at(cell.x, cell.y)
 	if entry.is_empty():
@@ -566,6 +593,7 @@ func _on_equip_slot_hover(slot_name: String) -> void:
 	if _dragging or not inventory:
 		return
 	if inventory.equipment.has(slot_name) and inventory.equipment[slot_name] != null:
+		_tooltip_from_equip = true
 		_show_item_tooltip(inventory.equipment[slot_name])
 
 
@@ -593,7 +621,7 @@ func _refresh_equipment_display() -> void:
 		if item:
 			item_rect.color = ItemData.get_rarity_color(item.rarity) * Color(0.5, 0.5, 0.5, 0.8)
 			item_rect.visible = true
-			item_label.text = item.display_name.left(6)
+			item_label.text = item.display_name
 			item_label.add_theme_color_override("font_color", ItemData.get_rarity_color(item.rarity))
 			slot_label.visible = false
 		else:
@@ -633,13 +661,21 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 	if item.mana_restore > 0:
 		text += "Restores %.0f Mana\n" % item.mana_restore
 	_tooltip_label.text = text
-	_tooltip.global_position = get_global_mouse_position() + Vector2(16, 0)
 	# Fit tooltip height to content
 	_tooltip_label.size.y = 200
 	_tooltip.size.y = _tooltip_label.get_content_height() + 16
+	# Position tooltip near mouse, clamped to screen
+	var vp_size := get_viewport_rect().size
+	var tip_pos := get_global_mouse_position() + Vector2(16, 0)
+	if tip_pos.x + _tooltip.size.x > vp_size.x:
+		tip_pos.x = get_global_mouse_position().x - _tooltip.size.x - 16
+	if tip_pos.y + _tooltip.size.y > vp_size.y:
+		tip_pos.y = vp_size.y - _tooltip.size.y
+	_tooltip.global_position = tip_pos
 
 
 func _hide_tooltip() -> void:
+	_tooltip_from_equip = false
 	if _tooltip:
 		_tooltip.visible = false
 

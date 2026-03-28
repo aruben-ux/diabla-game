@@ -244,13 +244,13 @@ func _show_options() -> void:
 # --- Callbacks ---
 
 func _on_return_to_title() -> void:
-	# Change scene first, then disconnect — closing the peer triggers
-	# server_disconnected which would free this node before we can act.
 	var tree := get_tree()
-	if multiplayer.multiplayer_peer:
-		multiplayer.multiplayer_peer.close()
-	if tree:
-		tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	if not tree:
+		return
+	var peer = multiplayer.multiplayer_peer if multiplayer else null
+	tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	if peer:
+		peer.close()
 
 
 func _on_quit() -> void:
