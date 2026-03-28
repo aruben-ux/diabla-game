@@ -7,6 +7,7 @@ extends Node
 
 const SAVE_INTERVAL := 30.0  # Save all player characters every 30s
 const IDLE_TIMEOUT := 300.0  # Shut down if empty for 5 minutes
+const HEARTBEAT_INTERVAL := 30.0  # Send heartbeat to lobby every 30s
 
 var _lobby_url: String = "http://127.0.0.1:8080"
 var _server_secret: String = ""
@@ -19,6 +20,7 @@ var _difficulty: String = "normal"
 var _http: HTTPRequest
 var _save_timer: float = 0.0
 var _idle_timer: float = 0.0
+var _heartbeat_timer: float = 0.0
 
 ## peer_id -> { account_id, character_id, character_data }
 var _authenticated_players: Dictionary = {}
@@ -67,13 +69,18 @@ func _process(delta: float) -> void:
 		_save_timer = 0.0
 		_save_all_players()
 
+	# Heartbeat — keep lobby aware this server is alive + correct player count
+	_heartbeat_timer += delta
+	if _heartbeat_timer >= HEARTBEAT_INTERVAL:
+		_heartbeat_timer = 0.0
+		_update_player_count()
+
 	# Idle shutdown
 	if _authenticated_players.is_empty():
 		_idle_timer += delta
 		if _idle_timer >= IDLE_TIMEOUT:
 			print("[GameServer] Idle timeout reached, shutting down.")
-			_notify_lobby_close()
-			get_tree().quit()
+			_shutdown()
 	else:
 		_idle_timer = 0.0
 
@@ -283,8 +290,18 @@ func _notify_lobby_close() -> void:
 	http.request(url, headers, HTTPClient.METHOD_POST, body)
 
 
+func _shutdown() -> void:
+	## Graceful shutdown: notify lobby, wait briefly for HTTP to send, then quit.
+	_notify_lobby_close()
+	# Give the HTTP request a moment to actually send before exiting
+	await get_tree().create_timer(1.0).timeout
+	get_tree().quit()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_save_all_players()
 		_notify_lobby_close()
+		# Brief delay so the close notification can be sent
+		await get_tree().create_timer(1.0).timeout
 		get_tree().quit()

@@ -1,5 +1,6 @@
 """Diabla Lobby Server — FastAPI entry point."""
 
+import asyncio
 from contextlib import asynccontextmanager
 import os
 
@@ -11,6 +12,39 @@ from database import async_session, engine
 from models import Base, GameSession
 from routers import auth_router, characters_router, games_router
 from websocket_manager import lobby_manager
+
+_reaper_task = None
+
+
+async def _reap_stale_games():
+    """Periodically check for game server processes that have died and mark them closed."""
+    while True:
+        await asyncio.sleep(60)  # Check every 60 seconds
+        try:
+            async with async_session() as db:
+                result = await db.execute(
+                    select(GameSession).where(
+                        GameSession.status.in_(["waiting", "in_progress"])
+                    )
+                )
+                closed = 0
+                for game in result.scalars():
+                    alive = False
+                    if game.pid:
+                        try:
+                            os.kill(game.pid, 0)
+                            alive = True
+                        except OSError:
+                            alive = False
+                    if not alive:
+                        game.status = "closed"
+                        game.current_players = 0
+                        closed += 1
+                await db.commit()
+                if closed:
+                    print(f"[Reaper] Closed {closed} stale game(s)")
+        except Exception as e:
+            print(f"[Reaper] Error: {e}")
 
 
 @asynccontextmanager
@@ -45,7 +79,12 @@ async def lifespan(app: FastAPI):
         print(f"[Startup] WARNING: Database init failed: {e}")
         print("[Startup] Server will start but DB-dependent routes may fail.")
 
+    global _reaper_task
+    _reaper_task = asyncio.create_task(_reap_stale_games())
+
     yield
+    if _reaper_task:
+        _reaper_task.cancel()
     await engine.dispose()
 
 

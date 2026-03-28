@@ -695,11 +695,11 @@ class GameEditor:
         for tn in ["monsters", "classes", "skills", "items"]:
             vals = list(self.data.get(tn, {}).keys())
             self.ts[tn]["combo"]["values"] = vals
-            sk in ["loot_config", "progression", "spawning", "world"]:
-            self._populate_singleton(sk)
-        for if vals:
+            if vals:
                 self.ts[tn]["combo"].current(0)
             self._populate_tab(tn)
+        for sk in ["loot_config", "progression", "spawning", "world"]:
+            self._populate_singleton(sk)
         for key, var in self.scaling_vars.items():
             var.set(str(self.data.get("floor_scaling", {}).get(key, 0)))
         self._sel_part_path = None
