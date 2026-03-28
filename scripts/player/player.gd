@@ -333,7 +333,7 @@ func _physics_process_server_auth(delta: float) -> void:
 		# Client: interpolate toward server state
 		if is_multiplayer_authority():
 			# Also send continuous move intent while dragging
-			if _left_mouse_held and not is_attacking:
+			if _left_mouse_held and not is_attacking and not _pending_interact:
 				var hit_pos := _raycast_ground()
 				if hit_pos != Vector3.INF:
 					_server_move_intent.rpc_id(1, hit_pos)
@@ -376,7 +376,7 @@ func _physics_process_lan(delta: float) -> void:
 	if attack_timer > 0.0:
 		attack_timer -= delta
 
-	if _left_mouse_held and not is_attacking:
+	if _left_mouse_held and not is_attacking and not _pending_interact:
 		var hit_pos := _raycast_ground()
 		if hit_pos != Vector3.INF:
 			_set_move_target.rpc(hit_pos)
