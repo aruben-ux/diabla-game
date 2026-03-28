@@ -66,6 +66,11 @@ func _load_from_character_data(data: CharacterData) -> void:
 	stats.max_mana = data.max_mana
 	stats.health = data.health
 	stats.mana = data.mana
+	# Never start a session dead
+	if stats.health <= 0.0:
+		stats.health = stats.max_health
+	if stats.mana <= 0.0:
+		stats.mana = stats.max_mana
 	stats.strength = data.strength
 	stats.dexterity = data.dexterity
 	stats.intelligence = data.intelligence
@@ -113,6 +118,11 @@ func _load_from_dict(data: Dictionary) -> void:
 	stats.max_mana = data.get("max_mana", 50.0)
 	stats.health = data.get("health", 100.0)
 	stats.mana = data.get("mana", 50.0)
+	# Never start a new game session dead
+	if stats.health <= 0.0:
+		stats.health = stats.max_health
+	if stats.mana <= 0.0:
+		stats.mana = stats.max_mana
 	stats.strength = data.get("strength", 10)
 	stats.dexterity = data.get("dexterity", 10)
 	stats.intelligence = data.get("intelligence", 10)
@@ -498,6 +508,11 @@ func _server_respawn_intent() -> void:
 		return
 	stats.health = stats.max_health
 	stats.mana = stats.max_mana
+	# Reset server-side state
+	move_target = global_position
+	is_moving = false
+	is_attacking = false
+	model.rotation.x = 0.0
 	_do_respawn.rpc(stats.health, stats.mana)
 	# Teleport to town
 	var main_game := get_tree().current_scene
