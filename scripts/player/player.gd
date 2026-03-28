@@ -28,6 +28,9 @@ var is_attacking: bool = false
 var _left_mouse_held: bool = false
 var _remote_pos := Vector3.ZERO
 var _remote_rot_y := 0.0
+var _grid_sync_dirty: bool = false
+var _grid_sync_timer: float = 0.0
+const GRID_SYNC_INTERVAL := 0.5
 var _remote_initialized := false
 
 ## True when running in server-authoritative online mode
@@ -78,6 +81,7 @@ func _ready() -> void:
 	if _is_server_auth and is_multiplayer_authority():
 		inventory.item_equipped.connect(_on_item_equipped_sync)
 		inventory.item_unequipped.connect(_on_item_unequipped_sync)
+		inventory.inventory_changed.connect(_on_inventory_changed_sync)
 
 	# Build the multi-mesh player model
 	if model.has_method("build_player_model"):
@@ -310,6 +314,8 @@ func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		_update_mouse_target()
 		_check_pending_interact()
+		if _is_server_auth:
+			_process_grid_sync(delta)
 	if _is_server_auth:
 		_physics_process_server_auth(delta)
 	else:
@@ -593,6 +599,9 @@ func _sync_health(new_health: float) -> void:
 func pick_up_item(item: ItemData) -> bool:
 	if inventory.add_item(item):
 		_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
+		# Send item to owning client so it appears in their local inventory
+		if multiplayer.is_server():
+			_client_receive_pickup.rpc_id(get_multiplayer_authority(), item.to_dict())
 		return true
 	else:
 		_show_pickup_text.rpc("Inventory Full!", Color.RED.to_html())
@@ -788,6 +797,40 @@ func _server_unequip_item(slot: String) -> void:
 	stats.max_mana -= item.bonus_mana
 	stats.mana = minf(stats.mana, stats.max_mana)
 	inventory.equipment[slot] = null
+
+
+## --- Inventory grid sync (client -> server) ---
+
+func _on_inventory_changed_sync() -> void:
+	_grid_sync_dirty = true
+
+
+func _process_grid_sync(delta: float) -> void:
+	if not _grid_sync_dirty:
+		return
+	_grid_sync_timer += delta
+	if _grid_sync_timer >= GRID_SYNC_INTERVAL:
+		_grid_sync_timer = 0.0
+		_grid_sync_dirty = false
+		var grid_data := inventory.serialize_grid()
+		_server_sync_grid.rpc_id(1, grid_data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_sync_grid(grid_data: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	inventory.deserialize_grid(grid_data)
+
+
+## Server -> client: add a picked-up item to the client's inventory
+@rpc("any_peer", "call_remote", "reliable")
+func _client_receive_pickup(item_dict: Dictionary) -> void:
+	var item := ItemData.from_dict(item_dict)
+	inventory.add_item(item)
 
 
 ## --- Chest loot spawning (called on server, RPCs to all peers) ---
