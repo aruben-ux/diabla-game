@@ -993,6 +993,13 @@ class GameEditor:
         sin_a = math.sin(self._view_angle)
         return x * cos_a + z * sin_a
 
+    def _rotate_depth(self, x: float, z: float) -> float:
+        """Rotate a point around Y axis, return depth (Z toward camera is negative = closer)."""
+        import math
+        cos_a = math.cos(self._view_angle)
+        sin_a = math.sin(self._view_angle)
+        return -x * sin_a + z * cos_a
+
     def _rotate_scale_xz(self, sx: float, sz: float) -> float:
         """Compute apparent width of a box after Y rotation."""
         import math
@@ -1021,16 +1028,35 @@ class GameEditor:
         deg = math.degrees(self._view_angle) % 360
         c.create_text(w - 8, 12, text=f"{deg:.0f}\u00b0", fill="#555", anchor="ne", font=("Consolas", 9))
         sel = self._get_part(self._sel_part_path) if self._sel_part_path else None
+
+        # Collect all drawable items with depth for painter's algorithm
+        draw_list = []  # [(depth, part_dict, ox, oy, oz, is_selected, path, is_pivot_marker)]
         for i, p in enumerate(vis.get("parts", [])):
-            self._draw_part(c, p, cx, gy, spx, 0, 0, p is sel, ("root", i))
+            pos = p.get("position", [0, 0, 0])
+            depth = self._rotate_depth(pos[0], pos[2])
+            draw_list.append((depth, p, 0, 0, 0, p is sel, ("root", i), False))
         for pi, pv in enumerate(vis.get("pivots", [])):
             pp = pv.get("position", [0, 0, 0])
-            rpx = self._rotate_xz(pp[0], pp[2])
+            # Add pivot marker
             if pv is sel:
-                px, py = cx + rpx * spx, gy - pp[1] * spx
-                c.create_oval(px - 5, py - 5, px + 5, py + 5, outline="#ffff00", width=2)
+                depth = self._rotate_depth(pp[0], pp[2])
+                draw_list.append((depth, pv, 0, 0, 0, True, ("pivot_node", pi), True))
             for ci, cp in enumerate(pv.get("parts", [])):
-                self._draw_part(c, cp, cx, gy, spx, pp[0], pp[1], cp is sel, ("pivot", pi, ci), pp[2])
+                cp_pos = cp.get("position", [0, 0, 0])
+                depth = self._rotate_depth(cp_pos[0] + pp[0], cp_pos[2] + pp[2])
+                draw_list.append((depth, cp, pp[0], pp[1], pp[2], cp is sel, ("pivot", pi, ci), False))
+
+        # Sort: largest depth first (farthest from camera drawn first)
+        draw_list.sort(key=lambda item: item[0], reverse=True)
+
+        for depth, part, ox, oy, oz, is_sel, path, is_pm in draw_list:
+            if is_pm:
+                # Pivot marker dot
+                rpx = self._rotate_xz(part.get("position", [0,0,0])[0], part.get("position", [0,0,0])[2])
+                px, py = cx + rpx * spx, gy - part.get("position", [0,0,0])[1] * spx
+                c.create_oval(px - 5, py - 5, px + 5, py + 5, outline="#ffff00", width=2)
+            else:
+                self._draw_part(c, part, cx, gy, spx, ox, oy, is_sel, path, oz)
 
     def _draw_part(self, c: tk.Canvas, part: dict, cx: int, gy: int,
                    spx: float, ox: float, oy: float, selected: bool,

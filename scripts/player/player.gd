@@ -703,14 +703,22 @@ func _server_interact_intent(target_pos: Vector3) -> void:
 			# Server-only effects (loot drops etc.)
 			if best.has_method("server_interact"):
 				best.server_interact(self)
-			# Sync health/mana changes to client
-			_sync_fountain_heal.rpc(stats.health, stats.mana)
+			# Tell client to run interact() locally for stat changes
+			_sync_interact_done.rpc(best.global_position)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _sync_fountain_heal(new_health: float, new_mana: float) -> void:
-	stats.health = new_health
-	stats.mana = new_mana
+func _sync_interact_done(target_pos: Vector3) -> void:
+	## Server tells client an interact was validated — find and interact locally.
+	var best: Node3D = null
+	var best_dist := 2.0
+	for node in get_tree().get_nodes_in_group("interactables"):
+		var d := (node as Node3D).global_position.distance_to(target_pos)
+		if d < best_dist:
+			best_dist = d
+			best = node as Node3D
+	if best and best.has_method("interact"):
+		best.interact(self)
 
 
 ## --- Chest loot spawning (called on server, RPCs to all peers) ---
