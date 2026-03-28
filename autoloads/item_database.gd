@@ -32,23 +32,31 @@ func get_item(item_id: String) -> ItemData:
 
 
 func get_random_weapon(enemy_level: int = 1) -> ItemData:
+	_load_game_data()
+	var lc: Dictionary = _game_data.get("loot_config", {})
 	var item := ItemData.new()
-	var names := ["Rusty Sword", "Iron Axe", "Steel Mace", "War Hammer", "Shadow Blade", "Flame Dagger"]
+	var names: Array = lc.get("weapon_names", ["Rusty Sword", "Iron Axe", "Steel Mace", "War Hammer", "Shadow Blade", "Flame Dagger"])
 	item.id = "weapon_%d" % randi()
 	item.display_name = names[randi() % names.size()]
 	item.item_type = ItemData.ItemType.WEAPON
 	item.rarity = _roll_rarity()
-	item.bonus_damage = (5.0 + enemy_level * 2.0) * (1.0 + item.rarity * 0.3)
+	var base_dmg: float = lc.get("weapon_damage_base", 5.0)
+	var dmg_per_lv: float = lc.get("weapon_damage_per_level", 2.0)
+	var rar_mult: float = lc.get("rarity_bonus_mult", 0.3)
+	item.bonus_damage = (base_dmg + enemy_level * dmg_per_lv) * (1.0 + item.rarity * rar_mult)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
 	return item
 
 
 func get_random_armor(enemy_level: int = 1) -> ItemData:
+	_load_game_data()
+	var lc: Dictionary = _game_data.get("loot_config", {})
 	var types := [ItemData.ItemType.HELMET, ItemData.ItemType.CHEST, ItemData.ItemType.BOOTS]
+	var armor_names_cfg: Dictionary = lc.get("armor_names", {})
 	var type_names := {
-		ItemData.ItemType.HELMET: ["Leather Cap", "Iron Helm", "Plate Helm", "Crown of Thorns"],
-		ItemData.ItemType.CHEST: ["Cloth Tunic", "Chainmail", "Plate Armor", "Shadow Vestments"],
-		ItemData.ItemType.BOOTS: ["Sandals", "Iron Boots", "Greaves", "Windwalkers"],
+		ItemData.ItemType.HELMET: armor_names_cfg.get("HELMET", ["Leather Cap", "Iron Helm", "Plate Helm", "Crown of Thorns"]),
+		ItemData.ItemType.CHEST: armor_names_cfg.get("CHEST", ["Cloth Tunic", "Chainmail", "Plate Armor", "Shadow Vestments"]),
+		ItemData.ItemType.BOOTS: armor_names_cfg.get("BOOTS", ["Sandals", "Iron Boots", "Greaves", "Windwalkers"]),
 	}
 	var item := ItemData.new()
 	item.item_type = types[randi() % types.size()]
@@ -56,8 +64,12 @@ func get_random_armor(enemy_level: int = 1) -> ItemData:
 	item.display_name = names_list[randi() % names_list.size()]
 	item.id = "armor_%d" % randi()
 	item.rarity = _roll_rarity()
-	item.bonus_defense = (3.0 + enemy_level * 1.5) * (1.0 + item.rarity * 0.3)
-	item.bonus_health = enemy_level * 5.0 * (1.0 + item.rarity * 0.2)
+	var def_base: float = lc.get("armor_defense_base", 3.0)
+	var def_per_lv: float = lc.get("armor_defense_per_level", 1.5)
+	var hp_per_lv: float = lc.get("armor_health_per_level", 5.0)
+	var rar_mult: float = lc.get("rarity_bonus_mult", 0.3)
+	item.bonus_defense = (def_base + enemy_level * def_per_lv) * (1.0 + item.rarity * rar_mult)
+	item.bonus_health = enemy_level * hp_per_lv * (1.0 + item.rarity * 0.2)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
 	return item
 
@@ -91,16 +103,20 @@ func get_mana_potion() -> ItemData:
 
 
 func generate_enemy_drops(enemy_level: int = 1) -> Array[ItemData]:
+	_load_game_data()
+	var lc: Dictionary = _game_data.get("loot_config", {})
 	var drops: Array[ItemData] = []
 
-	# Always a chance at a potion
-	if randf() < 0.4:
+	var hp_chance: float = lc.get("health_potion_drop_chance", 0.4)
+	var mp_chance: float = lc.get("mana_potion_drop_chance", 0.2)
+	var eq_chance: float = lc.get("equipment_drop_chance", 0.3)
+
+	if randf() < hp_chance:
 		drops.append(get_health_potion())
-	if randf() < 0.2:
+	if randf() < mp_chance:
 		drops.append(get_mana_potion())
 
-	# Chance for equipment
-	if randf() < 0.3:
+	if randf() < eq_chance:
 		if randf() < 0.5:
 			drops.append(get_random_weapon(enemy_level))
 		else:
@@ -110,17 +126,18 @@ func generate_enemy_drops(enemy_level: int = 1) -> Array[ItemData]:
 
 
 func _roll_rarity() -> ItemData.Rarity:
+	_load_game_data()
+	var lc: Dictionary = _game_data.get("loot_config", {})
+	var weights: Array = lc.get("rarity_weights", [0.5, 0.3, 0.13, 0.06, 0.01])
 	var roll := randf()
-	if roll < 0.5:
-		return ItemData.Rarity.COMMON
-	elif roll < 0.8:
-		return ItemData.Rarity.UNCOMMON
-	elif roll < 0.93:
-		return ItemData.Rarity.RARE
-	elif roll < 0.99:
-		return ItemData.Rarity.EPIC
-	else:
-		return ItemData.Rarity.LEGENDARY
+	var cumulative := 0.0
+	var rarities := [ItemData.Rarity.COMMON, ItemData.Rarity.UNCOMMON,
+					 ItemData.Rarity.RARE, ItemData.Rarity.EPIC, ItemData.Rarity.LEGENDARY]
+	for i in range(weights.size()):
+		cumulative += weights[i]
+		if roll < cumulative:
+			return rarities[i] if i < rarities.size() else ItemData.Rarity.COMMON
+	return ItemData.Rarity.LEGENDARY
 
 
 func _register_items() -> void:

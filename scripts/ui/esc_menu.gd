@@ -244,13 +244,13 @@ func _show_options() -> void:
 # --- Callbacks ---
 
 func _on_return_to_title() -> void:
-	# Disconnect from server and go to main menu / lobby
+	# Change scene first, then disconnect — closing the peer triggers
+	# server_disconnected which would free this node before we can act.
+	var tree := get_tree()
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
-	if GameManager.is_online_mode:
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
-	else:
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	if tree:
+		tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
 func _on_quit() -> void:

@@ -9,12 +9,12 @@ extends Node3D
 
 signal town_generated(spawn_position: Vector3, stairs_position: Vector3)
 
-const TILE_SIZE := 3.0
-const WALL_HEIGHT := 5.0
-const BUILDING_HEIGHT := 4.5
-const ROOF_EXTRA := 1.5
-const TOWN_WIDTH := 30  # tiles
-const TOWN_HEIGHT := 30
+var TILE_SIZE := 3.0
+var WALL_HEIGHT := 5.0
+var BUILDING_HEIGHT := 4.5
+var ROOF_EXTRA := 1.5
+var TOWN_WIDTH := 30
+var TOWN_HEIGHT := 30
 
 # Grid values: 0=void, 1=plaza, 2=wall, 3=path, 4=building, 5=stairs
 var grid: Array = []
@@ -35,7 +35,30 @@ var _stairs_pos := Vector3.ZERO
 
 
 func _ready() -> void:
+	_load_world_cfg()
+	TILE_SIZE = _world_cfg.get("tile_size", TILE_SIZE)
+	WALL_HEIGHT = _world_cfg.get("town_wall_height", WALL_HEIGHT)
+	BUILDING_HEIGHT = _world_cfg.get("building_height", BUILDING_HEIGHT)
+	ROOF_EXTRA = _world_cfg.get("roof_extra", ROOF_EXTRA)
+	TOWN_WIDTH = int(_world_cfg.get("town_width", TOWN_WIDTH))
+	TOWN_HEIGHT = int(_world_cfg.get("town_height", TOWN_HEIGHT))
 	_create_materials()
+
+
+static var _world_cfg: Dictionary = {}
+static var _world_loaded := false
+
+
+static func _load_world_cfg() -> void:
+	if _world_loaded:
+		return
+	_world_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+			_world_cfg = json.data.get("world", {})
+		file.close()
 
 
 func generate() -> void:
