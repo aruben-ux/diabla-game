@@ -75,8 +75,11 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 
 	if multiplayer.is_server():
-		var peer_id := body.get_multiplayer_authority()
-		_sync_pickup.rpc(peer_id, item.to_dict())
+		var pickup_item := ItemData.from_dict(item.to_dict())
+		if not body.pick_up_item(pickup_item):
+			return  # Inventory full
+		item = null
+		_sync_pickup_visual.rpc()
 	elif body.is_multiplayer_authority():
 		_request_pickup.rpc_id(1)
 
@@ -93,12 +96,16 @@ func interact(player: Node) -> void:
 		return
 
 	if multiplayer.is_server():
-		# Server handles actual pickup
+		# Server checks inventory space before broadcasting pickup
 		var peer_id := player.get_multiplayer_authority()
-		_sync_pickup.rpc(peer_id, item.to_dict())
+		var pickup_item := ItemData.from_dict(item.to_dict())
+		if not player.pick_up_item(pickup_item):
+			return  # Inventory full — keep the drop
+		item = null
+		_sync_pickup_visual.rpc()
 	else:
-		# Client hint — server will handle via _server_interact_intent
-		visible = false
+		# Client: do nothing visual — server will broadcast result
+		pass
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -111,19 +118,15 @@ func _request_pickup() -> void:
 	for player in get_tree().get_nodes_in_group("players"):
 		if player.get_multiplayer_authority() == requester:
 			if global_position.distance_to(player.global_position) < 6.0:
-				_sync_pickup.rpc(requester, item.to_dict())
+				var pickup_item := ItemData.from_dict(item.to_dict())
+				if player.pick_up_item(pickup_item):
+					item = null
+					_sync_pickup_visual.rpc()
 			break
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync_pickup(peer_id: int, item_dict: Dictionary) -> void:
-	for player in get_tree().get_nodes_in_group("players"):
-		if player.get_multiplayer_authority() == peer_id:
-			var pickup_item := ItemData.from_dict(item_dict)
-			if not player.pick_up_item(pickup_item):
-				return  # Inventory full — keep the drop
-			break
-	item = null
+func _sync_pickup_visual() -> void:
 	queue_free()
 
 
