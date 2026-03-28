@@ -35,7 +35,7 @@ static func _load_world_cfg() -> void:
 
 # Materials
 var floor_material: StandardMaterial3D
-var wall_material: StandardMaterial3D
+var wall_material: ShaderMaterial
 var corridor_material: StandardMaterial3D
 var stairs_up_material: StandardMaterial3D
 var stairs_down_material: StandardMaterial3D
@@ -383,6 +383,7 @@ func _build_wall_blocks(positions: Array) -> void:
 		mesh_instance.mesh = mesh
 		mesh_instance.material_override = wall_material
 		mesh_instance.name = "Wall_Chunk_%d" % chunk_idx
+		mesh_instance.add_to_group("occludable")
 		add_child(mesh_instance)
 		chunk_idx += 1
 
@@ -480,9 +481,19 @@ func _create_materials() -> void:
 	floor_material = _make_dungeon_material(
 		Color(0.35, 0.28, 0.22), Color(0.18, 0.14, 0.10), 0.9, 0.4)
 
-	wall_material = _make_dungeon_material(
+	var wall_std := _make_dungeon_material(
 		Color(0.42, 0.36, 0.30), Color(0.22, 0.18, 0.14), 0.85, 0.5)
-	wall_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var _occlusion_shader: Shader = preload("res://assets/shaders/wall_occlusion.gdshader")
+	wall_material = ShaderMaterial.new()
+	wall_material.shader = _occlusion_shader
+	wall_material.set_shader_parameter("albedo_color", wall_std.albedo_color)
+	wall_material.set_shader_parameter("roughness", wall_std.roughness)
+	wall_material.set_shader_parameter("uv1_scale", wall_std.uv1_scale)
+	wall_material.set_shader_parameter("normal_scale", wall_std.normal_scale if wall_std.normal_enabled else 0.0)
+	if wall_std.albedo_texture:
+		wall_material.set_shader_parameter("albedo_texture", wall_std.albedo_texture)
+	if wall_std.normal_enabled and wall_std.normal_texture:
+		wall_material.set_shader_parameter("normal_texture", wall_std.normal_texture)
 
 	corridor_material = _make_dungeon_material(
 		Color(0.30, 0.25, 0.20), Color(0.16, 0.12, 0.09), 0.9, 0.4)

@@ -26,12 +26,13 @@ var grid: Array = []
 
 # Materials
 var ground_material: StandardMaterial3D
-var wall_material: StandardMaterial3D
+var wall_material: ShaderMaterial
 var path_material: StandardMaterial3D
-var building_material: StandardMaterial3D
+var building_material: ShaderMaterial
 var roof_material: StandardMaterial3D
 var stairs_material: StandardMaterial3D
 var garden_material: StandardMaterial3D
+var _occlusion_shader: Shader
 
 # Building placement data — each entry: {rect: Rect2i, label: String, height: float}
 var buildings: Array[Dictionary] = []
@@ -374,7 +375,7 @@ func _build_wall_blocks(positions: Array) -> void:
 	mi.mesh = mesh
 	mi.material_override = wall_material
 	mi.name = "TownWalls"
-	mi.add_to_group("building_geometry")
+	mi.add_to_group("occludable")
 	add_child(mi)
 
 
@@ -425,7 +426,7 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	wall_mi.mesh = wall_mesh
 	wall_mi.material_override = building_material
 	wall_mi.name = "Building_%d_Walls" % idx
-	wall_mi.add_to_group("building_geometry")
+	wall_mi.add_to_group("occludable")
 	add_child(wall_mi)
 
 	# --- Roof (flat slab + slight overhang) ---
@@ -444,7 +445,6 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	roof_mi.material_override = roof_material
 	roof_mi.name = "Building_%d_Roof" % idx
 	roof_mi.add_to_group("building_roofs")
-	roof_mi.add_to_group("building_geometry")
 	# Store building bounds for camera occlusion
 	roof_mi.set_meta("building_min", Vector3(bx1, 0, bz1))
 	roof_mi.set_meta("building_max", Vector3(bx2, h, bz2))
@@ -1407,19 +1407,21 @@ func _add_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) 
 # --- Materials ---
 
 func _create_materials() -> void:
+	_occlusion_shader = preload("res://assets/shaders/wall_occlusion.gdshader")
+
 	ground_material = _make_stone_material(
 		Color(0.65, 0.55, 0.38), Color(0.40, 0.32, 0.22), 0.85, 0.4)
 
-	wall_material = _make_stone_material(
+	var wall_std := _make_stone_material(
 		Color(0.55, 0.50, 0.42), Color(0.35, 0.30, 0.24), 0.8, 0.5)
-	wall_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	wall_material = _make_occlusion_material(wall_std)
 
 	path_material = _make_stone_material(
 		Color(0.60, 0.55, 0.42), Color(0.38, 0.34, 0.26), 0.9, 0.35)
 
-	building_material = _make_stone_material(
+	var building_std := _make_stone_material(
 		Color(0.72, 0.65, 0.52), Color(0.48, 0.42, 0.32), 0.75, 0.5)
-	building_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	building_material = _make_occlusion_material(building_std)
 
 	roof_material = StandardMaterial3D.new()
 	roof_material.albedo_color = Color(0.65, 0.28, 0.18)
@@ -1488,3 +1490,17 @@ func _make_stone_gradient(light: Color, dark: Color) -> Gradient:
 	grad.add_point(0.7, dark.lerp(light, 0.6))
 	grad.set_color(1, light.lerp(dark, 0.2))
 	return grad
+
+
+func _make_occlusion_material(src: StandardMaterial3D) -> ShaderMaterial:
+	var smat := ShaderMaterial.new()
+	smat.shader = _occlusion_shader
+	smat.set_shader_parameter("albedo_color", src.albedo_color)
+	smat.set_shader_parameter("roughness", src.roughness)
+	smat.set_shader_parameter("normal_scale", src.normal_scale if src.normal_enabled else 0.0)
+	smat.set_shader_parameter("uv1_scale", src.uv1_scale)
+	if src.albedo_texture:
+		smat.set_shader_parameter("albedo_texture", src.albedo_texture)
+	if src.normal_enabled and src.normal_texture:
+		smat.set_shader_parameter("normal_texture", src.normal_texture)
+	return smat
