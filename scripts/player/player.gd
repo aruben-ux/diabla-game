@@ -320,6 +320,7 @@ func _check_pending_interact() -> void:
 		if target.has_method("interact"):
 			target.interact(self)
 			if _is_server_auth:
+				print("[Client] Sending interact intent for '%s'" % target.name)
 				_server_interact_intent.rpc_id(1, target.name)
 
 
@@ -697,11 +698,10 @@ func _server_interact_intent(target_name: String) -> void:
 			best = node as Node3D
 			break
 	if not best or not best.has_method("interact"):
+		print("[Interact] '%s' not found in interactables group" % target_name)
 		return
-	# Verify player is close enough (use generous range since positions may differ)
 	var player_dist := global_position.distance_to(best.global_position)
-	if player_dist > INTERACT_RANGE + 5.0:
-		return
+	print("[Interact] %s -> %s  dist=%.1f" % [player_name, target_name, player_dist])
 	best.interact(self)
 	# If this is a chest, spawn loot
 	if best.has_method("get_floor_level"):

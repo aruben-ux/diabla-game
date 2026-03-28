@@ -122,18 +122,24 @@ func _spawn_treasure_chests(room_list: Array) -> void:
 	_chest_container.name = "ChestContainer"
 	add_child(_chest_container)
 
+	# Use a LOCAL RNG seeded from the dungeon seed so chest placement is
+	# identical on server and client, regardless of global RNG divergence
+	# caused by enemy spawning or other setup consuming random calls.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = generator.dungeon_seed + 99991
+
 	var tile_size: float = generator.TILE_SIZE
 	var chest_idx := 0
 
 	# Skip first room (spawn) and last room (stairs down) — place chests in others
 	for i in range(1, room_list.size() - 1):
 		# ~50% chance per room to have a chest
-		if randf() > 0.5:
+		if rng.randf() > 0.5:
 			continue
 		var room: Rect2i = room_list[i]
 		# Place chest near a wall inside the room
-		var cx := (room.position.x + randi_range(1, room.size.x - 2)) * tile_size
-		var cz := (room.position.y + randi_range(1, room.size.y - 2)) * tile_size
+		var cx := (room.position.x + rng.randi_range(1, room.size.x - 2)) * tile_size
+		var cz := (room.position.y + rng.randi_range(1, room.size.y - 2)) * tile_size
 		chest_idx += 1
 		_build_chest(Vector3(cx, 0.0, cz), "Chest_%d" % chest_idx)
 
