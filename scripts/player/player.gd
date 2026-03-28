@@ -74,6 +74,11 @@ func _ready() -> void:
 		# Offline/LAN: load from local save
 		_load_from_character_data(CharacterManager.active_character)
 
+	# Sync equipment changes to server
+	if _is_server_auth and is_multiplayer_authority():
+		inventory.item_equipped.connect(_on_item_equipped_sync)
+		inventory.item_unequipped.connect(_on_item_unequipped_sync)
+
 	# Build the multi-mesh player model
 	if model.has_method("build_player_model"):
 		model.build_player_model()
@@ -719,6 +724,62 @@ func _sync_interact_done(target_pos: Vector3) -> void:
 			best = node as Node3D
 	if best and best.has_method("interact"):
 		best.interact(self)
+
+
+## --- Equipment sync (client -> server) ---
+
+func _on_item_equipped_sync(slot: String, item: ItemData) -> void:
+	_server_equip_item.rpc_id(1, slot, item.to_dict())
+
+
+func _on_item_unequipped_sync(slot: String) -> void:
+	_server_unequip_item.rpc_id(1, slot)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_equip_item(slot: String, item_dict: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	# Remove old equipment bonuses if something was in this slot
+	if inventory.equipment.has(slot) and inventory.equipment[slot] != null:
+		var old_item: ItemData = inventory.equipment[slot]
+		stats.attack_damage -= old_item.bonus_damage
+		stats.defense -= old_item.bonus_defense
+		stats.max_health -= old_item.bonus_health
+		stats.health = minf(stats.health, stats.max_health)
+		stats.max_mana -= old_item.bonus_mana
+		stats.mana = minf(stats.mana, stats.max_mana)
+	# Apply new item bonuses
+	var item := ItemData.from_dict(item_dict)
+	inventory.equipment[slot] = item
+	stats.attack_damage += item.bonus_damage
+	stats.defense += item.bonus_defense
+	stats.max_health += item.bonus_health
+	stats.health = minf(stats.health + item.bonus_health, stats.max_health)
+	stats.max_mana += item.bonus_mana
+	stats.mana = minf(stats.mana + item.bonus_mana, stats.max_mana)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_unequip_item(slot: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	if not inventory.equipment.has(slot) or inventory.equipment[slot] == null:
+		return
+	var item: ItemData = inventory.equipment[slot]
+	stats.attack_damage -= item.bonus_damage
+	stats.defense -= item.bonus_defense
+	stats.max_health -= item.bonus_health
+	stats.health = minf(stats.health, stats.max_health)
+	stats.max_mana -= item.bonus_mana
+	stats.mana = minf(stats.mana, stats.max_mana)
+	inventory.equipment[slot] = null
 
 
 ## --- Chest loot spawning (called on server, RPCs to all peers) ---
