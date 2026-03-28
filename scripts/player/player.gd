@@ -54,11 +54,10 @@ func _ready() -> void:
 		if peer_id in GameManager.online_players:
 			_load_from_dict(GameManager.online_players[peer_id])
 	elif _is_server_auth and not multiplayer.is_server():
-		# Client in online mode: read character name from synced online_players
+		# Client in online mode: load full stats so HUD/display is correct
 		var peer_id := get_multiplayer_authority()
 		if peer_id in GameManager.online_players:
-			var data: Dictionary = GameManager.online_players[peer_id]
-			player_name = data.get("character_name", "Player")
+			_load_from_dict(GameManager.online_players[peer_id])
 	elif is_multiplayer_authority() and CharacterManager.active_character:
 		# Offline/LAN: load from local save
 		_load_from_character_data(CharacterManager.active_character)
