@@ -20,6 +20,22 @@ var floor_level := 1
 var _spawn_counter := 0
 var _sync_timer := 0.0
 const SYNC_INTERVAL := 0.05  # 20 Hz batch broadcast
+var _room_density_div := 15
+
+static var _spawning_cfg: Dictionary = {}
+static var _spawning_loaded := false
+
+
+static func _load_spawning_cfg() -> void:
+	if _spawning_loaded:
+		return
+	_spawning_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+			_spawning_cfg = json.data.get("spawning", {})
+		file.close()
 
 
 func _ready() -> void:
@@ -27,6 +43,10 @@ func _ready() -> void:
 		enemy_scene_loaded = preload("res://scenes/enemies/enemy.tscn")
 	else:
 		enemy_scene_loaded = enemy_scene
+	_load_spawning_cfg()
+	max_enemies_per_room = int(_spawning_cfg.get("dungeon_max_per_room", max_enemies_per_room))
+	respawn_interval = _spawning_cfg.get("dungeon_respawn_interval", respawn_interval)
+	_room_density_div = int(_spawning_cfg.get("dungeon_room_density_divisor", _room_density_div))
 
 
 func setup(rooms: Array[Rect2i], centers: Array[Vector3], ts: float, floor_num: int = 1) -> void:
@@ -63,7 +83,7 @@ func _initial_spawn() -> void:
 	for i in range(start_idx, room_data.size()):
 		var room := room_data[i]
 		var area := room.size.x * room.size.y
-		var count := clampi(area / 15, 1, max_enemies_per_room)
+		var count := clampi(area / _room_density_div, 1, max_enemies_per_room)
 		for j in count:
 			_spawn_enemy_in_room(i)
 
@@ -73,17 +93,19 @@ func _respawn_pass() -> void:
 	for i in range(start_idx, room_data.size()):
 		var room := room_data[i]
 		var area := room.size.x * room.size.y
-		var target_count := clampi(area / 15, 1, max_enemies_per_room)
+		var target_count := clampi(area / _room_density_div, 1, max_enemies_per_room)
 		while enemies_per_room[i] < target_count:
 			# Server generates spawn data and sends to all peers
 			var rx := randf_range(room.position.x + 1, room.position.x + room.size.x - 1) * tile_size
 			var rz := randf_range(room.position.y + 1, room.position.y + room.size.y - 1) * tile_size
 			var spawn_pos := Vector3(rx, 1.0, rz)
 			var roll := randf()
+			var brute_w: float = _spawning_cfg.get("type_weight_brute", 0.15)
+			var mage_w: float = _spawning_cfg.get("type_weight_mage", 0.25)
 			var type: int = 0  # GRUNT
-			if roll < 0.15:
+			if roll < brute_w:
 				type = 2  # BRUTE
-			elif roll < 0.40:
+			elif roll < brute_w + mage_w:
 				type = 1  # MAGE
 			_spawn_counter += 1
 			_rpc_respawn_enemy.rpc("E_%d" % _spawn_counter, i, spawn_pos, type)
@@ -103,12 +125,14 @@ func _spawn_enemy_in_room(room_idx: int) -> void:
 	var rz := randf_range(room.position.y + 1, room.position.y + room.size.y - 1) * tile_size
 	var spawn_pos := Vector3(rx, 1.0, rz)
 
-	# Randomize enemy type: 60% grunt, 25% mage, 15% brute
+	# Randomize enemy type based on config weights
 	var roll := randf()
+	var brute_w: float = _spawning_cfg.get("type_weight_brute", 0.15)
+	var mage_w: float = _spawning_cfg.get("type_weight_mage", 0.25)
 	var type: int = 0  # GRUNT
-	if roll < 0.15:
+	if roll < brute_w:
 		type = 2  # BRUTE
-	elif roll < 0.40:
+	elif roll < brute_w + mage_w:
 		type = 1  # MAGE
 
 	_create_enemy("E_%d" % _spawn_counter, room_idx, spawn_pos, type)

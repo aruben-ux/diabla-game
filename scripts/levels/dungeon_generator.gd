@@ -6,17 +6,32 @@ extends Node3D
 
 signal dungeon_generated(rooms: Array, spawn_position: Vector3, stairs_up_pos: Vector3, stairs_down_pos: Vector3)
 
-const TILE_SIZE := 3.0
-const WALL_HEIGHT := 4.0
-const MIN_ROOM_SIZE := 5   # In tiles
-const MAX_ROOM_SIZE := 12
-const MIN_SPLIT_SIZE := 12
-const CORRIDOR_WIDTH := 3
+var TILE_SIZE := 3.0
+var WALL_HEIGHT := 4.0
+var MIN_ROOM_SIZE := 5
+var MAX_ROOM_SIZE := 12
+var MIN_SPLIT_SIZE := 12
+var CORRIDOR_WIDTH := 3
 
-@export var dungeon_width := 60   # Total grid width in tiles
-@export var dungeon_height := 60  # Total grid height in tiles
-@export var max_depth := 5        # BSP split depth (more = more rooms)
-@export var dungeon_seed := 0     # 0 = random
+@export var dungeon_width := 60
+@export var dungeon_height := 60
+@export var max_depth := 5
+@export var dungeon_seed := 0
+
+static var _world_cfg: Dictionary = {}
+static var _world_loaded := false
+
+
+static func _load_world_cfg() -> void:
+	if _world_loaded:
+		return
+	_world_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+			_world_cfg = json.data.get("world", {})
+		file.close()
 
 # Materials
 var floor_material: StandardMaterial3D
@@ -34,6 +49,16 @@ var _stairs_down_pos := Vector3.ZERO
 
 
 func _ready() -> void:
+	_load_world_cfg()
+	TILE_SIZE = _world_cfg.get("tile_size", TILE_SIZE)
+	WALL_HEIGHT = _world_cfg.get("wall_height", WALL_HEIGHT)
+	MIN_ROOM_SIZE = int(_world_cfg.get("min_room_size", MIN_ROOM_SIZE))
+	MAX_ROOM_SIZE = int(_world_cfg.get("max_room_size", MAX_ROOM_SIZE))
+	MIN_SPLIT_SIZE = int(_world_cfg.get("min_split_size", MIN_SPLIT_SIZE))
+	CORRIDOR_WIDTH = int(_world_cfg.get("corridor_width", CORRIDOR_WIDTH))
+	dungeon_width = int(_world_cfg.get("dungeon_width", dungeon_width))
+	dungeon_height = int(_world_cfg.get("dungeon_height", dungeon_height))
+	max_depth = int(_world_cfg.get("bsp_max_depth", max_depth))
 	_create_materials()
 
 

@@ -17,30 +17,39 @@ var _sfx_slider: HSlider
 var _camera_sens_slider: HSlider
 
 
+var _main_center: CenterContainer
+var _options_center: CenterContainer
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_preset(PRESET_FULL_RECT)
+	size = get_viewport_rect().size
 
-	# Semi-transparent backdrop
+	# Semi-transparent backdrop that blocks clicks to the world
 	var backdrop := ColorRect.new()
 	backdrop.color = Color(0, 0, 0, 0.5)
 	backdrop.set_anchors_preset(PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(backdrop)
 
-	# Center container holds both panels
-	var center := CenterContainer.new()
-	center.set_anchors_preset(PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
+	# Each panel gets its own full-rect CenterContainer
+	_main_center = CenterContainer.new()
+	_main_center.set_anchors_preset(PRESET_FULL_RECT)
+	_main_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_main_center)
 
-	_build_main_panel(center)
-	_build_options_panel(center)
+	_options_center = CenterContainer.new()
+	_options_center.set_anchors_preset(PRESET_FULL_RECT)
+	_options_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_options_center)
+
+	_build_main_panel()
+	_build_options_panel()
 	_show_main()
 
 
-func _input(event: InputEvent) -> void:
-	# Block all input from reaching the game world
+func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		if _options_panel.visible:
 			_show_main()
@@ -48,7 +57,7 @@ func _input(event: InputEvent) -> void:
 			_close()
 		get_viewport().set_input_as_handled()
 		return
-	# Consume all mouse/key events so clicks don't move the player
+	# Consume any remaining unhandled input so clicks don't reach the game world
 	get_viewport().set_input_as_handled()
 
 
@@ -59,7 +68,7 @@ func _close() -> void:
 
 # --- Main Panel ---
 
-func _build_main_panel(parent: Control) -> void:
+func _build_main_panel() -> void:
 	_main_panel = PanelContainer.new()
 	_main_panel.custom_minimum_size = Vector2(280, 0)
 
@@ -109,12 +118,12 @@ func _build_main_panel(parent: Control) -> void:
 	vbox.add_child(btn_quit)
 
 	_main_panel.add_child(vbox)
-	parent.add_child(_main_panel)
+	_main_center.add_child(_main_panel)
 
 
 # --- Options Panel ---
 
-func _build_options_panel(parent: Control) -> void:
+func _build_options_panel() -> void:
 	_options_panel = PanelContainer.new()
 	_options_panel.custom_minimum_size = Vector2(360, 0)
 
@@ -193,8 +202,8 @@ func _build_options_panel(parent: Control) -> void:
 	vbox.add_child(btn_back)
 
 	_options_panel.add_child(vbox)
-	parent.add_child(_options_panel)
-	_options_panel.visible = false
+	_options_center.add_child(_options_panel)
+	_options_center.visible = false
 
 
 # --- Helpers ---
@@ -223,13 +232,13 @@ func _add_slider_row(parent: VBoxContainer, label_text: String, initial: float, 
 
 
 func _show_main() -> void:
-	_main_panel.visible = true
-	_options_panel.visible = false
+	_main_center.visible = true
+	_options_center.visible = false
 
 
 func _show_options() -> void:
-	_main_panel.visible = false
-	_options_panel.visible = true
+	_main_center.visible = false
+	_options_center.visible = true
 
 
 # --- Callbacks ---

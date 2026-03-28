@@ -1,5 +1,5 @@
 """
-Diabla Game Editor — Edit monsters, classes, skills, and items.
+Diabla Game Editor — Edit monsters, classes, skills, items, loot, progression, spawning, and world.
 Reads/writes data/game_data.json alongside the Godot project.
 """
 
@@ -75,6 +75,60 @@ FIELDS = {
         ("heal_amount", "Heal Amount", "float", 0, 99999),
         ("mana_restore", "Mana Restore", "float", 0, 99999),
         ("icon_color", "Icon Color", "color"),
+    ],
+}
+
+# Singleton tabs — one config object, no combo selector
+SINGLETON_FIELDS = {
+    "loot_config": [
+        ("weapon_damage_base", "Weapon Dmg Base", "float", 0, 99999),
+        ("weapon_damage_per_level", "Weapon Dmg / Level", "float", 0, 9999),
+        ("armor_defense_base", "Armor Def Base", "float", 0, 99999),
+        ("armor_defense_per_level", "Armor Def / Level", "float", 0, 9999),
+        ("armor_health_per_level", "Armor HP / Level", "float", 0, 9999),
+        ("rarity_bonus_mult", "Rarity Bonus Mult", "float", 0, 10),
+        ("health_potion_drop_chance", "HP Potion Drop %", "float", 0, 1),
+        ("mana_potion_drop_chance", "MP Potion Drop %", "float", 0, 1),
+        ("equipment_drop_chance", "Equip Drop %", "float", 0, 1),
+        ("rarity_common", "Rarity: Common", "float", 0, 1),
+        ("rarity_uncommon", "Rarity: Uncommon", "float", 0, 1),
+        ("rarity_rare", "Rarity: Rare", "float", 0, 1),
+        ("rarity_epic", "Rarity: Epic", "float", 0, 1),
+        ("rarity_legendary", "Rarity: Legendary", "float", 0, 1),
+    ],
+    "progression": [
+        ("xp_per_level_base", "XP per Level Base", "int", 1, 999999),
+        ("hp_per_level", "HP per Level", "float", 0, 99999),
+        ("mana_per_level", "Mana per Level", "float", 0, 99999),
+        ("stats_per_level", "Stats per Level", "int", 0, 100),
+        ("defense_multiplier", "Defense Multiplier", "float", 0, 10),
+    ],
+    "spawning": [
+        ("max_enemies", "Max Enemies (Open)", "int", 1, 999),
+        ("spawn_interval", "Spawn Interval", "float", 0.1, 300),
+        ("spawn_radius", "Spawn Radius", "float", 1, 500),
+        ("dungeon_max_per_room", "Dungeon Max/Room", "int", 1, 99),
+        ("dungeon_respawn_interval", "Dungeon Respawn", "float", 0.1, 600),
+        ("dungeon_room_density_divisor", "Room Density Div", "int", 1, 999),
+        ("type_weight_grunt", "Weight: Grunt", "float", 0, 1),
+        ("type_weight_mage", "Weight: Mage", "float", 0, 1),
+        ("type_weight_brute", "Weight: Brute", "float", 0, 1),
+    ],
+    "world": [
+        ("tile_size", "Tile Size", "float", 0.1, 100),
+        ("dungeon_width", "Dungeon Width", "int", 10, 999),
+        ("dungeon_height", "Dungeon Height", "int", 10, 999),
+        ("bsp_max_depth", "BSP Max Depth", "int", 1, 20),
+        ("min_room_size", "Min Room Size", "int", 2, 100),
+        ("max_room_size", "Max Room Size", "int", 2, 100),
+        ("min_split_size", "Min Split Size", "int", 2, 200),
+        ("corridor_width", "Corridor Width", "int", 1, 20),
+        ("wall_height", "Wall Height", "float", 0.1, 100),
+        ("town_width", "Town Width", "int", 10, 999),
+        ("town_height", "Town Height", "int", 10, 999),
+        ("town_wall_height", "Town Wall Height", "float", 0.1, 100),
+        ("building_height", "Building Height", "float", 0.1, 100),
+        ("roof_extra", "Roof Extra", "float", 0, 100),
     ],
 }
 
@@ -193,6 +247,10 @@ class GameEditor:
         self._build_data_tab("classes", "Classes")
         self._build_data_tab("skills", "Skills")
         self._build_data_tab("items", "Items")
+        self._build_singleton_tab("loot_config", "Loot")
+        self._build_singleton_tab("progression", "Progression")
+        self._build_singleton_tab("spawning", "Spawning")
+        self._build_singleton_tab("world", "World")
 
         btn = ttk.Frame(self.root)
         btn.pack(fill="x", padx=8, pady=(4, 8))
@@ -308,6 +366,106 @@ class GameEditor:
                 b.grid(row=i, column=1, sticky="w", padx=(0, 8), pady=2)
                 st["color_btns"][key] = b
 
+    # ── Singleton Tab (single config object, no combo) ────────────────
+
+    def _build_singleton_tab(self, data_key: str, display: str) -> None:
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text=f"  {display}  ")
+
+        # Use a scrollable frame so many fields fit
+        canvas = tk.Canvas(tab, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        inner = ttk.Frame(canvas)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True, padx=4, pady=4)
+
+        props = ttk.LabelFrame(inner, text=f"{display} Settings")
+        props.pack(fill="x", padx=4, pady=4)
+
+        st = {"vars": {}}
+        self.ts[data_key] = st
+
+        for i, fd in enumerate(SINGLETON_FIELDS[data_key]):
+            key, label, ftype = fd[0], fd[1], fd[2]
+            ttk.Label(props, text=label + ":").grid(row=i, column=0, sticky="w", padx=(8, 4), pady=2)
+            if ftype in ("float", "int"):
+                var = tk.StringVar()
+                ttk.Entry(props, textvariable=var, width=14).grid(row=i, column=1, sticky="w", padx=(0, 4), pady=2)
+                st["vars"][key] = var
+                ttk.Label(props, text=f"({fd[3]}–{fd[4]})", foreground="grey").grid(
+                    row=i, column=2, sticky="w", padx=(0, 8), pady=2)
+
+    def _populate_singleton(self, data_key: str) -> None:
+        st = self.ts.get(data_key)
+        if not st:
+            return
+        section = self.data.get(data_key, {})
+        # For loot_config, flatten rarity_weights array into individual keys
+        if data_key == "loot_config":
+            rw = section.get("rarity_weights", [0.5, 0.3, 0.13, 0.06, 0.01])
+            rarity_map = {"rarity_common": 0, "rarity_uncommon": 1, "rarity_rare": 2,
+                          "rarity_epic": 3, "rarity_legendary": 4}
+            for k, idx in rarity_map.items():
+                if k in st["vars"]:
+                    st["vars"][k].set(str(rw[idx] if idx < len(rw) else 0))
+        for fd in SINGLETON_FIELDS[data_key]:
+            key = fd[0]
+            if key.startswith("rarity_") and data_key == "loot_config":
+                continue  # Already handled above
+            if key in st["vars"]:
+                st["vars"][key].set(str(section.get(key, "")))
+
+    def _collect_singleton(self, data_key: str) -> bool:
+        st = self.ts.get(data_key)
+        if not st:
+            return True
+        section = self.data.setdefault(data_key, {})
+        for fd in SINGLETON_FIELDS[data_key]:
+            key, label, ftype = fd[0], fd[1], fd[2]
+            if key.startswith("rarity_") and data_key == "loot_config":
+                continue  # Handled below
+            raw = st["vars"][key].get().strip()
+            if ftype == "float":
+                fmin, fmax = fd[3], fd[4]
+                try:
+                    val = float(raw)
+                except ValueError:
+                    messagebox.showwarning("Invalid", f"[{data_key}] {label} must be a number.")
+                    return False
+                if val < fmin or val > fmax:
+                    messagebox.showwarning("Range", f"[{data_key}] {label}: {fmin}–{fmax}.")
+                    return False
+                section[key] = val
+            elif ftype == "int":
+                fmin, fmax = fd[3], fd[4]
+                try:
+                    val = int(raw)
+                except ValueError:
+                    messagebox.showwarning("Invalid", f"[{data_key}] {label} must be integer.")
+                    return False
+                if val < fmin or val > fmax:
+                    messagebox.showwarning("Range", f"[{data_key}] {label}: {fmin}–{fmax}.")
+                    return False
+                section[key] = val
+        # Collect rarity_weights for loot_config
+        if data_key == "loot_config":
+            rarity_keys = ["rarity_common", "rarity_uncommon", "rarity_rare",
+                           "rarity_epic", "rarity_legendary"]
+            weights = []
+            for rk in rarity_keys:
+                raw = st["vars"][rk].get().strip()
+                try:
+                    val = float(raw)
+                except ValueError:
+                    messagebox.showwarning("Invalid", f"[Loot] {rk} must be a number.")
+                    return False
+                weights.append(val)
+            section["rarity_weights"] = weights
+        return True
+
     # ── Visual Panel (Monsters) ───────────────────────────────────────
 
     def _build_visual_panel(self, parent: ttk.Frame) -> None:
@@ -374,6 +532,8 @@ class GameEditor:
     def _init_all_tabs(self) -> None:
         for tn in ["monsters", "classes", "skills", "items"]:
             self._populate_tab(tn)
+        for sk in ["loot_config", "progression", "spawning", "world"]:
+            self._populate_singleton(sk)
         self._refresh_tree()
         self._redraw_preview()
 
@@ -511,6 +671,9 @@ class GameEditor:
         for tn in ["monsters", "classes", "skills", "items"]:
             if not self._collect_tab(tn):
                 return
+        for sk in ["loot_config", "progression", "spawning", "world"]:
+            if not self._collect_singleton(sk):
+                return
         # Collect scaling
         for fd in SCALING_FIELDS:
             key, label, ftype, fmin, fmax = fd
@@ -532,7 +695,9 @@ class GameEditor:
         for tn in ["monsters", "classes", "skills", "items"]:
             vals = list(self.data.get(tn, {}).keys())
             self.ts[tn]["combo"]["values"] = vals
-            if vals:
+            sk in ["loot_config", "progression", "spawning", "world"]:
+            self._populate_singleton(sk)
+        for if vals:
                 self.ts[tn]["combo"].current(0)
             self._populate_tab(tn)
         for key, var in self.scaling_vars.items():

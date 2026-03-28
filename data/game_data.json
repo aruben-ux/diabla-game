@@ -257,9 +257,37 @@
     },
     "skill_slots": ["fireball", "heal", "whirlwind", "frost_nova"],
     "progression": {
+        "xp_per_level_base": 100,
         "hp_per_level": 10.0,
         "mana_per_level": 5.0,
         "stats_per_level": 2,
-        "xp_per_level_base": 100
+        "defense_multiplier": 0.5
+    },
+    "spawning": {
+        "max_enemies": 6,
+        "spawn_interval": 5.0,
+        "spawn_radius": 15.0,
+        "dungeon_max_per_room": 4,
+        "dungeon_respawn_interval": 15.0,
+        "dungeon_room_density_divisor": 15,
+        "type_weight_grunt": 0.60,
+        "type_weight_mage": 0.25,
+        "type_weight_brute": 0.15
+    },
+    "world": {
+        "tile_size": 3.0,
+        "dungeon_width": 60,
+        "dungeon_height": 60,
+        "bsp_max_depth": 5,
+        "min_room_size": 5,
+        "max_room_size": 12,
+        "min_split_size": 12,
+        "corridor_width": 3,
+        "wall_height": 4.0,
+        "town_width": 30,
+        "town_height": 30,
+        "town_wall_height": 5.0,
+        "building_height": 4.5,
+        "roof_extra": 1.5
     }
 }

@@ -14,10 +14,29 @@ var _spawn_counter := 0
 var _sync_timer := 0.0
 const SYNC_INTERVAL := 0.05
 
+static var _spawning_cfg: Dictionary = {}
+static var _spawning_loaded := false
+
+
+static func _load_spawning_cfg() -> void:
+	if _spawning_loaded:
+		return
+	_spawning_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+			_spawning_cfg = json.data.get("spawning", {})
+		file.close()
+
 
 func _ready() -> void:
 	if not enemy_scene:
 		enemy_scene = preload("res://scenes/enemies/enemy.tscn")
+	_load_spawning_cfg()
+	max_enemies = int(_spawning_cfg.get("max_enemies", max_enemies))
+	spawn_interval = _spawning_cfg.get("spawn_interval", spawn_interval)
+	spawn_radius = _spawning_cfg.get("spawn_radius", spawn_radius)
 
 
 func _process(delta: float) -> void:
@@ -40,10 +59,12 @@ func _spawn_enemy() -> void:
 	var dist := randf_range(5.0, spawn_radius)
 	var spawn_pos := global_position + Vector3(cos(angle) * dist, 1.0, sin(angle) * dist)
 	var roll := randf()
+	var brute_w: float = _spawning_cfg.get("type_weight_brute", 0.15)
+	var mage_w: float = _spawning_cfg.get("type_weight_mage", 0.25)
 	var type: int = 0  # GRUNT
-	if roll < 0.15:
+	if roll < brute_w:
 		type = 2  # BRUTE
-	elif roll < 0.40:
+	elif roll < brute_w + mage_w:
 		type = 1  # MAGE
 	_spawn_counter += 1
 	_rpc_spawn_enemy.rpc("TE_%d" % _spawn_counter, spawn_pos, type)

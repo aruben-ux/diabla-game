@@ -18,13 +18,33 @@ class_name PlayerStats
 @export var level: int = 1
 @export var experience: float = 0.0
 
+static var _progression: Dictionary = {}
+static var _progression_loaded := false
+
+
+static func _load_progression() -> void:
+	if _progression_loaded:
+		return
+	_progression_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+			_progression = json.data.get("progression", {})
+		file.close()
+
+
 var experience_to_next_level: float:
 	get:
-		return level * 100.0
+		_load_progression()
+		var base: float = _progression.get("xp_per_level_base", 100)
+		return level * base
 
 
 func take_damage(amount: float) -> float:
-	var reduced := maxf(amount - defense * 0.5, 1.0)
+	_load_progression()
+	var def_mult: float = _progression.get("defense_multiplier", 0.5)
+	var reduced := maxf(amount - defense * def_mult, 1.0)
 	health = maxf(health - reduced, 0.0)
 	return reduced
 
@@ -51,11 +71,15 @@ func add_experience(amount: float) -> bool:
 
 
 func _on_level_up() -> void:
-	max_health += 10.0
-	max_mana += 5.0
+	_load_progression()
+	var hp_lv: float = _progression.get("hp_per_level", 10.0)
+	var mp_lv: float = _progression.get("mana_per_level", 5.0)
+	var st_lv: int = int(_progression.get("stats_per_level", 2))
+	max_health += hp_lv
+	max_mana += mp_lv
 	health = max_health
 	mana = max_mana
-	strength += 2
-	dexterity += 2
-	intelligence += 2
-	vitality += 2
+	strength += st_lv
+	dexterity += st_lv
+	intelligence += st_lv
+	vitality += st_lv
