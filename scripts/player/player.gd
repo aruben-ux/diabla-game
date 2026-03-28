@@ -318,12 +318,9 @@ func _check_pending_interact() -> void:
 		var target := _pending_interact
 		_pending_interact = null
 		if target.has_method("interact"):
-			# Client plays local interact effects (animation etc.)
 			target.interact(self)
-			print("[Interact] Client: interact() called on %s, sending RPC to server" % target.name)
-			# Server handles authoritative side-effects (loot drops, stat changes)
 			if _is_server_auth:
-				_server_interact_intent.rpc_id(1, target.global_position)
+				_server_interact_intent.rpc_id(1, target.name)
 
 
 ## Server-authoritative mode: server simulates all players.
@@ -685,7 +682,7 @@ func _do_respawn(new_health: float, new_mana: float) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _server_interact_intent(target_pos: Vector3) -> void:
+func _server_interact_intent(target_name: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender := multiplayer.get_remote_sender_id()
@@ -693,52 +690,32 @@ func _server_interact_intent(target_pos: Vector3) -> void:
 		return
 	if stats.health <= 0.0:
 		return
-	print("[Interact] Server received interact intent from peer %d at %s" % [sender, target_pos])
-	# Find the nearest interactable to the given position
+	# Find the interactable by name
 	var best: Node3D = null
-	var best_dist := 2.0  # Must be within 2m of reported position
-	var interactables := get_tree().get_nodes_in_group("interactables")
-	print("[Interact] Found %d interactables in group" % interactables.size())
-	for node in interactables:
-		var d := (node as Node3D).global_position.distance_to(target_pos)
-		print("[Interact]   - %s at %s dist=%.2f" % [node.name, (node as Node3D).global_position, d])
-		if d < best_dist:
-			best_dist = d
+	for node in get_tree().get_nodes_in_group("interactables"):
+		if node.name == target_name:
 			best = node as Node3D
-	if best and best.has_method("interact"):
-		# Verify player is actually close enough
-		var player_dist := global_position.distance_to(best.global_position)
-		print("[Interact] Best: %s, player_dist=%.2f, limit=%.2f" % [best.name, player_dist, INTERACT_RANGE + 1.0])
-		if player_dist <= INTERACT_RANGE + 1.0:
-			best.interact(self)
-			# Server-only effects (loot drops etc.)
-			if best.has_method("server_interact"):
-				print("[Interact] Calling server_interact on %s" % best.name)
-				best.server_interact(self)
-			# If this was a chest, spawn loot directly via player RPCs
-			if best.has_method("get_floor_level"):
-				var floor_lvl: int = best.get_floor_level()
-				print("[Interact] Spawning chest loot for floor %d" % floor_lvl)
-				_spawn_chest_loot(floor_lvl, best.global_position)
-			# Tell client to run interact() locally for stat changes
-			_sync_interact_done.rpc(best.global_position)
-		else:
-			print("[Interact] Player too far: %.2f > %.2f" % [player_dist, INTERACT_RANGE + 1.0])
-	else:
-		print("[Interact] No valid interactable found near %s" % target_pos)
+			break
+	if not best or not best.has_method("interact"):
+		return
+	# Verify player is close enough (use generous range since positions may differ)
+	var player_dist := global_position.distance_to(best.global_position)
+	if player_dist > INTERACT_RANGE + 5.0:
+		return
+	best.interact(self)
+	# If this is a chest, spawn loot
+	if best.has_method("get_floor_level"):
+		var floor_lvl: int = best.get_floor_level()
+		_spawn_chest_loot(floor_lvl, best.global_position)
+	# Tell client to run interact() locally for stat changes (fountain heal etc.)
+	_sync_interact_done.rpc(target_name)
 
 @rpc("any_peer", "call_remote", "reliable")
-func _sync_interact_done(target_pos: Vector3) -> void:
-	## Server tells client an interact was validated — find and interact locally.
-	var best: Node3D = null
-	var best_dist := 2.0
+func _sync_interact_done(target_name: String) -> void:
 	for node in get_tree().get_nodes_in_group("interactables"):
-		var d := (node as Node3D).global_position.distance_to(target_pos)
-		if d < best_dist:
-			best_dist = d
-			best = node as Node3D
-	if best and best.has_method("interact"):
-		best.interact(self)
+		if node.name == target_name and node.has_method("interact"):
+			node.interact(self)
+			break
 
 
 ## --- Equipment sync (client -> server) ---
@@ -808,7 +785,6 @@ func _spawn_chest_loot(floor_lvl: int, chest_pos: Vector3) -> void:
 	var gold_amount := randi_range(10, 30) * floor_lvl
 	_chest_loot_counter += 1
 	var gold_name := "ChestGold_%d" % _chest_loot_counter
-	print("[Interact] Spawning gold: %s amount=%d" % [gold_name, gold_amount])
 	_sync_spawn_gold.rpc(gold_name, gold_amount, chest_pos + Vector3(0, 0.5, 0))
 
 	# Item drops
@@ -822,7 +798,6 @@ func _spawn_chest_loot(floor_lvl: int, chest_pos: Vector3) -> void:
 		var offset := Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
 		_chest_loot_counter += 1
 		var loot_name := "ChestLoot_%d" % _chest_loot_counter
-		print("[Interact] Spawning loot: %s item=%s" % [loot_name, drops[i].display_name])
 		_sync_spawn_loot.rpc(loot_name, drops[i].to_dict(), chest_pos + offset + Vector3(0, 0.5, 0))
 
 

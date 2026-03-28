@@ -114,12 +114,6 @@ func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vect
 	# Spawn treasure chests in some rooms
 	_spawn_treasure_chests(room_list)
 
-	# Log interactables for debug
-	var interactables := get_tree().get_nodes_in_group("interactables")
-	print("[Dungeon] After generation: %d interactables in group. is_server=%s" % [interactables.size(), multiplayer.is_server()])
-	for n in interactables:
-		print("[Dungeon]   - %s at %s" % [n.name, (n as Node3D).global_position])
-
 	level_ready.emit(spawn_position, stairs_up_position, stairs_down_position)
 
 
@@ -129,6 +123,7 @@ func _spawn_treasure_chests(room_list: Array) -> void:
 	add_child(_chest_container)
 
 	var tile_size: float = generator.TILE_SIZE
+	var chest_idx := 0
 
 	# Skip first room (spawn) and last room (stairs down) — place chests in others
 	for i in range(1, room_list.size() - 1):
@@ -139,13 +134,15 @@ func _spawn_treasure_chests(room_list: Array) -> void:
 		# Place chest near a wall inside the room
 		var cx := (room.position.x + randi_range(1, room.size.x - 2)) * tile_size
 		var cz := (room.position.y + randi_range(1, room.size.y - 2)) * tile_size
-		_build_chest(Vector3(cx, 0.0, cz))
+		chest_idx += 1
+		_build_chest(Vector3(cx, 0.0, cz), "Chest_%d" % chest_idx)
 
 
-func _build_chest(pos: Vector3) -> void:
+func _build_chest(pos: Vector3, chest_name: String) -> void:
 	var chest_script := preload("res://scripts/loot/treasure_chest.gd")
 
 	var body := StaticBody3D.new()
+	body.name = chest_name
 	body.position = pos
 	body.collision_layer = 128 | 1  # layer 8 (interactable) + layer 1 (physical)
 	body.collision_mask = 0
