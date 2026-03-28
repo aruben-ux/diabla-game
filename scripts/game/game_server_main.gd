@@ -149,7 +149,14 @@ func _on_token_validated(peer_id: int, code: int, body_bytes: PackedByteArray) -
 		peer_id, account_id, char_data.get("character_name", "???")
 	])
 
-	# Tell all peers this player is in
+	# Send existing players to the new peer so they can spawn them
+	for existing_id in _authenticated_players:
+		if existing_id == peer_id:
+			continue
+		var existing_data: Dictionary = _authenticated_players[existing_id]["character_data"]
+		NetworkManager._confirm_player_authenticated.rpc_id(peer_id, existing_id, existing_data)
+
+	# Tell all peers (including the new one) this player is in
 	NetworkManager._confirm_player_authenticated.rpc(peer_id, char_data)
 	_update_player_count()
 

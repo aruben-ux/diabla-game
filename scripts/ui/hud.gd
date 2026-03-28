@@ -19,6 +19,7 @@ var tracked_player: Node = null
 const RESPAWN_DELAY := 3.0
 var _respawn_timer := 0.0
 var _is_dead := false
+var _waiting_for_respawn := false
 
 
 func _ready() -> void:
@@ -28,6 +29,7 @@ func _ready() -> void:
 func set_player(player: Node) -> void:
 	tracked_player = player
 	_is_dead = false
+	_waiting_for_respawn = false
 	death_overlay.visible = false
 	if player and player.skill_manager:
 		player.skill_manager.cooldown_updated.connect(_on_cooldown_updated)
@@ -58,8 +60,14 @@ func _process(delta: float) -> void:
 
 	level_label.text = "Level %d" % stats.level
 
+	# Respawn completed — health restored by server
+	if _is_dead and stats.health > 0.0:
+		_is_dead = false
+		_waiting_for_respawn = false
+		death_overlay.visible = false
+
 	# Death detection
-	if stats.health <= 0.0 and not _is_dead:
+	if stats.health <= 0.0 and not _is_dead and not _waiting_for_respawn:
 		_show_death_screen()
 	
 	# Respawn countdown
@@ -84,7 +92,7 @@ func _show_death_screen() -> void:
 func _on_respawn_pressed() -> void:
 	if _respawn_timer > 0.0:
 		return
-	_is_dead = false
+	_waiting_for_respawn = true
 	death_overlay.visible = false
 	if tracked_player and is_instance_valid(tracked_player):
 		tracked_player.request_respawn()

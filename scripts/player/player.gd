@@ -328,7 +328,19 @@ func _server_skill_intent(slot: int, target_pos: Vector3) -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != get_multiplayer_authority():
 		return
-	skill_manager.try_use_skill(slot, target_pos)
+	if skill_manager.try_use_skill(slot, target_pos):
+		_sync_skill_cast.rpc(slot, target_pos, stats.mana, stats.health)
+
+
+## Broadcast skill execution to all clients for visual feedback + stat sync.
+@rpc("authority", "call_remote", "reliable")
+func _sync_skill_cast(slot: int, target_pos: Vector3, new_mana: float, new_health: float) -> void:
+	stats.mana = new_mana
+	stats.health = new_health
+	var skill: SkillData = skill_manager.skills[slot]
+	if skill:
+		skill_manager.cooldowns[slot] = skill.cooldown
+		skill_manager._execute_skill(skill, target_pos)
 
 
 @rpc("authority", "call_local", "reliable")

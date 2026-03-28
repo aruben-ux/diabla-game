@@ -85,7 +85,8 @@ func _cast_fireball(skill: SkillData, target_pos: Vector3) -> void:
 
 
 func _cast_heal(skill: SkillData) -> void:
-	player.stats.heal(skill.damage + player.stats.intelligence * 0.3)
+	if multiplayer.is_server():
+		player.stats.heal(skill.damage + player.stats.intelligence * 0.3)
 	EventBus.show_floating_text.emit(
 		player.global_position + Vector3(0, 2.5, 0),
 		"+%d HP" % int(skill.damage),
