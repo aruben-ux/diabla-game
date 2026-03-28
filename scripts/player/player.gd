@@ -172,6 +172,8 @@ func _physics_process_server_auth(delta: float) -> void:
 			attack_timer -= delta
 		_process_movement(delta)
 		# Broadcast authoritative position to all clients
+		if is_moving:
+			print("[Srv] Moving %s pos=%s target=%s" % [name, global_position, move_target])
 		_apply_remote_position.rpc(global_position, model.rotation.y)
 	else:
 		# Client: interpolate toward server state
@@ -288,8 +290,10 @@ func _server_move_intent(target: Vector3) -> void:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != get_multiplayer_authority():
+		print("[Move] Rejected: sender=%d auth=%d" % [sender, get_multiplayer_authority()])
 		return
 	# Server validates and applies
+	print("[Move] Intent from peer %d -> %s" % [sender, target])
 	move_target = target
 	is_moving = true
 	is_attacking = false

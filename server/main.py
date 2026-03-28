@@ -1,12 +1,14 @@
 """Diabla Lobby Server — FastAPI entry point."""
 
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
+from sqlalchemy import select, update
 
 from auth import decode_token
-from database import engine
-from models import Base
+from database import async_session, engine
+from models import Base, GameSession
 from routers import auth_router, characters_router, games_router
 from websocket_manager import lobby_manager
 
@@ -16,6 +18,29 @@ async def lifespan(app: FastAPI):
     # Create tables on startup (use migrations for production)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Close any stale games from previous runs (processes no longer alive)
+    async with async_session() as db:
+        result = await db.execute(
+            select(GameSession).where(GameSession.status.in_(["waiting", "in_progress"]))
+        )
+        stale = 0
+        for game in result.scalars():
+            alive = False
+            if game.pid:
+                try:
+                    os.kill(game.pid, 0)  # Check if process exists
+                    alive = True
+                except OSError:
+                    alive = False
+            if not alive:
+                game.status = "closed"
+                game.current_players = 0
+                stale += 1
+        await db.commit()
+        if stale:
+            print(f"[Startup] Closed {stale} stale game(s)")
+
     yield
     await engine.dispose()
 

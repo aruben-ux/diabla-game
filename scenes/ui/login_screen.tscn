@@ -61,6 +61,10 @@ text = "Login"
 layout_mode = 2
 horizontal_alignment = 1
 
+[node name="RememberCheck" type="CheckBox" parent="PanelContainer/TabContainer/Login/LoginVBox"]
+layout_mode = 2
+text = "Remember me"
+
 [node name="Register" type="MarginContainer" parent="PanelContainer/TabContainer"]
 visible = false
 layout_mode = 2

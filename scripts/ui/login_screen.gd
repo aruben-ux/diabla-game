@@ -3,6 +3,8 @@ extends Control
 ## Login / Registration screen for online mode.
 ## Authenticates with the lobby server, then transitions to the lobby.
 
+const SAVE_PATH := "user://login.cfg"
+
 @onready var tab_container: TabContainer = $PanelContainer/TabContainer
 
 # Login tab
@@ -10,6 +12,7 @@ extends Control
 @onready var login_password: LineEdit = $PanelContainer/TabContainer/Login/LoginVBox/PasswordInput
 @onready var login_button: Button = $PanelContainer/TabContainer/Login/LoginVBox/LoginButton
 @onready var login_status: Label = $PanelContainer/TabContainer/Login/LoginVBox/StatusLabel
+@onready var remember_check: CheckBox = $PanelContainer/TabContainer/Login/LoginVBox/RememberCheck
 
 # Register tab
 @onready var reg_username: LineEdit = $PanelContainer/TabContainer/Register/RegisterVBox/UsernameInput
@@ -37,6 +40,8 @@ func _ready() -> void:
 	if server_input:
 		server_input.text = OnlineManager.lobby_url
 		server_input.text_changed.connect(func(t: String): OnlineManager.lobby_url = t.strip_edges())
+
+	_load_saved_credentials()
 
 
 func _on_login_pressed() -> void:
@@ -70,6 +75,7 @@ func _on_register_pressed() -> void:
 
 
 func _on_login_succeeded(_username: String, _account_id: int) -> void:
+	_save_credentials()
 	get_tree().change_scene_to_file("res://scenes/ui/lobby.tscn")
 
 
@@ -89,3 +95,28 @@ func _on_register_failed(reason: String) -> void:
 
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+
+
+func _save_credentials() -> void:
+	if not remember_check or not remember_check.button_pressed:
+		# If unchecked, delete any saved credentials
+		if FileAccess.file_exists(SAVE_PATH):
+			DirAccess.remove_absolute(SAVE_PATH)
+		return
+	var cfg := ConfigFile.new()
+	cfg.set_value("login", "username", login_username.text.strip_edges())
+	cfg.set_value("login", "password", login_password.text)
+	cfg.set_value("login", "remember", true)
+	cfg.save(SAVE_PATH)
+
+
+func _load_saved_credentials() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return
+	login_username.text = cfg.get_value("login", "username", "")
+	login_password.text = cfg.get_value("login", "password", "")
+	if remember_check:
+		remember_check.button_pressed = cfg.get_value("login", "remember", false)

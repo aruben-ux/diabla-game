@@ -73,7 +73,7 @@ class GameSession(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(64), nullable=False)
     host_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
-    port = Column(Integer, unique=True, nullable=False)
+    port = Column(Integer, nullable=False)
     max_players = Column(Integer, default=8)
     current_players = Column(Integer, default=0)
     difficulty = Column(String(32), default="normal")
