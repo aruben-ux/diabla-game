@@ -1,0 +1,28 @@
+[gd_scene load_steps=9 format=3 uid="uid://main_game_scene"]
+
+[ext_resource type="Script" path="res://scripts/game/main_game.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/levels/town_level.tscn" id="2_town"]
+[ext_resource type="Script" path="res://scripts/camera/isometric_camera.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/inventory_ui.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="7"]
+
+[node name="MainGame" type="Node3D"]
+script = ExtResource("1")
+
+[node name="LevelContainer" type="Node3D" parent="."]
+
+[node name="TownLevel" parent="LevelContainer" instance=ExtResource("2_town")]
+
+[node name="PlayerContainer" type="Node3D" parent="."]
+
+[node name="IsometricCamera" type="Camera3D" parent="."]
+script = ExtResource("3")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" parent="CanvasLayer" instance=ExtResource("4")]
+
+[node name="InventoryUI" parent="CanvasLayer" instance=ExtResource("6")]
+
+[node name="Minimap" parent="CanvasLayer" instance=ExtResource("7")]

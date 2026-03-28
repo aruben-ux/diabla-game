@@ -1,0 +1,48 @@
+[gd_scene load_steps=6 format=3 uid="uid://ground_level"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(50, 50)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.25, 0.22, 0.18, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(50, 0.1, 50)
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+vertices = PackedVector3Array(-25, 0, -25, -25, 0, 25, 25, 0, 25, 25, 0, -25)
+polygons = [PackedInt32Array(0, 1, 2, 3)]
+
+[sub_resource type="GDScript" id="GDScript_level"]
+script/source = "extends Node3D
+
+func _ready() -> void:
+	# Re-bake nav mesh from geometry so pathfinding works for future use
+	var nav_region := $NavigationRegion3D as NavigationRegion3D
+	if nav_region and nav_region.navigation_mesh:
+		nav_region.bake_navigation_mesh()
+"
+
+[node name="Level" type="Node3D"]
+script = SubResource("GDScript_level")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_1")
+
+[node name="Ground" type="StaticBody3D" parent="NavigationRegion3D"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Ground"]
+material_override = SubResource("StandardMaterial3D_ground")
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+shape = SubResource("BoxShape3D_ground")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 10, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]

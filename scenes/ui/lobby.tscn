@@ -1,0 +1,163 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/lobby.gd" id="1"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.06, 0.1, 1)
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 400
+
+[node name="LeftPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CharPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CharNameLabel" type="Label" parent="HSplitContainer/LeftPanel/CharPanel"]
+layout_mode = 2
+text = "No character selected"
+
+[node name="CharInfoLabel" type="Label" parent="HSplitContainer/LeftPanel/CharPanel"]
+layout_mode = 2
+
+[node name="ChangeCharButton" type="Button" parent="HSplitContainer/LeftPanel/CharPanel"]
+layout_mode = 2
+text = "Change Character"
+
+[node name="ChatPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="ChatLog" type="RichTextLabel" parent="HSplitContainer/LeftPanel/ChatPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+
+[node name="UserList" type="ItemList" parent="HSplitContainer/LeftPanel/ChatPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+
+[node name="ChatInput" type="LineEdit" parent="HSplitContainer/LeftPanel/ChatPanel"]
+layout_mode = 2
+placeholder_text = "Type a message..."
+
+[node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GameBrowser" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="HSplitContainer/RightPanel/GameBrowser"]
+layout_mode = 2
+text = "Game Browser"
+
+[node name="GameList" type="ItemList" parent="HSplitContainer/RightPanel/GameBrowser"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RefreshButton" type="Button" parent="HSplitContainer/RightPanel/GameBrowser"]
+layout_mode = 2
+text = "Refresh"
+
+[node name="JoinButton" type="Button" parent="HSplitContainer/RightPanel/GameBrowser"]
+layout_mode = 2
+disabled = true
+text = "Join Game"
+
+[node name="CreateGameButton" type="Button" parent="HSplitContainer/RightPanel/GameBrowser"]
+layout_mode = 2
+text = "Create Game"
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+horizontal_alignment = 1
+
+[node name="LogoutButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -80.0
+offset_top = -30.0
+offset_bottom = -5.0
+grow_horizontal = 0
+text = "Logout"
+
+[node name="CreateGameDialog" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -120.0
+offset_right = 150.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CreateGameDialog"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="CreateGameDialog/VBox"]
+layout_mode = 2
+text = "Create Game"
+horizontal_alignment = 1
+
+[node name="GameNameInput" type="LineEdit" parent="CreateGameDialog/VBox"]
+layout_mode = 2
+placeholder_text = "Game Name"
+
+[node name="DifficultyOption" type="OptionButton" parent="CreateGameDialog/VBox"]
+layout_mode = 2
+
+[node name="ConfirmButton" type="Button" parent="CreateGameDialog/VBox"]
+layout_mode = 2
+text = "Create"
+
+[node name="CancelButton" type="Button" parent="CreateGameDialog/VBox"]
+layout_mode = 2
+text = "Cancel"
