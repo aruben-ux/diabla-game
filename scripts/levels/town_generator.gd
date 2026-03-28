@@ -284,7 +284,7 @@ func _has_floor_neighbor(x: int, y: int) -> bool:
 			var nx := x + dx
 			var ny := y + dy
 			if nx >= 0 and nx < TOWN_WIDTH and ny >= 0 and ny < TOWN_HEIGHT:
-				var t := grid[nx][ny]
+				var t: int = grid[nx][ny]
 				if t == 1 or t == 3 or t == 5 or t == 6:
 					return true
 	return false
