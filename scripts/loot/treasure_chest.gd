@@ -26,9 +26,13 @@ func interact(player: Node) -> void:
 	_animate_open()
 
 
-func server_interact(player: Node) -> void:
-	## Called by the server to drop loot via player RPCs.
-	_drop_contents(player)
+func server_interact(_player: Node) -> void:
+	## Server-side marker; actual loot spawning is done by _spawn_chest_loot on the player.
+	pass
+
+
+func get_floor_level() -> int:
+	return _floor_level
 
 
 func _animate_open() -> void:

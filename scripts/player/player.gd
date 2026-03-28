@@ -320,6 +320,7 @@ func _check_pending_interact() -> void:
 		if target.has_method("interact"):
 			# Client plays local interact effects (animation etc.)
 			target.interact(self)
+			print("[Interact] Client: interact() called on %s, sending RPC to server" % target.name)
 			# Server handles authoritative side-effects (loot drops, stat changes)
 			if _is_server_auth:
 				_server_interact_intent.rpc_id(1, target.global_position)
@@ -714,6 +715,11 @@ func _server_interact_intent(target_pos: Vector3) -> void:
 			if best.has_method("server_interact"):
 				print("[Interact] Calling server_interact on %s" % best.name)
 				best.server_interact(self)
+			# If this was a chest, spawn loot directly via player RPCs
+			if best.has_method("get_floor_level"):
+				var floor_lvl: int = best.get_floor_level()
+				print("[Interact] Spawning chest loot for floor %d" % floor_lvl)
+				_spawn_chest_loot(floor_lvl, best.global_position)
 			# Tell client to run interact() locally for stat changes
 			_sync_interact_done.rpc(best.global_position)
 		else:
@@ -794,6 +800,30 @@ func _server_unequip_item(slot: String) -> void:
 ## --- Chest loot spawning (called on server, RPCs to all peers) ---
 
 static var _chest_loot_counter: int = 0
+
+
+func _spawn_chest_loot(floor_lvl: int, chest_pos: Vector3) -> void:
+	## Server generates chest loot and broadcasts via RPCs.
+	# Gold
+	var gold_amount := randi_range(10, 30) * floor_lvl
+	_chest_loot_counter += 1
+	var gold_name := "ChestGold_%d" % _chest_loot_counter
+	print("[Interact] Spawning gold: %s amount=%d" % [gold_name, gold_amount])
+	_sync_spawn_gold.rpc(gold_name, gold_amount, chest_pos + Vector3(0, 0.5, 0))
+
+	# Item drops
+	var drops := ItemDatabase.generate_enemy_drops(floor_lvl)
+	if drops.is_empty():
+		if randf() < 0.5:
+			drops.append(ItemDatabase.get_random_weapon(floor_lvl))
+		else:
+			drops.append(ItemDatabase.get_random_armor(floor_lvl))
+	for i in drops.size():
+		var offset := Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
+		_chest_loot_counter += 1
+		var loot_name := "ChestLoot_%d" % _chest_loot_counter
+		print("[Interact] Spawning loot: %s item=%s" % [loot_name, drops[i].display_name])
+		_sync_spawn_loot.rpc(loot_name, drops[i].to_dict(), chest_pos + offset + Vector3(0, 0.5, 0))
 
 
 func rpc_spawn_gold(amount: int, pos: Vector3) -> void:
