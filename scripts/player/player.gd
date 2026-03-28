@@ -33,6 +33,9 @@ var _remote_initialized := false
 ## True when running in server-authoritative online mode
 var _is_server_auth: bool = false
 
+## Currently hovered/targeted node (enemy, player, interactable)
+var current_target: Node3D = null
+
 
 func _ready() -> void:
 	move_target = global_position
@@ -183,6 +186,45 @@ func _load_from_dict(data: Dictionary) -> void:
 			_apply_equipment_stats(item)
 
 
+func _process(_delta: float) -> void:
+	if not is_multiplayer_authority():
+		return
+	_update_mouse_target()
+
+
+func _update_mouse_target() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if not camera:
+		current_target = null
+		return
+	var mouse_pos := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var to := from + camera.project_ray_normal(mouse_pos) * 1000.0
+	var space_state := get_world_3d().direct_space_state
+	# Check enemies (layer 4), players (layer 2), and interactables (layer 8)
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 4 | 2 | 128  # layers 3, 2, 8
+	query.exclude = [get_rid()]
+	var result := space_state.intersect_ray(query)
+	if result and result.collider:
+		var collider := result.collider
+		# Walk up to find the targetable parent
+		if collider is Enemy:
+			current_target = collider
+		elif collider.is_in_group("players"):
+			current_target = collider
+		elif collider.is_in_group("interactables"):
+			current_target = collider
+		elif collider.get_parent() and collider.get_parent() is Enemy:
+			current_target = collider.get_parent()
+		elif collider.get_parent() and collider.get_parent().is_in_group("interactables"):
+			current_target = collider.get_parent()
+		else:
+			current_target = null
+	else:
+		current_target = null
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
@@ -193,6 +235,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_left_mouse_held = event.pressed
 			if event.pressed:
+				# Check for interactable click (fountain etc.)
+				if current_target and is_instance_valid(current_target) and current_target.is_in_group("interactables"):
+					if current_target.has_method("interact"):
+						if _is_server_auth:
+							_server_fountain_heal_intent.rpc_id(1)
+						else:
+							current_target.interact(self)
 				_handle_move_click()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_handle_attack_click()
@@ -570,6 +619,26 @@ func _do_respawn(new_health: float, new_mana: float) -> void:
 	is_attacking = false
 	# Reset fall-over animation
 	model.rotation.x = 0.0
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_fountain_heal_intent() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	if stats.health <= 0.0:
+		return
+	stats.health = stats.max_health
+	stats.mana = stats.max_mana
+	_sync_fountain_heal.rpc(stats.health, stats.mana)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _sync_fountain_heal(new_health: float, new_mana: float) -> void:
+	stats.health = new_health
+	stats.mana = new_mana
 
 
 func _process_movement(delta: float) -> void:

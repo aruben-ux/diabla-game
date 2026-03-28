@@ -545,6 +545,22 @@ func _build_fountain() -> void:
 	var cx := (TOWN_WIDTH / 2) * TILE_SIZE
 	var cz := (TOWN_HEIGHT / 2) * TILE_SIZE
 
+	# Interactable StaticBody3D root for the fountain
+	var fountain_body := StaticBody3D.new()
+	fountain_body.name = "Fountain"
+	fountain_body.position = Vector3(cx, 0.0, cz)
+	fountain_body.collision_layer = 128  # layer 8
+	fountain_body.collision_mask = 0
+	fountain_body.add_to_group("interactables")
+	fountain_body.set_script(preload("res://scripts/levels/fountain.gd"))
+	var col_shape := CollisionShape3D.new()
+	var cyl_shape := CylinderShape3D.new()
+	cyl_shape.radius = 2.2
+	cyl_shape.height = 3.0
+	col_shape.shape = cyl_shape
+	col_shape.position = Vector3(0, 1.5, 0)
+	fountain_body.add_child(col_shape)
+
 	# Basin (wide, short cylinder)
 	var basin_mi := MeshInstance3D.new()
 	var basin := CylinderMesh.new()
@@ -552,12 +568,12 @@ func _build_fountain() -> void:
 	basin.bottom_radius = 2.2
 	basin.height = 0.6
 	basin_mi.mesh = basin
-	basin_mi.position = Vector3(cx, 0.3, cz)
+	basin_mi.position = Vector3(0, 0.3, 0)
 	var basin_mat := StandardMaterial3D.new()
 	basin_mat.albedo_color = Color(0.5, 0.5, 0.55)
 	basin_mat.roughness = 0.6
 	basin_mi.material_override = basin_mat
-	add_child(basin_mi)
+	fountain_body.add_child(basin_mi)
 
 	# Central pillar
 	var pillar_mi := MeshInstance3D.new()
@@ -566,14 +582,14 @@ func _build_fountain() -> void:
 	pillar.bottom_radius = 0.4
 	pillar.height = 2.0
 	pillar_mi.mesh = pillar
-	pillar_mi.position = Vector3(cx, 1.0, cz)
+	pillar_mi.position = Vector3(0, 1.0, 0)
 	pillar_mi.material_override = basin_mat
-	add_child(pillar_mi)
+	fountain_body.add_child(pillar_mi)
 
 	# Top orb
 	var orb_mi := MeshInstance3D.new()
 	orb_mi.mesh = SphereMesh.new()
-	orb_mi.position = Vector3(cx, 2.2, cz)
+	orb_mi.position = Vector3(0, 2.2, 0)
 	orb_mi.scale = Vector3(0.35, 0.35, 0.35)
 	var orb_mat := StandardMaterial3D.new()
 	orb_mat.albedo_color = Color(0.4, 0.7, 1.0)
@@ -581,11 +597,11 @@ func _build_fountain() -> void:
 	orb_mat.emission = Color(0.3, 0.6, 1.0)
 	orb_mat.emission_energy_multiplier = 2.0
 	orb_mi.material_override = orb_mat
-	add_child(orb_mi)
+	fountain_body.add_child(orb_mi)
 
 	# Water particles
 	var water := GPUParticles3D.new()
-	water.position = Vector3(cx, 2.0, cz)
+	water.position = Vector3(0, 2.0, 0)
 	water.amount = 30
 	water.lifetime = 1.2
 	water.explosiveness = 0.0
@@ -614,17 +630,19 @@ func _build_fountain() -> void:
 	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	quad.material = water_mat
 	water.draw_pass_1 = quad
-	add_child(water)
+	fountain_body.add_child(water)
 
 	# Fountain light
 	var fl := OmniLight3D.new()
-	fl.position = Vector3(cx, 2.5, cz)
+	fl.position = Vector3(0, 2.5, 0)
 	fl.omni_range = 10.0
 	fl.light_energy = 1.2
 	fl.light_color = Color(0.6, 0.8, 1.0)
 	fl.shadow_enabled = true
 	fl.omni_shadow_mode = OmniLight3D.SHADOW_CUBE
-	add_child(fl)
+	fountain_body.add_child(fl)
+
+	add_child(fountain_body)
 
 
 func _build_signpost(pos: Vector3, text: String) -> void:

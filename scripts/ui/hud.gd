@@ -21,9 +21,72 @@ var _respawn_timer := 0.0
 var _is_dead := false
 var _waiting_for_respawn := false
 
+# Target info panel (built in code)
+var _target_panel: PanelContainer
+var _target_name_label: Label
+var _target_health_bar: ProgressBar
+var _target_health_label: Label
+var _target_info_label: Label
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
+	_build_target_panel()
+
+
+func _build_target_panel() -> void:
+	_target_panel = PanelContainer.new()
+	_target_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_target_panel.offset_left = -150
+	_target_panel.offset_right = 150
+	_target_panel.offset_top = 10
+	_target_panel.offset_bottom = 80
+	_target_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.07, 0.1, 0.85)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.5, 0.4, 0.3, 0.6)
+	_target_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+
+	_target_name_label = Label.new()
+	_target_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_target_name_label.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(_target_name_label)
+
+	_target_health_bar = ProgressBar.new()
+	_target_health_bar.custom_minimum_size = Vector2(260, 16)
+	_target_health_bar.show_percentage = false
+	vbox.add_child(_target_health_bar)
+
+	_target_health_label = Label.new()
+	_target_health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_target_health_label.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(_target_health_label)
+
+	_target_info_label = Label.new()
+	_target_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_target_info_label.add_theme_font_size_override("font_size", 12)
+	_target_info_label.modulate = Color(0.7, 0.7, 0.7)
+	vbox.add_child(_target_info_label)
+
+	_target_panel.add_child(vbox)
+	add_child(_target_panel)
+	_target_panel.visible = false
 
 
 func set_player(player: Node) -> void:
@@ -79,6 +142,49 @@ func _process(delta: float) -> void:
 		else:
 			respawn_button.text = "Respawn"
 			respawn_button.disabled = false
+
+	# Update target info
+	_update_target_display()
+
+
+func _update_target_display() -> void:
+	if not tracked_player or not is_instance_valid(tracked_player):
+		_target_panel.visible = false
+		return
+
+	var target_node = tracked_player.get("current_target")
+	if target_node == null or not is_instance_valid(target_node):
+		_target_panel.visible = false
+		return
+
+	_target_panel.visible = true
+
+	if target_node is Enemy:
+		var enemy: Enemy = target_node
+		var type_key: String = Enemy.EnemyType.keys()[enemy.enemy_type]
+		_target_name_label.text = type_key.capitalize()
+		_target_health_bar.visible = true
+		_target_health_bar.max_value = enemy.max_health
+		_target_health_bar.value = enemy.health
+		_target_health_label.visible = true
+		_target_health_label.text = "%d / %d" % [int(enemy.health), int(enemy.max_health)]
+		_target_info_label.text = "Level %d" % enemy.floor_level
+	elif target_node.is_in_group("players"):
+		var p_name: String = target_node.get("player_name") if target_node.get("player_name") else "Player"
+		_target_name_label.text = p_name
+		var p_stats: PlayerStats = target_node.stats
+		_target_health_bar.visible = true
+		_target_health_bar.max_value = p_stats.max_health
+		_target_health_bar.value = p_stats.health
+		_target_health_label.visible = true
+		_target_health_label.text = "%d / %d" % [int(p_stats.health), int(p_stats.max_health)]
+		_target_info_label.text = "Level %d" % p_stats.level
+	elif target_node.is_in_group("interactables"):
+		_target_name_label.text = target_node.get("display_name") if target_node.get("display_name") else "Object"
+		_target_health_bar.visible = false
+		_target_health_label.visible = false
+		var hint: String = target_node.get("interact_hint") if target_node.get("interact_hint") else ""
+		_target_info_label.text = hint
 
 
 func _show_death_screen() -> void:
