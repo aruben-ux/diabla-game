@@ -28,18 +28,28 @@ func _ready() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(backdrop)
 
-	_build_main_panel()
-	_build_options_panel()
+	# Center container holds both panels
+	var center := CenterContainer.new()
+	center.set_anchors_preset(PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+
+	_build_main_panel(center)
+	_build_options_panel(center)
 	_show_main()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	# Block all input from reaching the game world
 	if event.is_action_pressed("ui_cancel"):
 		if _options_panel.visible:
 			_show_main()
 		else:
 			_close()
 		get_viewport().set_input_as_handled()
+		return
+	# Consume all mouse/key events so clicks don't move the player
+	get_viewport().set_input_as_handled()
 
 
 func _close() -> void:
@@ -49,11 +59,9 @@ func _close() -> void:
 
 # --- Main Panel ---
 
-func _build_main_panel() -> void:
+func _build_main_panel(parent: Control) -> void:
 	_main_panel = PanelContainer.new()
-	_main_panel.set_anchors_preset(PRESET_CENTER)
 	_main_panel.custom_minimum_size = Vector2(280, 0)
-	_main_panel.position = Vector2(-140, -150)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.11, 0.15, 0.95)
@@ -101,16 +109,14 @@ func _build_main_panel() -> void:
 	vbox.add_child(btn_quit)
 
 	_main_panel.add_child(vbox)
-	add_child(_main_panel)
+	parent.add_child(_main_panel)
 
 
 # --- Options Panel ---
 
-func _build_options_panel() -> void:
+func _build_options_panel(parent: Control) -> void:
 	_options_panel = PanelContainer.new()
-	_options_panel.set_anchors_preset(PRESET_CENTER)
 	_options_panel.custom_minimum_size = Vector2(360, 0)
-	_options_panel.position = Vector2(-180, -200)
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.11, 0.15, 0.95)
@@ -187,7 +193,7 @@ func _build_options_panel() -> void:
 	vbox.add_child(btn_back)
 
 	_options_panel.add_child(vbox)
-	add_child(_options_panel)
+	parent.add_child(_options_panel)
 	_options_panel.visible = false
 
 
