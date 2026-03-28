@@ -37,18 +37,17 @@ func _animate_open() -> void:
 		tween.tween_property(_lid_node, "rotation:x", -PI * 0.65, 0.4).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
-func _drop_contents(player: Node) -> void:
+static var _loot_counter: int = 0
+
+
+func _drop_contents(_player: Node) -> void:
 	# Gold
 	var gold_amount := randi_range(10, 30) * _floor_level
-	var gold_scene := preload("res://scenes/loot/gold_drop.tscn")
-	var gold := gold_scene.instantiate()
-	gold.name = "ChestGold_%d" % randi()
-	get_parent().add_child(gold)
-	gold.global_position = global_position + Vector3(0, 0.5, 0)
-	gold.setup(gold_amount)
+	_loot_counter += 1
+	var gold_name := "ChestGold_%d" % _loot_counter
+	_spawn_gold_drop.rpc(gold_name, gold_amount, global_position + Vector3(0, 0.5, 0))
 
-	# 1-3 item drops
-	var drop_count := randi_range(1, 3)
+	# Item drops
 	var drops := ItemDatabase.generate_enemy_drops(_floor_level)
 	# Always guarantee at least one equipment drop from a chest
 	if drops.is_empty():
@@ -58,12 +57,30 @@ func _drop_contents(player: Node) -> void:
 			drops.append(ItemDatabase.get_random_armor(_floor_level))
 	for i in drops.size():
 		var offset := Vector3(randf_range(-1.0, 1.0), 0, randf_range(-1.0, 1.0))
-		var loot_scene := preload("res://scenes/loot/loot_drop.tscn")
-		var loot := loot_scene.instantiate()
-		loot.name = "ChestLoot_%d" % randi()
-		get_parent().add_child(loot)
-		loot.global_position = global_position + offset + Vector3(0, 0.5, 0)
-		loot.setup(drops[i])
+		_loot_counter += 1
+		var loot_name := "ChestLoot_%d" % _loot_counter
+		_spawn_loot_drop.rpc(loot_name, drops[i].to_dict(), global_position + offset + Vector3(0, 0.5, 0))
+
+
+@rpc("authority", "call_local", "reliable")
+func _spawn_gold_drop(loot_name: String, amount: int, pos: Vector3) -> void:
+	var gold_scene := preload("res://scenes/loot/gold_drop.tscn")
+	var gold := gold_scene.instantiate()
+	gold.name = loot_name
+	get_parent().add_child(gold)
+	gold.global_position = pos
+	gold.setup(amount)
+
+
+@rpc("authority", "call_local", "reliable")
+func _spawn_loot_drop(loot_name: String, item_dict: Dictionary, pos: Vector3) -> void:
+	var loot_scene := preload("res://scenes/loot/loot_drop.tscn")
+	var loot := loot_scene.instantiate()
+	loot.name = loot_name
+	get_parent().add_child(loot)
+	loot.global_position = pos
+	var item_data := ItemData.from_dict(item_dict)
+	loot.setup(item_data)
 
 
 func set_lid(node: Node3D) -> void:
