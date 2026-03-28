@@ -520,7 +520,7 @@ func _server_respawn_intent() -> void:
 		main_game.respawn_player_in_town(get_multiplayer_authority())
 
 
-@rpc("authority", "call_remote", "reliable")
+@rpc("any_peer", "call_remote", "reliable")
 func _do_respawn(new_health: float, new_mana: float) -> void:
 	stats.health = new_health
 	stats.mana = new_mana
