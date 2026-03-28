@@ -599,7 +599,7 @@ func pick_up_item(item: ItemData) -> bool:
 		return false
 
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _show_pickup_text(text: String, color_html: String) -> void:
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.5, 0),
