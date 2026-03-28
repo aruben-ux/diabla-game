@@ -126,7 +126,7 @@ func _place_buildings() -> void:
 		# NE — Alchemist / Potion shop
 		{"rect": Rect2i(30, 3, 5, 4), "label": "Alchemist", "height": 5.0},
 		# W — Tavern / Inn (the biggest building)
-		{"rect": Rect2i(2, 16, 7, 6), "label": "Tavern", "height": 5.5},
+		{"rect": Rect2i(4, 15, 7, 6), "label": "Tavern", "height": 5.5},
 		# E — General Goods
 		{"rect": Rect2i(31, 16, 6, 5), "label": "General Store", "height": 4.5},
 		# SW — Residence
@@ -240,8 +240,13 @@ func _carve_paths() -> void:
 		var by := rect.position.y + rect.size.y / 2
 		if bx < cx:
 			_carve_road(rect.position.x + rect.size.x, by, mini(cx, ring_inner + 1), by, 1)
+			# Also connect vertically to the west main road if needed
+			if by != cy:
+				_carve_road(ring_inner, by, ring_inner, cy, 1)
 		else:
 			_carve_road(rect.position.x, by, maxi(cx, ring_outer - 1), by, 1)
+			if by != cy:
+				_carve_road(ring_outer, by, ring_outer, cy, 1)
 
 
 func _carve_road(x1: int, y1: int, x2: int, y2: int, half_w: int) -> void:
@@ -394,8 +399,18 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	var bx2 := x2 - half_ts
 	var bz2 := z2 - half_ts
 
-	# Front (Z+)
-	_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
+	# Door dimensions
+	var door_w := 1.4
+	var door_h := minf(2.8, h - 0.5)
+	var door_cx := (bx1 + bx2) / 2.0
+	var door_left := door_cx - door_w / 2.0
+	var door_right := door_cx + door_w / 2.0
+
+	# Front (Z+) — split around door opening
+	_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(door_left, h, bz2), Vector3(door_left, 0, bz2))
+	_add_quad(st, Vector3(door_right, 0, bz2), Vector3(door_right, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
+	# Lintel above door
+	_add_quad(st, Vector3(door_left, door_h, bz2), Vector3(door_left, h, bz2), Vector3(door_right, h, bz2), Vector3(door_right, door_h, bz2))
 	# Back (Z-)
 	_add_quad(st, Vector3(bx2, 0, bz1), Vector3(bx2, h, bz1), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
 	# Left (X-)
@@ -452,14 +467,50 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	add_child(body)
 
 	var thickness := 0.4
-	# Front wall
-	_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz2), Vector3(bx2 - bx1, h, thickness))
+	# Front wall — two segments around door gap
+	var left_seg_w := door_left - bx1
+	if left_seg_w > 0.1:
+		_add_box_collision(body, Vector3(bx1 + left_seg_w / 2.0, h / 2.0, bz2), Vector3(left_seg_w, h, thickness))
+	var right_seg_w := bx2 - door_right
+	if right_seg_w > 0.1:
+		_add_box_collision(body, Vector3(door_right + right_seg_w / 2.0, h / 2.0, bz2), Vector3(right_seg_w, h, thickness))
+	# Lintel collision above door
+	_add_box_collision(body, Vector3(door_cx, (door_h + h) / 2.0, bz2), Vector3(door_w, h - door_h, thickness))
 	# Back wall
 	_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz1), Vector3(bx2 - bx1, h, thickness))
 	# Left wall
 	_add_box_collision(body, Vector3(bx1, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
 	# Right wall
 	_add_box_collision(body, Vector3(bx2, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
+
+	# Door frame (darker wood trim around the opening)
+	var frame_mat := StandardMaterial3D.new()
+	frame_mat.albedo_color = Color(0.3, 0.18, 0.08)
+	frame_mat.roughness = 0.8
+
+	var frame_thickness := 0.12
+	# Left jamb
+	var jamb_l := MeshInstance3D.new()
+	var jamb_mesh := BoxMesh.new()
+	jamb_mesh.size = Vector3(frame_thickness, door_h, frame_thickness)
+	jamb_l.mesh = jamb_mesh
+	jamb_l.position = Vector3(door_left, door_h / 2.0, bz2)
+	jamb_l.material_override = frame_mat
+	add_child(jamb_l)
+	# Right jamb
+	var jamb_r := MeshInstance3D.new()
+	jamb_r.mesh = jamb_mesh
+	jamb_r.position = Vector3(door_right, door_h / 2.0, bz2)
+	jamb_r.material_override = frame_mat
+	add_child(jamb_r)
+	# Top lintel beam
+	var lintel := MeshInstance3D.new()
+	var lintel_mesh := BoxMesh.new()
+	lintel_mesh.size = Vector3(door_w + frame_thickness * 2, frame_thickness, frame_thickness)
+	lintel.mesh = lintel_mesh
+	lintel.position = Vector3(door_cx, door_h, bz2)
+	lintel.material_override = frame_mat
+	add_child(lintel)
 
 	# Interior light
 	var light := OmniLight3D.new()
@@ -686,29 +737,71 @@ func _build_fountain() -> void:
 	basin_mi.material_override = basin_mat
 	fountain_body.add_child(basin_mi)
 
+	# Second tier basin (smaller, elevated)
+	var upper_basin_mi := MeshInstance3D.new()
+	var upper_basin := CylinderMesh.new()
+	upper_basin.top_radius = 1.1
+	upper_basin.bottom_radius = 1.2
+	upper_basin.height = 0.35
+	upper_basin_mi.mesh = upper_basin
+	upper_basin_mi.position = Vector3(0, 0.85, 0)
+	upper_basin_mi.material_override = basin_mat
+	fountain_body.add_child(upper_basin_mi)
+
 	# Central pillar
 	var pillar_mi := MeshInstance3D.new()
 	var pillar := CylinderMesh.new()
-	pillar.top_radius = 0.3
-	pillar.bottom_radius = 0.4
-	pillar.height = 2.0
+	pillar.top_radius = 0.25
+	pillar.bottom_radius = 0.35
+	pillar.height = 2.2
 	pillar_mi.mesh = pillar
-	pillar_mi.position = Vector3(0, 1.0, 0)
+	pillar_mi.position = Vector3(0, 1.1, 0)
 	pillar_mi.material_override = basin_mat
 	fountain_body.add_child(pillar_mi)
 
-	# Top orb
+	# Decorative spouts — 4 small cylinders angled outward from upper basin
+	var spout_mat := StandardMaterial3D.new()
+	spout_mat.albedo_color = Color(0.55, 0.55, 0.58)
+	spout_mat.metallic = 0.6
+	spout_mat.roughness = 0.3
+	for i in 4:
+		var angle: float = TAU * i / 4.0
+		var spout := MeshInstance3D.new()
+		var spout_mesh := CylinderMesh.new()
+		spout_mesh.top_radius = 0.04
+		spout_mesh.bottom_radius = 0.06
+		spout_mesh.height = 0.5
+		spout.mesh = spout_mesh
+		spout.position = Vector3(cos(angle) * 0.9, 1.0, sin(angle) * 0.9)
+		spout.rotation = Vector3(sin(angle) * 0.6, 0, -cos(angle) * 0.6)
+		spout.material_override = spout_mat
+		fountain_body.add_child(spout)
+
+	# Top orb (slightly larger, brighter)
 	var orb_mi := MeshInstance3D.new()
 	orb_mi.mesh = SphereMesh.new()
-	orb_mi.position = Vector3(0, 2.2, 0)
-	orb_mi.scale = Vector3(0.35, 0.35, 0.35)
+	orb_mi.position = Vector3(0, 2.4, 0)
+	orb_mi.scale = Vector3(0.4, 0.4, 0.4)
 	var orb_mat := StandardMaterial3D.new()
 	orb_mat.albedo_color = Color(0.4, 0.7, 1.0)
 	orb_mat.emission_enabled = true
 	orb_mat.emission = Color(0.3, 0.6, 1.0)
-	orb_mat.emission_energy_multiplier = 2.0
+	orb_mat.emission_energy_multiplier = 3.0
 	orb_mi.material_override = orb_mat
 	fountain_body.add_child(orb_mi)
+
+	# Decorative base ring (torus at basin bottom)
+	var base_ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 2.0
+	torus.outer_radius = 2.35
+	torus.rings = 24
+	torus.ring_segments = 12
+	base_ring.mesh = torus
+	base_ring.position = Vector3(0, 0.05, 0)
+	base_ring.rotation.x = PI * 0.5
+	base_ring.material_override = basin_mat
+	fountain_body.add_child(base_ring)
 
 	# Water particles
 	var water := GPUParticles3D.new()
@@ -808,7 +901,7 @@ func _build_plaza_benches() -> void:
 		Vector3(0, 0, -bench_dist),
 	]
 	for off in offsets:
-		_build_bench(Vector3(cx, 0, cz) + off, off.z != 0.0)
+		_build_bench(Vector3(cx, 0, cz) + off, off.x != 0.0)
 
 
 func _build_bench(pos: Vector3, rotated: bool) -> void:
