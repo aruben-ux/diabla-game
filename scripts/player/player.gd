@@ -36,6 +36,8 @@ var _is_server_auth: bool = false
 ## Currently hovered/targeted node (enemy, player, interactable)
 var current_target: Node3D = null
 var _prev_target: Node3D = null
+var _pending_interact: Node3D = null
+const INTERACT_RANGE := 4.0
 
 ## Shared outline overlay material
 static var _outline_material: ShaderMaterial
@@ -268,11 +270,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				# Check for interactable click (fountain etc.)
 				if current_target and is_instance_valid(current_target) and current_target.is_in_group("interactables"):
 					if current_target.has_method("interact"):
+						_pending_interact = current_target
+						# Move toward the interactable
+						var target_pos := current_target.global_position
+						is_attacking = false
 						if _is_server_auth:
-							_server_fountain_heal_intent.rpc_id(1)
+							_server_move_intent.rpc_id(1, target_pos)
 						else:
-							current_target.interact(self)
-				_handle_move_click()
+							_set_move_target.rpc(target_pos)
+				else:
+					_pending_interact = null
+					_handle_move_click()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			_handle_attack_click()
 
@@ -289,10 +297,26 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		_update_mouse_target()
+		_check_pending_interact()
 	if _is_server_auth:
 		_physics_process_server_auth(delta)
 	else:
 		_physics_process_lan(delta)
+
+
+func _check_pending_interact() -> void:
+	if not _pending_interact or not is_instance_valid(_pending_interact):
+		_pending_interact = null
+		return
+	var dist := global_position.distance_to(_pending_interact.global_position)
+	if dist <= INTERACT_RANGE:
+		var target := _pending_interact
+		_pending_interact = null
+		if target.has_method("interact"):
+			if _is_server_auth:
+				_server_fountain_heal_intent.rpc_id(1)
+			else:
+				target.interact(self)
 
 
 ## Server-authoritative mode: server simulates all players.
