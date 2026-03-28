@@ -62,26 +62,31 @@ func _build_target_panel() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	_target_name_label = Label.new()
 	_target_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_target_name_label.add_theme_font_size_override("font_size", 16)
+	_target_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(_target_name_label)
 
 	_target_health_bar = ProgressBar.new()
 	_target_health_bar.custom_minimum_size = Vector2(260, 16)
 	_target_health_bar.show_percentage = false
+	_target_health_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(_target_health_bar)
 
 	_target_health_label = Label.new()
 	_target_health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_target_health_label.add_theme_font_size_override("font_size", 12)
+	_target_health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(_target_health_label)
 
 	_target_info_label = Label.new()
 	_target_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_target_info_label.add_theme_font_size_override("font_size", 12)
 	_target_info_label.modulate = Color(0.7, 0.7, 0.7)
+	_target_info_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(_target_info_label)
 
 	_target_panel.add_child(vbox)

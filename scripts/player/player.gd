@@ -186,12 +186,6 @@ func _load_from_dict(data: Dictionary) -> void:
 			_apply_equipment_stats(item)
 
 
-func _process(_delta: float) -> void:
-	if not is_multiplayer_authority():
-		return
-	_update_mouse_target()
-
-
 func _update_mouse_target() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if not camera:
@@ -207,7 +201,10 @@ func _update_mouse_target() -> void:
 	query.exclude = [get_rid()]
 	var result := space_state.intersect_ray(query)
 	if result and result.collider:
-		var collider := result.collider
+		var collider: Node3D = result.collider as Node3D
+		if not collider:
+			current_target = null
+			return
 		# Walk up to find the targetable parent
 		if collider is Enemy:
 			current_target = collider
@@ -257,6 +254,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_multiplayer_authority():
+		_update_mouse_target()
 	if _is_server_auth:
 		_physics_process_server_auth(delta)
 	else:
