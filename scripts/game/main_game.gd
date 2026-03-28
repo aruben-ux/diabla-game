@@ -55,6 +55,10 @@ var _dungeon_environment: Environment
 var _auto_save_timer: float = 0.0
 const AUTO_SAVE_INTERVAL := 60.0
 
+## Fade overlay for transitions
+var _fade_rect: ColorRect
+const FADE_DURATION := 0.25
+
 func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)
 	NetworkManager.player_connected.connect(_on_player_connected)
@@ -74,6 +78,16 @@ func _ready() -> void:
 	_world_env.environment = _town_environment
 	add_child(_world_env)
 	_dungeon_environment = _create_dungeon_environment()
+
+	# Fade overlay — fullscreen black rect on the CanvasLayer
+	_fade_rect = ColorRect.new()
+	_fade_rect.color = Color(0, 0, 0, 1)
+	_fade_rect.anchor_right = 1.0
+	_fade_rect.anchor_bottom = 1.0
+	_fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$CanvasLayer.add_child(_fade_rect)
+	# Start opaque then fade in once everything is ready
+	_fade_rect.modulate.a = 1.0
 
 	# Town is always active
 	town_level.visible = true
@@ -148,6 +162,9 @@ func _on_town_ready(spawn_pos: Vector3) -> void:
 		_sync_ensure_floor.rpc(1, gen_seed)
 	else:
 		_request_game_seed.rpc_id(1)
+
+	# Fade in from black once the town is loaded
+	_fade_in()
 
 	_spawn_existing_players()
 
@@ -319,29 +336,40 @@ func _sync_remove_floor(floor_num: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> void:
+	var is_local := peer_id == multiplayer.get_unique_id()
+	if is_local:
+		_fade_out()
+
 	_player_locations[peer_id] = ActiveLevel.DUNGEON
 	_player_floors[peer_id] = floor_num
 	_teleport_player_local(peer_id, dest)
 
-	if peer_id == multiplayer.get_unique_id():
+	if is_local:
 		_world_env.environment = _dungeon_environment
-		print("[MainGame] Switched to dungeon environment. Ambient energy: ", _dungeon_environment.ambient_light_energy)
 		if town_level and town_level.sun:
 			town_level.sun.visible = false
 		_update_minimap_for_dungeon(floor_num)
+		_snap_camera()
+		_fade_in()
 
 
 @rpc("authority", "call_local", "reliable")
 func _sync_player_to_town(peer_id: int, dest: Vector3) -> void:
+	var is_local := peer_id == multiplayer.get_unique_id()
+	if is_local:
+		_fade_out()
+
 	_player_locations[peer_id] = ActiveLevel.TOWN
 	_player_floors[peer_id] = 0
 	_teleport_player_local(peer_id, dest)
 
-	if peer_id == multiplayer.get_unique_id():
+	if is_local:
 		_world_env.environment = _town_environment
 		if town_level and town_level.sun:
 			town_level.sun.visible = true
 		_update_minimap_for_town()
+		_snap_camera()
+		_fade_in()
 
 
 # --- Local helpers ---
@@ -355,6 +383,27 @@ func _teleport_player_local(peer_id: int, dest: Vector3) -> void:
 	player_node.is_moving = false
 	if player_node.is_multiplayer_authority():
 		player_node._left_mouse_held = false
+		_snap_camera()
+
+
+func _snap_camera() -> void:
+	var camera := $IsometricCamera
+	if camera and camera.has_method("snap_to_target"):
+		camera.snap_to_target()
+
+
+func _fade_out() -> void:
+	## Instantly go to black (called right before a teleport).
+	if _fade_rect:
+		_fade_rect.modulate.a = 1.0
+
+
+func _fade_in() -> void:
+	## Tween from black to transparent.
+	if not _fade_rect:
+		return
+	var tw := create_tween()
+	tw.tween_property(_fade_rect, "modulate:a", 0.0, FADE_DURATION)
 
 
 func _update_minimap_for_town() -> void:
@@ -483,6 +532,7 @@ func _spawn_player(peer_id: int) -> void:
 		var camera := $IsometricCamera
 		if camera:
 			camera.target = player_instance
+			camera.snap_to_target()
 		if hud:
 			hud.set_player(player_instance)
 		if inventory_ui:

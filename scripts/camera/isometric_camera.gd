@@ -16,16 +16,24 @@ var _shake_timer := 0.0
 
 
 func _ready() -> void:
-	# Set Diablo-style 45-degree angle — applied every frame to ensure it sticks
 	pass
+
+
+func snap_to_target() -> void:
+	## Instantly position the camera at the correct offset — no lerp.
+	if not target:
+		return
+	var height := 12.0 * zoom_level
+	var ground_dist := 7.0 * zoom_level
+	var cam_offset := Vector3(ground_dist, height, ground_dist)
+	global_position = target.global_position + cam_offset
+	look_at(target.global_position + Vector3(0, 1, 0), Vector3.UP)
 
 
 func _process(delta: float) -> void:
 	if not target:
 		return
 
-	# Camera at 60° pitch, 45° yaw — position it behind and above the player
-	# With 45° yaw, the camera sits along the (+X, +Y, +Z) diagonal from the player
 	var height := 12.0 * zoom_level
 	var ground_dist := 7.0 * zoom_level
 	var cam_offset := Vector3(ground_dist, height, ground_dist)
