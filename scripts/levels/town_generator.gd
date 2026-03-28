@@ -374,6 +374,7 @@ func _build_wall_blocks(positions: Array) -> void:
 	mi.mesh = mesh
 	mi.material_override = wall_material
 	mi.name = "TownWalls"
+	mi.add_to_group("building_geometry")
 	add_child(mi)
 
 
@@ -424,6 +425,7 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	wall_mi.mesh = wall_mesh
 	wall_mi.material_override = building_material
 	wall_mi.name = "Building_%d_Walls" % idx
+	wall_mi.add_to_group("building_geometry")
 	add_child(wall_mi)
 
 	# --- Roof (flat slab + slight overhang) ---
@@ -441,6 +443,11 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	roof_mi.mesh = roof_mesh
 	roof_mi.material_override = roof_material
 	roof_mi.name = "Building_%d_Roof" % idx
+	roof_mi.add_to_group("building_roofs")
+	roof_mi.add_to_group("building_geometry")
+	# Store building bounds for camera occlusion
+	roof_mi.set_meta("building_min", Vector3(bx1, 0, bz1))
+	roof_mi.set_meta("building_max", Vector3(bx2, h, bz2))
 	add_child(roof_mi)
 
 	# --- Floor inside building ---
