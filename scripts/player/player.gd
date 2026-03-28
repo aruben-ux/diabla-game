@@ -592,19 +592,20 @@ func _sync_health(new_health: float) -> void:
 
 func pick_up_item(item: ItemData) -> bool:
 	if inventory.add_item(item):
-		EventBus.show_floating_text.emit(
-			global_position + Vector3(0, 2.5, 0),
-			"+ " + item.display_name,
-			ItemData.get_rarity_color(item.rarity)
-		)
+		_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
 		return true
 	else:
-		EventBus.show_floating_text.emit(
-			global_position + Vector3(0, 2.5, 0),
-			"Inventory Full!",
-			Color.RED
-		)
+		_show_pickup_text.rpc("Inventory Full!", Color.RED.to_html())
 		return false
+
+
+@rpc("authority", "call_local", "reliable")
+func _show_pickup_text(text: String, color_html: String) -> void:
+	EventBus.show_floating_text.emit(
+		global_position + Vector3(0, 2.5, 0),
+		text,
+		Color.from_string(color_html, Color.WHITE)
+	)
 
 
 func add_gold(amount: int) -> void:
