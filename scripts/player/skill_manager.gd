@@ -39,15 +39,16 @@ func try_use_skill(slot: int, target_pos: Vector3) -> bool:
 	if not player or not player.get("stats"):
 		return false
 
-	# Only the owning player validates and consumes mana
-	if player.is_multiplayer_authority():
+	# Server or owning client validates and consumes mana
+	if player.is_multiplayer_authority() or multiplayer.is_server():
 		var stats: PlayerStats = player.stats
 		if not stats.use_mana(skill.mana_cost):
-			EventBus.show_floating_text.emit(
-				player.global_position + Vector3(0, 2.5, 0),
-				"No Mana!",
-				Color.DODGER_BLUE
-			)
+			if player.is_multiplayer_authority():
+				EventBus.show_floating_text.emit(
+					player.global_position + Vector3(0, 2.5, 0),
+					"No Mana!",
+					Color.DODGER_BLUE
+				)
 			return false
 
 	cooldowns[slot] = skill.cooldown

@@ -137,6 +137,8 @@ func _load_from_dict(data: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
+	if stats.health <= 0.0:
+		return
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -172,8 +174,6 @@ func _physics_process_server_auth(delta: float) -> void:
 			attack_timer -= delta
 		_process_movement(delta)
 		# Broadcast authoritative position to all clients
-		if is_moving:
-			print("[Srv] Moving %s pos=%s target=%s" % [name, global_position, move_target])
 		_apply_remote_position.rpc(global_position, model.rotation.y)
 	else:
 		# Client: interpolate toward server state
@@ -290,10 +290,9 @@ func _server_move_intent(target: Vector3) -> void:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != get_multiplayer_authority():
-		print("[Move] Rejected: sender=%d auth=%d" % [sender, get_multiplayer_authority()])
 		return
-	# Server validates and applies
-	print("[Move] Intent from peer %d -> %s" % [sender, target])
+	if stats.health <= 0.0:
+		return
 	move_target = target
 	is_moving = true
 	is_attacking = false
@@ -441,14 +440,44 @@ func _cast_skill(slot: int, target_pos: Vector3) -> void:
 
 
 func _on_player_died() -> void:
-	# Simple respawn: heal in place
+	is_moving = false
+	is_attacking = false
+	if multiplayer.is_server():
+		_sync_player_died.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_player_died() -> void:
+	is_moving = false
+	is_attacking = false
+	_play_animation("idle")
+
+
+func request_respawn() -> void:
+	if _is_server_auth:
+		_server_respawn_intent.rpc_id(1)
+	else:
+		_do_respawn.rpc()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_respawn_intent() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	if stats.health > 0.0:
+		return
+	_do_respawn.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _do_respawn() -> void:
 	stats.health = stats.max_health
 	stats.mana = stats.max_mana
 	move_target = global_position
 	is_moving = false
-	# Sync to other peers if we're the server (death happened server-side)
-	if multiplayer.is_server():
-		_sync_health.rpc(stats.health)
 
 
 func _process_movement(delta: float) -> void:
