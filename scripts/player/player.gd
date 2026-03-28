@@ -563,8 +563,8 @@ func _server_receive_position(pos: Vector3, rot_y: float) -> void:
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func _apply_remote_position(pos: Vector3, rot_y: float) -> void:
-	if is_multiplayer_authority():
-		return  # Owning peer already has the correct position
+	if is_multiplayer_authority() and not _is_server_auth:
+		return  # LAN mode: owning peer does its own movement
 	_remote_pos = pos
 	_remote_rot_y = rot_y
 	_remote_initialized = true

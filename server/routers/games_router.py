@@ -229,8 +229,26 @@ async def update_player_count(
         raise HTTPException(status_code=404, detail="Game not found")
     game.current_players = req.current_players
     if req.current_players == 0:
-        game.status = "closed"
-        if game.pid:
-            await stop_game_server(game.pid)
+        game.status = "waiting"  # Keep joinable; game server idle timeout handles shutdown
+    elif game.status == "waiting":
+        game.status = "in_progress"
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/internal/close")
+async def internal_close_game(
+    req: GameServerPlayerCount,
+    db: AsyncSession = Depends(get_db),
+):
+    """Called by game server on shutdown (idle timeout) to mark the game as closed."""
+    if req.server_secret != settings.game_server_secret:
+        raise HTTPException(status_code=403, detail="Invalid server secret")
+    result = await db.execute(select(GameSession).where(GameSession.id == req.game_id))
+    game = result.scalar_one_or_none()
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    game.status = "closed"
+    game.current_players = 0
     await db.commit()
     return {"ok": True}

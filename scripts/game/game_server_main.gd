@@ -260,8 +260,20 @@ func _update_player_count() -> void:
 
 func _notify_lobby_close() -> void:
 	_save_all_players()
-	# Synchronous-ish: just fire and don't wait
-	_update_player_count()
+	# Tell the lobby this game is closed
+	var url := _lobby_url + "/games/internal/close"
+	var body := JSON.stringify({
+		"server_secret": _server_secret,
+		"game_id": _game_id,
+		"current_players": 0,
+	})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(_r: int, _c: int, _h: PackedStringArray, _b: PackedByteArray):
+			http.queue_free(), CONNECT_ONE_SHOT)
+	http.request(url, headers, HTTPClient.METHOD_POST, body)
 
 
 func _notification(what: int) -> void:
