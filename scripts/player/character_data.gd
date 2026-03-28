@@ -38,6 +38,8 @@ var defense: float = 5.0
 var move_speed: float = 7.0
 var play_time_seconds: float = 0.0
 var gold: int = 0
+var health_potions: int = 0
+var mana_potions: int = 0
 
 # Inventory + equipment stored as arrays of item dicts
 var inventory_items: Array = []
@@ -134,6 +136,8 @@ func to_dict() -> Dictionary:
 		"move_speed": move_speed,
 		"play_time_seconds": play_time_seconds,
 		"gold": gold,
+		"health_potions": health_potions,
+		"mana_potions": mana_potions,
 		"inventory_items": inventory_items,
 		"equipment": equipment,
 		"created_at": created_at,
@@ -162,6 +166,8 @@ static func from_dict(d: Dictionary) -> CharacterData:
 	data.move_speed = d.get("move_speed", 7.0)
 	data.play_time_seconds = d.get("play_time_seconds", 0.0)
 	data.gold = d.get("gold", 0)
+	data.health_potions = d.get("health_potions", 0)
+	data.mana_potions = d.get("mana_potions", 0)
 	data.inventory_items = d.get("inventory_items", [])
 	data.equipment = d.get("equipment", {})
 	data.created_at = d.get("created_at", "")

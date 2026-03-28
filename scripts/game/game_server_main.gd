@@ -220,6 +220,8 @@ func _save_player(peer_id: int) -> void:
 		"defense": stats.defense,
 		"move_speed": stats.move_speed,
 		"gold": inv.gold,
+		"health_potions": inv.health_potions,
+		"mana_potions": inv.mana_potions,
 		"inventory_items": inv.serialize_grid(),
 		"equipment": {},
 		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0) + (Time.get_unix_time_from_system() - info.get("join_time", Time.get_unix_time_from_system())),

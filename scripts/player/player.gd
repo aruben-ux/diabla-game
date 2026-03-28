@@ -82,6 +82,7 @@ func _ready() -> void:
 		inventory.item_equipped.connect(_on_item_equipped_sync)
 		inventory.item_unequipped.connect(_on_item_unequipped_sync)
 		inventory.inventory_changed.connect(_on_inventory_changed_sync)
+		inventory.potions_changed.connect(_on_potions_changed_sync)
 
 	# Build the multi-mesh player model
 	if model.has_method("build_player_model"):
@@ -119,6 +120,10 @@ func _load_from_character_data(data: CharacterData) -> void:
 
 	# Restore gold
 	inventory.gold = data.gold
+
+	# Restore potion counts
+	inventory.health_potions = data.health_potions
+	inventory.mana_potions = data.mana_potions
 
 	# Restore inventory items (support both grid and legacy format)
 	var items_data: Array = data.inventory_items
@@ -197,6 +202,9 @@ func _load_from_dict(data: Dictionary) -> void:
 	stats.move_speed = data.get("move_speed", 7.0)
 	player_name = data.get("character_name", "Player")
 	inventory.gold = data.get("gold", 0)
+	# Load potion counts
+	inventory.health_potions = int(data.get("health_potions", 0))
+	inventory.mana_potions = int(data.get("mana_potions", 0))
 	# Load inventory: support both grid format and legacy flat array
 	var items_data: Array = data.get("inventory_items", [])
 	if items_data.size() > 0 and items_data[0] is Dictionary and items_data[0].has("x"):
@@ -308,6 +316,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_use_skill(2)
 	elif event.is_action_pressed("skill_4"):
 		_use_skill(3)
+
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_Q:
+			_use_health_potion()
+		elif event.keycode == KEY_E:
+			_use_mana_potion()
 
 
 func _physics_process(delta: float) -> void:
@@ -597,6 +611,15 @@ func _sync_health(new_health: float) -> void:
 
 
 func pick_up_item(item: ItemData) -> bool:
+	# Route potions to the separate potion counter system
+	if item.item_type == ItemData.ItemType.POTION:
+		if inventory.add_potion(item.id):
+			_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
+			if multiplayer.is_server():
+				_client_receive_potion.rpc_id(get_multiplayer_authority(), item.id)
+			return true
+		else:
+			return false
 	if inventory.add_item(item):
 		_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
 		# Send item to owning client so it appears in their local inventory
@@ -642,6 +665,43 @@ func _use_skill(slot: int) -> void:
 @rpc("any_peer", "call_local", "reliable")
 func _cast_skill(slot: int, target_pos: Vector3) -> void:
 	skill_manager.try_use_skill(slot, target_pos)
+
+
+## --- Potion use (Q / E hotkeys) ---
+
+func _use_health_potion() -> void:
+	if inventory.health_potions <= 0:
+		return
+	inventory.use_health_potion(self)
+	if _is_server_auth:
+		_server_use_potion.rpc_id(1, "health_potion")
+
+
+func _use_mana_potion() -> void:
+	if inventory.mana_potions <= 0:
+		return
+	inventory.use_mana_potion(self)
+	if _is_server_auth:
+		_server_use_potion.rpc_id(1, "mana_potion")
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_use_potion(potion_id: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	if potion_id == "health_potion":
+		inventory.use_health_potion(self)
+	elif potion_id == "mana_potion":
+		inventory.use_mana_potion(self)
+
+
+## Server -> client: add a picked-up potion to the client's counter
+@rpc("any_peer", "call_remote", "reliable")
+func _client_receive_potion(potion_id: String) -> void:
+	inventory.add_potion(potion_id)
 
 
 func _on_player_died() -> void:
@@ -805,6 +865,12 @@ func _on_inventory_changed_sync() -> void:
 	_grid_sync_dirty = true
 
 
+func _on_potions_changed_sync() -> void:
+	# Potions changed on client — sync to server immediately
+	if _is_server_auth and is_multiplayer_authority():
+		_server_sync_potions.rpc_id(1, inventory.health_potions, inventory.mana_potions)
+
+
 func _process_grid_sync(delta: float) -> void:
 	if not _grid_sync_dirty:
 		return
@@ -824,6 +890,17 @@ func _server_sync_grid(grid_data: Array) -> void:
 	if sender != get_multiplayer_authority():
 		return
 	inventory.deserialize_grid(grid_data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_sync_potions(hp: int, mp: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	inventory.health_potions = hp
+	inventory.mana_potions = mp
 
 
 ## Server -> client: add a picked-up item to the client's inventory

@@ -7,10 +7,14 @@ signal inventory_changed
 signal item_equipped(slot: String, item: ItemData)
 signal item_unequipped(slot: String)
 signal gold_changed(amount: int)
+signal potions_changed
 
 const GRID_W := 5
 const GRID_H := 10
-const POTION_MAX_STACK := 10
+const MAX_POTIONS := 5
+
+var health_potions: int = 0
+var mana_potions: int = 0
 
 ## Each placed item: { "item": ItemData, "x": int, "y": int, "stack": int }
 var placed_items: Array[Dictionary] = []
@@ -72,18 +76,55 @@ func can_place_at(item: ItemData, gx: int, gy: int, exclude_entry: Dictionary = 
 	return true
 
 
+func add_potion(potion_id: String) -> bool:
+	## Add a potion by ID. Returns false if at max.
+	if potion_id == "health_potion":
+		if health_potions >= MAX_POTIONS:
+			return false
+		health_potions += 1
+		potions_changed.emit()
+		return true
+	elif potion_id == "mana_potion":
+		if mana_potions >= MAX_POTIONS:
+			return false
+		mana_potions += 1
+		potions_changed.emit()
+		return true
+	return false
+
+
+func can_hold_potion(potion_id: String) -> bool:
+	if potion_id == "health_potion":
+		return health_potions < MAX_POTIONS
+	elif potion_id == "mana_potion":
+		return mana_potions < MAX_POTIONS
+	return false
+
+
+func use_health_potion(player: Node) -> bool:
+	if health_potions <= 0:
+		return false
+	health_potions -= 1
+	if player and player.get("stats"):
+		var stats: PlayerStats = player.stats
+		stats.heal(30.0)
+	potions_changed.emit()
+	return true
+
+
+func use_mana_potion(player: Node) -> bool:
+	if mana_potions <= 0:
+		return false
+	mana_potions -= 1
+	if player and player.get("stats"):
+		var stats: PlayerStats = player.stats
+		stats.mana = minf(stats.mana + 20.0, stats.max_mana)
+	potions_changed.emit()
+	return true
+
+
 func add_item(item: ItemData) -> bool:
-	## Auto-place item. Returns true if placed.
-	# Try stacking potions first
-	if item.stackable:
-		for entry in placed_items:
-			var existing: ItemData = entry["item"]
-			if existing.id == item.id:
-				var current_stack: int = entry.get("stack", 1)
-				if current_stack < POTION_MAX_STACK:
-					entry["stack"] = current_stack + 1
-					inventory_changed.emit()
-					return true
+	## Auto-place item in grid. Potions are handled separately via add_potion().
 	# Find first free position
 	var pos := find_free_position(item)
 	if pos.x < 0:
@@ -186,27 +227,7 @@ func unequip_item(slot: String, player: Node) -> bool:
 	return true
 
 
-func use_potion_entry(entry: Dictionary, player: Node) -> void:
-	var item: ItemData = entry["item"]
-	if item.item_type != ItemData.ItemType.POTION:
-		return
-	_use_potion(item, player)
-	var stack_count: int = entry.get("stack", 1)
-	if stack_count <= 1:
-		remove_entry(entry)
-	else:
-		entry["stack"] = stack_count - 1
-		inventory_changed.emit()
 
-
-func _use_potion(item: ItemData, player: Node) -> void:
-	if not player or not player.get("stats"):
-		return
-	var stats: PlayerStats = player.stats
-	if item.heal_amount > 0.0:
-		stats.heal(item.heal_amount)
-	if item.mana_restore > 0.0:
-		stats.mana = minf(stats.mana + item.mana_restore, stats.max_mana)
 
 
 func _apply_stat_bonuses(item: ItemData, player: Node) -> void:
@@ -278,6 +299,16 @@ func deserialize_grid(data: Array) -> void:
 			"y": int(d["y"]),
 			"stack": int(d.get("stack", 1)),
 		})
+
+
+func serialize_potions() -> Dictionary:
+	return {"health_potions": health_potions, "mana_potions": mana_potions}
+
+
+func deserialize_potions(data: Dictionary) -> void:
+	health_potions = int(data.get("health_potions", 0))
+	mana_potions = int(data.get("mana_potions", 0))
+	potions_changed.emit()
 	inventory_changed.emit()
 
 

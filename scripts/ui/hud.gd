@@ -11,6 +11,10 @@ extends Control
 @onready var skill_slots: Array[Node] = [
 	$SkillBar/Skill1, $SkillBar/Skill2, $SkillBar/Skill3, $SkillBar/Skill4
 ]
+@onready var health_potion_panel: Panel = $SkillBar/HealthPotion
+@onready var mana_potion_panel: Panel = $SkillBar/ManaPotion
+@onready var hp_potion_label: Label = $SkillBar/HealthPotion/Label
+@onready var mp_potion_label: Label = $SkillBar/ManaPotion/Label
 @onready var death_overlay: ColorRect = $DeathOverlay
 @onready var respawn_button: Button = $DeathOverlay/VBox/RespawnButton
 
@@ -32,6 +36,8 @@ var _target_info_label: Label
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
 	_build_target_panel()
+	_style_potion_panel(health_potion_panel, Color(0.8, 0.15, 0.15, 0.7))
+	_style_potion_panel(mana_potion_panel, Color(0.15, 0.3, 0.8, 0.7))
 
 
 func _build_target_panel() -> void:
@@ -94,6 +100,16 @@ func _build_target_panel() -> void:
 	_target_panel.visible = false
 
 
+func _style_potion_panel(panel: Panel, color: Color) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	panel.add_theme_stylebox_override("panel", style)
+
+
 func set_player(player: Node) -> void:
 	tracked_player = player
 	_is_dead = false
@@ -127,6 +143,12 @@ func _process(delta: float) -> void:
 	xp_bar.value = stats.experience
 
 	level_label.text = "Level %d" % stats.level
+
+	# Update potion counts
+	var inv: Inventory = tracked_player.inventory
+	if inv:
+		hp_potion_label.text = "Q\n%d" % inv.health_potions
+		mp_potion_label.text = "E\n%d" % inv.mana_potions
 
 	# Respawn completed — health restored by server
 	if _is_dead and stats.health > 0.0:

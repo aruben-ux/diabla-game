@@ -29,9 +29,21 @@ func setup(item_data: ItemData) -> void:
 		interact_hint = ""
 	else:
 		add_to_group("interactables")
-	# Color the mesh with glow shader to match rarity
+	# Potions: use colored sphere mesh instead of box
 	var mesh_instance := $MeshInstance3D
-	if mesh_instance:
+	if mesh_instance and item.item_type == ItemData.ItemType.POTION:
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.25
+		sphere.height = 0.5
+		mesh_instance.mesh = sphere
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color.RED if item.id == "health_potion" else Color.DODGER_BLUE
+		mat.emission_enabled = true
+		mat.emission = mat.albedo_color
+		mat.emission_energy_multiplier = 2.0
+		mesh_instance.material_override = mat
+	elif mesh_instance:
+		# Equipment: color the mesh with glow shader to match rarity
 		var glow_shader := load("res://assets/shaders/loot_glow.gdshader")
 		var mat := ShaderMaterial.new()
 		mat.shader = glow_shader
@@ -67,6 +79,10 @@ func _on_body_entered(body: Node3D) -> void:
 	if not _is_auto_pickup:
 		return
 	if not body.is_in_group("players") or not item:
+		return
+
+	# Skip auto-pickup if at max potions
+	if body.get("inventory") and not body.inventory.can_hold_potion(item.id):
 		return
 
 	if is_local_only:

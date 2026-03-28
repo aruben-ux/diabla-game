@@ -113,6 +113,8 @@ func capture_player_state(player: Node) -> void:
 	# Serialize inventory (grid-based)
 	var inv: Inventory = player.inventory
 	active_character.gold = inv.gold
+	active_character.health_potions = inv.health_potions
+	active_character.mana_potions = inv.mana_potions
 	active_character.inventory_items = inv.serialize_grid()
 
 	active_character.equipment = {}

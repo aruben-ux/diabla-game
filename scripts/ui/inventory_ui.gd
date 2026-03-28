@@ -56,6 +56,7 @@ func setup(inv: Inventory, player: Node) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	z_index = 10
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -388,10 +389,7 @@ func _on_grid_gui_input(event: InputEvent) -> void:
 
 func _right_click_item(entry: Dictionary) -> void:
 	var item: ItemData = entry["item"]
-	if item.item_type == ItemData.ItemType.POTION:
-		inventory.use_potion_entry(entry, player_ref)
-	else:
-		inventory.equip_item_from_entry(entry, player_ref)
+	inventory.equip_item_from_entry(entry, player_ref)
 
 
 func _start_drag_from_grid(entry: Dictionary) -> void:
@@ -640,8 +638,6 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 		ItemData.Rarity.keys()[item.rarity]
 	]
 	text += "Size: %dx%d\n" % [item.grid_w, item.grid_h]
-	if stack > 1:
-		text += "Stack: %d/%d\n" % [stack, Inventory.POTION_MAX_STACK]
 	if item.bonus_damage > 0:
 		text += "+%.0f Damage\n" % item.bonus_damage
 	if item.bonus_defense > 0:
