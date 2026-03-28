@@ -117,17 +117,13 @@ func _request_pickup() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_pickup(peer_id: int, item_dict: Dictionary) -> void:
-	item = null
 	for player in get_tree().get_nodes_in_group("players"):
 		if player.get_multiplayer_authority() == peer_id:
 			var pickup_item := ItemData.from_dict(item_dict)
-			player.pick_up_item(pickup_item)
-			EventBus.show_floating_text.emit(
-				global_position + Vector3(0, 1.5, 0),
-				pickup_item.display_name,
-				ItemData.get_rarity_color(pickup_item.rarity)
-			)
+			if not player.pick_up_item(pickup_item):
+				return  # Inventory full — keep the drop
 			break
+	item = null
 	queue_free()
 
 

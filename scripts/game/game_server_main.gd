@@ -150,6 +150,7 @@ func _on_token_validated(peer_id: int, code: int, body_bytes: PackedByteArray) -
 		"account_id": account_id,
 		"character_id": character_id,
 		"character_data": char_data,
+		"join_time": Time.get_unix_time_from_system(),
 	}
 
 	print("[GameServer] Player authenticated: peer=%d account=%d char=%s" % [
@@ -221,7 +222,7 @@ func _save_player(peer_id: int) -> void:
 		"gold": inv.gold,
 		"inventory_items": inv.serialize_grid(),
 		"equipment": {},
-		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0),
+		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0) + (Time.get_unix_time_from_system() - info.get("join_time", Time.get_unix_time_from_system())),
 	}
 
 	for slot_name in inv.equipment:
@@ -229,8 +230,9 @@ func _save_player(peer_id: int) -> void:
 		if eq_item != null:
 			save_data["equipment"][slot_name] = eq_item.to_dict()
 
-	# Update cached data
+	# Update cached data and reset join_time so next save doesn't double-count
 	info["character_data"].merge(save_data, true)
+	info["join_time"] = Time.get_unix_time_from_system()
 
 	# POST to lobby server
 	var url := _lobby_url + "/characters/internal/%d?server_secret=%s" % [character_id, _server_secret.uri_encode()]
