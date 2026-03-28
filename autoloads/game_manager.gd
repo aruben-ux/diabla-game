@@ -27,6 +27,22 @@ var dedicated_server_secret: String = ""
 var online_players: Dictionary = {}
 
 
+func _ready() -> void:
+	# If launched with --server flag, switch to the dedicated game server entry point
+	if "--server" in OS.get_cmdline_user_args():
+		# Defer so all other autoloads finish _ready() first
+		_start_dedicated_server.call_deferred()
+
+
+func _start_dedicated_server() -> void:
+	# Add the game server script as a child node of GameManager
+	var server_script := load("res://scripts/game/game_server_main.gd")
+	var server_node := Node.new()
+	server_node.name = "GameServerMain"
+	server_node.set_script(server_script)
+	get_tree().root.add_child(server_node)
+
+
 func register_player(peer_id: int, player_data: Dictionary) -> void:
 	players[peer_id] = player_data
 	player_registered.emit(peer_id, player_data)
