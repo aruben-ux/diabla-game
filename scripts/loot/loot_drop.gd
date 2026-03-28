@@ -1,13 +1,18 @@
 extends Area3D
 
-## A loot drop in the world. Players walk into it to pick up.
+## A loot drop in the world. Potions auto-pickup on contact.
+## Equipment must be clicked to pick up (walk-to-interact).
 
 @export var item: ItemData
 @export var bob_speed := 2.0
 @export var bob_height := 0.3
 
+var display_name: String = "Loot"
+var interact_hint: String = "Click to pick up"
+
 var _base_y: float
 var _time: float = 0.0
+var _is_auto_pickup: bool = false
 
 
 func _ready() -> void:
@@ -17,6 +22,12 @@ func _ready() -> void:
 
 func setup(item_data: ItemData) -> void:
 	item = item_data
+	display_name = item.display_name
+	_is_auto_pickup = item.item_type == ItemData.ItemType.POTION
+	if _is_auto_pickup:
+		interact_hint = ""
+	else:
+		add_to_group("interactables")
 	# Color the mesh with glow shader to match rarity
 	var mesh_instance := $MeshInstance3D
 	if mesh_instance:
@@ -50,17 +61,40 @@ func _process(delta: float) -> void:
 	rotation.y += delta * 2.0
 
 
+## Auto-pickup (body contact) — only for potions
 func _on_body_entered(body: Node3D) -> void:
+	if not _is_auto_pickup:
+		return
 	if not body.is_in_group("players") or not item:
 		return
 
 	if multiplayer.is_server():
-		# Server detects collision directly
 		var peer_id := body.get_multiplayer_authority()
 		_sync_pickup.rpc(peer_id, item.to_dict())
 	elif body.is_multiplayer_authority():
-		# Client: request pickup from server (server collision may miss teleported bodies)
 		_request_pickup.rpc_id(1)
+
+
+## Click-to-pickup (interact call from player walk-to-interact)
+func interact(player: Node) -> void:
+	if _is_auto_pickup or not item:
+		return
+	if not player.is_in_group("players"):
+		return
+
+	if multiplayer.is_server():
+		# Server handles actual pickup
+		var peer_id := player.get_multiplayer_authority()
+		_sync_pickup.rpc(peer_id, item.to_dict())
+	else:
+		# Client: just show floating text — server will handle the actual item via _sync_pickup
+		EventBus.show_floating_text.emit(
+			global_position + Vector3(0, 1.5, 0),
+			item.display_name,
+			ItemData.get_rarity_color(item.rarity)
+		)
+		# Visual: hide immediately
+		visible = false
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -70,7 +104,6 @@ func _request_pickup() -> void:
 	if not item:
 		return
 	var requester := multiplayer.get_remote_sender_id()
-	# Verify the requester's player exists and is reasonably close
 	for player in get_tree().get_nodes_in_group("players"):
 		if player.get_multiplayer_authority() == requester:
 			if global_position.distance_to(player.global_position) < 6.0:
@@ -80,9 +113,7 @@ func _request_pickup() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_pickup(peer_id: int, item_dict: Dictionary) -> void:
-	# Prevent double-pickup
 	item = null
-	# Find the player with this peer_id and give them the item
 	for player in get_tree().get_nodes_in_group("players"):
 		if player.get_multiplayer_authority() == peer_id:
 			var pickup_item := ItemData.from_dict(item_dict)

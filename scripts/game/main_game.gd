@@ -561,6 +561,8 @@ func _spawn_player(peer_id: int) -> void:
 			hud.set_player(player_instance)
 		if inventory_ui:
 			inventory_ui.setup(player_instance.inventory, player_instance)
+			if not inventory_ui.drop_item_on_ground.is_connected(_on_drop_item_on_ground):
+				inventory_ui.drop_item_on_ground.connect(_on_drop_item_on_ground)
 		if minimap:
 			minimap.set_player(player_instance)
 
@@ -576,6 +578,20 @@ func _despawn_player(peer_id: int) -> void:
 	# Cleanup floor if it's now empty
 	if multiplayer.is_server() and old_floor > 0:
 		_maybe_cleanup_floor(old_floor)
+
+
+func _on_drop_item_on_ground(item: ItemData) -> void:
+	## Spawn a loot drop at the local player's feet when they drop an item from inventory.
+	var my_id := multiplayer.get_unique_id()
+	var player_node := player_container.get_node_or_null(str(my_id))
+	if not player_node:
+		return
+	var drop_pos := player_node.global_position + Vector3(randf_range(-1.0, 1.0), 0.5, randf_range(-1.0, 1.0))
+	var loot := preload("res://scenes/loot/loot_drop.tscn").instantiate()
+	loot.name = "Dropped_%d" % randi()
+	player_node.get_parent().add_child(loot)
+	loot.global_position = drop_pos
+	loot.setup(item)
 
 
 func _on_show_floating_text(world_pos: Vector3, text: String, color: Color) -> void:

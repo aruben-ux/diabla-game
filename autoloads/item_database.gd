@@ -45,6 +45,7 @@ func get_random_weapon(enemy_level: int = 1) -> ItemData:
 	var rar_mult: float = lc.get("rarity_bonus_mult", 0.3)
 	item.bonus_damage = (base_dmg + enemy_level * dmg_per_lv) * (1.0 + item.rarity * rar_mult)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
+	_apply_grid_size(item)
 	return item
 
 
@@ -71,6 +72,7 @@ func get_random_armor(enemy_level: int = 1) -> ItemData:
 	item.bonus_defense = (def_base + enemy_level * def_per_lv) * (1.0 + item.rarity * rar_mult)
 	item.bonus_health = enemy_level * hp_per_lv * (1.0 + item.rarity * 0.2)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
+	_apply_grid_size(item)
 	return item
 
 
@@ -81,9 +83,10 @@ func get_health_potion() -> ItemData:
 	item.item_type = ItemData.ItemType.POTION
 	item.rarity = ItemData.Rarity.COMMON
 	item.stackable = true
-	item.max_stack = 20
+	item.max_stack = 10
 	item.heal_amount = 30.0
 	item.icon_color = Color.RED
+	_apply_grid_size(item)
 	_apply_item_data(item)
 	return item
 
@@ -95,9 +98,10 @@ func get_mana_potion() -> ItemData:
 	item.item_type = ItemData.ItemType.POTION
 	item.rarity = ItemData.Rarity.COMMON
 	item.stackable = true
-	item.max_stack = 20
+	item.max_stack = 10
 	item.mana_restore = 20.0
 	item.icon_color = Color.DODGER_BLUE
+	_apply_grid_size(item)
 	_apply_item_data(item)
 	return item
 
@@ -144,6 +148,12 @@ func _register_items() -> void:
 	# Register base potions for lookup by ID
 	_items["health_potion"] = get_health_potion()
 	_items["mana_potion"] = get_mana_potion()
+
+
+func _apply_grid_size(item: ItemData) -> void:
+	var def_size: Vector2i = ItemData.DEFAULT_GRID_SIZES.get(item.item_type, Vector2i(1, 1))
+	item.grid_w = def_size.x
+	item.grid_h = def_size.y
 
 
 func _apply_item_data(item: ItemData) -> void:

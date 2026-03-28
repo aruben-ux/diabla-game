@@ -116,10 +116,12 @@ func _load_from_character_data(data: CharacterData) -> void:
 	# Restore gold
 	inventory.gold = data.gold
 
-	# Restore inventory items
-	for item_dict in data.inventory_items:
-		var item := ItemData.from_dict(item_dict)
-		inventory.add_item(item)
+	# Restore inventory items (support both grid and legacy format)
+	var items_data: Array = data.inventory_items
+	if items_data.size() > 0 and items_data[0] is Dictionary and items_data[0].has("x"):
+		inventory.deserialize_grid(items_data)
+	else:
+		inventory.legacy_import(items_data)
 
 	# Restore equipment
 	for slot_name in data.equipment:
@@ -191,9 +193,14 @@ func _load_from_dict(data: Dictionary) -> void:
 	stats.move_speed = data.get("move_speed", 7.0)
 	player_name = data.get("character_name", "Player")
 	inventory.gold = data.get("gold", 0)
-	for item_dict in data.get("inventory_items", []):
-		var item := ItemData.from_dict(item_dict)
-		inventory.add_item(item)
+	# Load inventory: support both grid format and legacy flat array
+	var items_data: Array = data.get("inventory_items", [])
+	if items_data.size() > 0 and items_data[0] is Dictionary and items_data[0].has("x"):
+		# New grid format
+		inventory.deserialize_grid(items_data)
+	else:
+		# Legacy flat array format
+		inventory.legacy_import(items_data)
 	for slot_name in data.get("equipment", {}):
 		var eq_dict: Dictionary = data["equipment"][slot_name]
 		if not eq_dict.is_empty():

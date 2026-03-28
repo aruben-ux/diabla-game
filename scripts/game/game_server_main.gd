@@ -219,13 +219,11 @@ func _save_player(peer_id: int) -> void:
 		"defense": stats.defense,
 		"move_speed": stats.move_speed,
 		"gold": inv.gold,
-		"inventory_items": [],
+		"inventory_items": inv.serialize_grid(),
 		"equipment": {},
 		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0),
 	}
 
-	for item in inv.items:
-		save_data["inventory_items"].append(item.to_dict())
 	for slot_name in inv.equipment:
 		var eq_item: ItemData = inv.equipment[slot_name]
 		if eq_item != null:

@@ -110,12 +110,10 @@ func capture_player_state(player: Node) -> void:
 	active_character.defense = stats.defense
 	active_character.move_speed = stats.move_speed
 
-	# Serialize inventory
+	# Serialize inventory (grid-based)
 	var inv: Inventory = player.inventory
 	active_character.gold = inv.gold
-	active_character.inventory_items = []
-	for item in inv.items:
-		active_character.inventory_items.append(item.to_dict())
+	active_character.inventory_items = inv.serialize_grid()
 
 	active_character.equipment = {}
 	for slot_name in inv.equipment:
