@@ -21,6 +21,7 @@ const FLOOR_SPACING := 200.0
 var player_scene: PackedScene = preload("res://scenes/player/player.tscn")
 var floating_text_scene: PackedScene = preload("res://scenes/ui/floating_text.tscn")
 var dungeon_level_scene: PackedScene = preload("res://scenes/levels/dungeon_level.tscn")
+var esc_menu_script: GDScript = preload("res://scripts/ui/esc_menu.gd")
 const STAIR_COOLDOWN_MS := 2000
 
 var _game_seed := 0
@@ -58,6 +59,7 @@ const AUTO_SAVE_INTERVAL := 60.0
 ## Fade overlay for transitions
 var _fade_rect: ColorRect
 const FADE_DURATION := 0.25
+var _esc_menu: Control
 
 func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)
@@ -104,6 +106,28 @@ func _process(delta: float) -> void:
 	if _auto_save_timer >= AUTO_SAVE_INTERVAL:
 		_auto_save_timer = 0.0
 		_save_game()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_toggle_esc_menu()
+		get_viewport().set_input_as_handled()
+
+
+func _toggle_esc_menu() -> void:
+	if is_instance_valid(_esc_menu):
+		_esc_menu.queue_free()
+		_esc_menu = null
+		return
+	var menu := Control.new()
+	menu.set_script(esc_menu_script)
+	menu.closed.connect(_on_esc_menu_closed)
+	$CanvasLayer.add_child(menu)
+	_esc_menu = menu
+
+
+func _on_esc_menu_closed() -> void:
+	_esc_menu = null
 
 
 # --- Floor instance management ---

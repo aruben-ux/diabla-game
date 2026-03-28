@@ -58,6 +58,13 @@ func _ready() -> void:
 	if model.has_method("build_player_model"):
 		model.build_player_model()
 
+	# Name label above head (hidden for local player)
+	_setup_name_label()
+
+	# Server broadcasts player name to all clients after loading
+	if _is_server_auth and multiplayer.is_server() and player_name != "Player":
+		_sync_player_name.rpc(player_name)
+
 
 func _load_from_character_data(data: CharacterData) -> void:
 	stats.level = data.level
@@ -108,6 +115,32 @@ func _apply_equipment_stats(item: ItemData) -> void:
 	stats.strength += item.bonus_strength
 	stats.dexterity += item.bonus_dexterity
 	stats.intelligence += item.bonus_intelligence
+
+
+var _name_label: Label3D
+
+func _setup_name_label() -> void:
+	_name_label = Label3D.new()
+	_name_label.text = player_name
+	_name_label.font_size = 48
+	_name_label.pixel_size = 0.01
+	_name_label.position = Vector3(0, 2.2, 0)
+	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_label.no_depth_test = true
+	_name_label.modulate = Color(1, 1, 1, 0.9)
+	_name_label.outline_size = 8
+	_name_label.outline_modulate = Color(0, 0, 0, 0.8)
+	add_child(_name_label)
+	# Hide for the local player
+	if is_multiplayer_authority():
+		_name_label.visible = false
+
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_player_name(p_name: String) -> void:
+	player_name = p_name
+	if _name_label:
+		_name_label.text = p_name
 
 
 func _load_from_dict(data: Dictionary) -> void:
