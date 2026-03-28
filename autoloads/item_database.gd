@@ -5,6 +5,21 @@ extends Node
 
 var _items: Dictionary = {}
 
+static var _game_data: Dictionary = {}
+static var _game_data_loaded := false
+
+
+static func _load_game_data() -> void:
+	if _game_data_loaded:
+		return
+	_game_data_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK:
+			_game_data = json.data
+		file.close()
+
 
 func _ready() -> void:
 	_register_items()
@@ -57,6 +72,7 @@ func get_health_potion() -> ItemData:
 	item.max_stack = 20
 	item.heal_amount = 30.0
 	item.icon_color = Color.RED
+	_apply_item_data(item)
 	return item
 
 
@@ -70,6 +86,7 @@ func get_mana_potion() -> ItemData:
 	item.max_stack = 20
 	item.mana_restore = 20.0
 	item.icon_color = Color.DODGER_BLUE
+	_apply_item_data(item)
 	return item
 
 
@@ -110,3 +127,35 @@ func _register_items() -> void:
 	# Register base potions for lookup by ID
 	_items["health_potion"] = get_health_potion()
 	_items["mana_potion"] = get_mana_potion()
+
+
+func _apply_item_data(item: ItemData) -> void:
+	_load_game_data()
+	if not _game_data.has("items") or not _game_data["items"].has(item.id):
+		return
+	var d: Dictionary = _game_data["items"][item.id]
+	item.display_name = d.get("display_name", item.display_name)
+	item.description = d.get("description", item.description)
+	item.stackable = d.get("stackable", item.stackable)
+	item.max_stack = int(d.get("max_stack", item.max_stack))
+	item.level_requirement = int(d.get("level_requirement", item.level_requirement))
+	item.bonus_damage = d.get("bonus_damage", item.bonus_damage)
+	item.bonus_defense = d.get("bonus_defense", item.bonus_defense)
+	item.bonus_health = d.get("bonus_health", item.bonus_health)
+	item.bonus_mana = d.get("bonus_mana", item.bonus_mana)
+	item.bonus_strength = int(d.get("bonus_strength", item.bonus_strength))
+	item.bonus_dexterity = int(d.get("bonus_dexterity", item.bonus_dexterity))
+	item.bonus_intelligence = int(d.get("bonus_intelligence", item.bonus_intelligence))
+	item.heal_amount = d.get("heal_amount", item.heal_amount)
+	item.mana_restore = d.get("mana_restore", item.mana_restore)
+	var it_str: String = d.get("item_type", "")
+	var it_idx := ItemData.ItemType.keys().find(it_str)
+	if it_idx >= 0:
+		item.item_type = it_idx as ItemData.ItemType
+	var r_str: String = d.get("rarity", "")
+	var r_idx := ItemData.Rarity.keys().find(r_str)
+	if r_idx >= 0:
+		item.rarity = r_idx as ItemData.Rarity
+	var ic: Array = d.get("icon_color", [])
+	if ic.size() >= 4:
+		item.icon_color = Color(ic[0], ic[1], ic[2], ic[3])

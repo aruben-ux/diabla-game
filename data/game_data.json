@@ -108,5 +108,158 @@
                 ]
             }
         }
+    },
+    "classes": {
+        "WARRIOR": {
+            "strength": 14,
+            "dexterity": 8,
+            "intelligence": 6,
+            "vitality": 12,
+            "max_health": 120.0,
+            "max_mana": 30.0,
+            "attack_damage": 14.0,
+            "attack_speed": 1.0,
+            "defense": 8.0,
+            "move_speed": 7.0
+        },
+        "MAGE": {
+            "strength": 6,
+            "dexterity": 8,
+            "intelligence": 14,
+            "vitality": 8,
+            "max_health": 70.0,
+            "max_mana": 100.0,
+            "attack_damage": 6.0,
+            "attack_speed": 1.0,
+            "defense": 3.0,
+            "move_speed": 7.0
+        },
+        "ROGUE": {
+            "strength": 8,
+            "dexterity": 14,
+            "intelligence": 8,
+            "vitality": 8,
+            "max_health": 90.0,
+            "max_mana": 50.0,
+            "attack_damage": 11.0,
+            "attack_speed": 1.4,
+            "defense": 5.0,
+            "move_speed": 7.0
+        }
+    },
+    "skills": {
+        "fireball": {
+            "display_name": "Fireball",
+            "description": "Hurl a ball of fire at a target area.",
+            "target_type": "POINT",
+            "cooldown": 1.8,
+            "mana_cost": 10.0,
+            "damage": 28.0,
+            "radius": 4.0,
+            "range_dist": 12.0,
+            "duration": 0.0,
+            "icon_color": [1.0, 0.27, 0.0, 1.0]
+        },
+        "heal": {
+            "display_name": "Heal",
+            "description": "Restore health.",
+            "target_type": "SELF",
+            "cooldown": 5.0,
+            "mana_cost": 12.0,
+            "damage": 45.0,
+            "radius": 0.0,
+            "range_dist": 0.0,
+            "duration": 0.0,
+            "icon_color": [0.0, 0.5, 0.0, 1.0]
+        },
+        "whirlwind": {
+            "display_name": "Whirlwind",
+            "description": "Spin and damage all nearby enemies.",
+            "target_type": "SELF",
+            "cooldown": 2.5,
+            "mana_cost": 8.0,
+            "damage": 22.0,
+            "radius": 4.5,
+            "range_dist": 0.0,
+            "duration": 0.0,
+            "icon_color": [0.68, 0.85, 0.9, 1.0]
+        },
+        "frost_nova": {
+            "display_name": "Frost Nova",
+            "description": "Blast frost in an area around you.",
+            "target_type": "SELF",
+            "cooldown": 3.0,
+            "mana_cost": 11.0,
+            "damage": 26.0,
+            "radius": 5.5,
+            "range_dist": 0.0,
+            "duration": 0.0,
+            "icon_color": [0.0, 1.0, 1.0, 1.0]
+        }
+    },
+    "items": {
+        "health_potion": {
+            "display_name": "Health Potion",
+            "description": "",
+            "item_type": "POTION",
+            "rarity": "COMMON",
+            "stackable": true,
+            "max_stack": 20,
+            "level_requirement": 1,
+            "bonus_damage": 0.0,
+            "bonus_defense": 0.0,
+            "bonus_health": 0.0,
+            "bonus_mana": 0.0,
+            "bonus_strength": 0,
+            "bonus_dexterity": 0,
+            "bonus_intelligence": 0,
+            "heal_amount": 30.0,
+            "mana_restore": 0.0,
+            "icon_color": [1.0, 0.0, 0.0, 1.0]
+        },
+        "mana_potion": {
+            "display_name": "Mana Potion",
+            "description": "",
+            "item_type": "POTION",
+            "rarity": "COMMON",
+            "stackable": true,
+            "max_stack": 20,
+            "level_requirement": 1,
+            "bonus_damage": 0.0,
+            "bonus_defense": 0.0,
+            "bonus_health": 0.0,
+            "bonus_mana": 0.0,
+            "bonus_strength": 0,
+            "bonus_dexterity": 0,
+            "bonus_intelligence": 0,
+            "heal_amount": 0.0,
+            "mana_restore": 20.0,
+            "icon_color": [0.12, 0.56, 1.0, 1.0]
+        }
+    },
+    "loot_config": {
+        "weapon_names": ["Rusty Sword", "Iron Axe", "Steel Mace", "War Hammer", "Shadow Blade", "Flame Dagger"],
+        "armor_names": {
+            "HELMET": ["Leather Cap", "Iron Helm", "Plate Helm", "Crown of Thorns"],
+            "CHEST": ["Cloth Tunic", "Chainmail", "Plate Armor", "Shadow Vestments"],
+            "BOOTS": ["Sandals", "Iron Boots", "Greaves", "Windwalkers"]
+        },
+        "weapon_damage_base": 5.0,
+        "weapon_damage_per_level": 2.0,
+        "armor_defense_base": 3.0,
+        "armor_defense_per_level": 1.5,
+        "armor_health_per_level": 5.0,
+        "rarity_bonus_mult": 0.3,
+        "health_potion_drop_chance": 0.4,
+        "mana_potion_drop_chance": 0.2,
+        "equipment_drop_chance": 0.3,
+        "rarity_weights": [0.5, 0.3, 0.13, 0.06, 0.01]
+    },
+    "skill_slots": ["fireball", "heal", "whirlwind", "frost_nova"],
+    "progression": {
+        "hp_per_level": 10.0,
+        "mana_per_level": 5.0,
+        "stats_per_level": 2,
+        "xp_per_level_base": 100
     }
 }

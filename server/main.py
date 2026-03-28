@@ -16,30 +16,34 @@ from websocket_manager import lobby_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables on startup (use migrations for production)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
-    # Close any stale games from previous runs (processes no longer alive)
-    async with async_session() as db:
-        result = await db.execute(
-            select(GameSession).where(GameSession.status.in_(["waiting", "in_progress"]))
-        )
-        stale = 0
-        for game in result.scalars():
-            alive = False
-            if game.pid:
-                try:
-                    os.kill(game.pid, 0)  # Check if process exists
-                    alive = True
-                except OSError:
-                    alive = False
-            if not alive:
-                game.status = "closed"
-                game.current_players = 0
-                stale += 1
-        await db.commit()
-        if stale:
-            print(f"[Startup] Closed {stale} stale game(s)")
+        # Close any stale games from previous runs (processes no longer alive)
+        async with async_session() as db:
+            result = await db.execute(
+                select(GameSession).where(GameSession.status.in_(["waiting", "in_progress"]))
+            )
+            stale = 0
+            for game in result.scalars():
+                alive = False
+                if game.pid:
+                    try:
+                        os.kill(game.pid, 0)  # Check if process exists
+                        alive = True
+                    except OSError:
+                        alive = False
+                if not alive:
+                    game.status = "closed"
+                    game.current_players = 0
+                    stale += 1
+            await db.commit()
+            if stale:
+                print(f"[Startup] Closed {stale} stale game(s)")
+    except Exception as e:
+        print(f"[Startup] WARNING: Database init failed: {e}")
+        print("[Startup] Server will start but DB-dependent routes may fail.")
 
     yield
     await engine.dispose()

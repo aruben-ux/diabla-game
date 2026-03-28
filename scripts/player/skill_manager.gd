@@ -10,6 +10,21 @@ var skills: Array = [null, null, null, null]  # 4 skill slots
 var cooldowns: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var player: Node
 
+static var _game_data: Dictionary = {}
+static var _game_data_loaded := false
+
+
+static func _load_game_data() -> void:
+	if _game_data_loaded:
+		return
+	_game_data_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK:
+			_game_data = json.data
+		file.close()
+
 
 func setup(p: Node) -> void:
 	player = p
@@ -134,6 +149,7 @@ func _create_fireball() -> SkillData:
 	s.radius = 4.0
 	s.range_dist = 12.0
 	s.icon_color = Color.ORANGE_RED
+	_apply_skill_data(s)
 	return s
 
 
@@ -147,6 +163,7 @@ func _create_heal() -> SkillData:
 	s.mana_cost = 12.0
 	s.damage = 45.0  # Heal amount
 	s.icon_color = Color.GREEN
+	_apply_skill_data(s)
 	return s
 
 
@@ -161,6 +178,7 @@ func _create_whirlwind() -> SkillData:
 	s.damage = 22.0
 	s.radius = 4.5
 	s.icon_color = Color.LIGHT_BLUE
+	_apply_skill_data(s)
 	return s
 
 
@@ -175,4 +193,27 @@ func _create_frost_nova() -> SkillData:
 	s.damage = 26.0
 	s.radius = 5.5
 	s.icon_color = Color.CYAN
+	_apply_skill_data(s)
 	return s
+
+
+func _apply_skill_data(s: SkillData) -> void:
+	_load_game_data()
+	if not _game_data.has("skills") or not _game_data["skills"].has(s.id):
+		return
+	var sd: Dictionary = _game_data["skills"][s.id]
+	s.display_name = sd.get("display_name", s.display_name)
+	s.description = sd.get("description", s.description)
+	s.cooldown = sd.get("cooldown", s.cooldown)
+	s.mana_cost = sd.get("mana_cost", s.mana_cost)
+	s.damage = sd.get("damage", s.damage)
+	s.radius = sd.get("radius", s.radius)
+	s.range_dist = sd.get("range_dist", s.range_dist)
+	s.duration = sd.get("duration", s.duration)
+	var tt_str: String = sd.get("target_type", "")
+	var tt_idx := SkillData.TargetType.keys().find(tt_str)
+	if tt_idx >= 0:
+		s.target_type = tt_idx as SkillData.TargetType
+	var ic: Array = sd.get("icon_color", [])
+	if ic.size() >= 4:
+		s.icon_color = Color(ic[0], ic[1], ic[2], ic[3])

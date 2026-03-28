@@ -59,6 +59,53 @@ func build_player_model() -> void:
 	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.07, 1.38, 0.18), Vector3(0.04, 0.04, 0.04), Color(0.8, 0.9, 1.0))
 
 
+func build_from_data(visual_data: Dictionary) -> void:
+	_clear()
+	# Build root-level parts
+	for part_data: Dictionary in visual_data.get("parts", []):
+		var pname: String = part_data.get("name", "Part")
+		var mesh := _create_mesh(part_data.get("mesh", "box"))
+		var pos := Vector3(part_data["position"][0], part_data["position"][1], part_data["position"][2])
+		var scl := Vector3(part_data["scale"][0], part_data["scale"][1], part_data["scale"][2])
+		var ca: Array = part_data.get("color", [1, 1, 1, 1])
+		var col := Color(ca[0], ca[1], ca[2], ca[3])
+		if part_data.get("emissive", false):
+			_add_emissive_part(pname, mesh, pos, scl, col)
+		else:
+			_add_part(pname, mesh, pos, scl, col)
+	# Build pivots
+	for pivot_data: Dictionary in visual_data.get("pivots", []):
+		var pivot := Node3D.new()
+		pivot.name = pivot_data.get("name", "Pivot")
+		var pp: Array = pivot_data.get("position", [0, 0, 0])
+		pivot.position = Vector3(pp[0], pp[1], pp[2])
+		pivot.rotation.x = pivot_data.get("rotation_x", 0.0)
+		add_child(pivot)
+		if pivot.name == "RightArmPivot":
+			right_arm_pivot = pivot
+		for child_data: Dictionary in pivot_data.get("parts", []):
+			var cname: String = child_data.get("name", "Part")
+			var cmesh := _create_mesh(child_data.get("mesh", "box"))
+			var cpos := Vector3(child_data["position"][0], child_data["position"][1], child_data["position"][2])
+			var cscl := Vector3(child_data["scale"][0], child_data["scale"][1], child_data["scale"][2])
+			var cca: Array = child_data.get("color", [1, 1, 1, 1])
+			var ccol := Color(cca[0], cca[1], cca[2], cca[3])
+			if child_data.get("emissive", false):
+				pivot.add_child(_create_emissive_part(cname, cmesh, cpos, cscl, ccol))
+			else:
+				pivot.add_child(_create_part(cname, cmesh, cpos, cscl, ccol))
+
+
+static func _create_mesh(mesh_type: String) -> Mesh:
+	match mesh_type:
+		"cylinder":
+			return CylinderMesh.new()
+		"sphere":
+			return SphereMesh.new()
+		_:
+			return BoxMesh.new()
+
+
 func build_enemy_grunt() -> void:
 	_clear()
 

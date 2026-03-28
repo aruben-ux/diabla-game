@@ -5,6 +5,21 @@ class_name CharacterData
 
 enum CharacterClass { WARRIOR, MAGE, ROGUE }
 
+static var _game_data: Dictionary = {}
+static var _game_data_loaded := false
+
+
+static func _load_game_data() -> void:
+	if _game_data_loaded:
+		return
+	_game_data_loaded = true
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
+	if file:
+		var json := JSON.new()
+		if json.parse(file.get_as_text()) == OK:
+			_game_data = json.data
+		file.close()
+
 var character_name: String = "Hero"
 var character_class: CharacterClass = CharacterClass.WARRIOR
 var level: int = 1
@@ -41,7 +56,7 @@ static func create_new(char_name: String, char_class: CharacterClass) -> Charact
 	data.created_at = Time.get_datetime_string_from_system()
 	data.last_played = data.created_at
 
-	# Class-specific starting stats
+	# Class-specific starting stats (hardcoded fallback)
 	match char_class:
 		CharacterClass.WARRIOR:
 			data.strength = 14
@@ -77,6 +92,24 @@ static func create_new(char_name: String, char_class: CharacterClass) -> Charact
 			data.attack_damage = 11.0
 			data.attack_speed = 1.4
 			data.defense = 5.0
+
+	# Override from JSON if available
+	_load_game_data()
+	var class_key: String = CharacterClass.keys()[char_class]
+	if _game_data.has("classes") and _game_data["classes"].has(class_key):
+		var cs: Dictionary = _game_data["classes"][class_key]
+		data.strength = int(cs.get("strength", data.strength))
+		data.dexterity = int(cs.get("dexterity", data.dexterity))
+		data.intelligence = int(cs.get("intelligence", data.intelligence))
+		data.vitality = int(cs.get("vitality", data.vitality))
+		data.max_health = cs.get("max_health", data.max_health)
+		data.health = data.max_health
+		data.max_mana = cs.get("max_mana", data.max_mana)
+		data.mana = data.max_mana
+		data.attack_damage = cs.get("attack_damage", data.attack_damage)
+		data.attack_speed = cs.get("attack_speed", data.attack_speed)
+		data.defense = cs.get("defense", data.defense)
+		data.move_speed = cs.get("move_speed", data.move_speed)
 
 	return data
 

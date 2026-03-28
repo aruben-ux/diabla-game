@@ -33,12 +33,30 @@ var selected_character_data: Dictionary = {}
 
 var _ws: WebSocketPeer = null
 var _ws_connected: bool = false
-var _http: HTTPRequest = null
+const REQUEST_TIMEOUT := 10.0
 
 
 func _ready() -> void:
-	_http = HTTPRequest.new()
-	add_child(_http)
+	pass
+
+
+## Create a per-request HTTPRequest with timeout so no single call blocks others.
+func _make_request(url: String, headers: PackedStringArray, method: HTTPClient.Method, body: String, callback: Callable) -> void:
+	var http := HTTPRequest.new()
+	http.timeout = REQUEST_TIMEOUT
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, resp_headers: PackedStringArray, body_bytes: PackedByteArray):
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS:
+				callback.call(result, 0, resp_headers, PackedByteArray())
+			else:
+				callback.call(result, code, resp_headers, body_bytes),
+		CONNECT_ONE_SHOT)
+	var err := http.request(url, headers, method, body)
+	if err != OK:
+		http.queue_free()
+		callback.call(HTTPRequest.RESULT_CONNECTION_ERROR, 0, PackedStringArray(), PackedByteArray())
 
 
 func _process(_delta: float) -> void:
@@ -64,7 +82,7 @@ func _process(_delta: float) -> void:
 
 func login(user: String, password: String) -> void:
 	var body := JSON.stringify({"username": user, "password": password})
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/auth/login", _json_headers(), HTTPClient.METHOD_POST, body,
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
@@ -76,15 +94,13 @@ func login(user: String, password: String) -> void:
 				is_online = true
 				login_succeeded.emit(username, account_id)
 			else:
-				var reason := _parse_error(body_bytes, "Login failed")
-				login_failed.emit(reason),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/auth/login", _json_headers(), HTTPClient.METHOD_POST, body)
+				var reason := _parse_error(body_bytes, "Login failed (server unreachable)" if code == 0 else "Login failed")
+				login_failed.emit(reason))
 
 
 func register(user: String, password: String, email: String) -> void:
 	var body := JSON.stringify({"username": user, "password": password, "email": email})
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/auth/register", _json_headers(), HTTPClient.METHOD_POST, body,
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
@@ -96,10 +112,8 @@ func register(user: String, password: String, email: String) -> void:
 				is_online = true
 				register_succeeded.emit(username, account_id)
 			else:
-				var reason := _parse_error(body_bytes, "Registration failed")
-				register_failed.emit(reason),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/auth/register", _json_headers(), HTTPClient.METHOD_POST, body)
+				var reason := _parse_error(body_bytes, "Registration failed (server unreachable)" if code == 0 else "Registration failed")
+				register_failed.emit(reason))
 
 
 func logout() -> void:
@@ -115,38 +129,32 @@ func logout() -> void:
 # --- Characters ---
 
 func fetch_characters() -> void:
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/characters/", _auth_headers(), HTTPClient.METHOD_GET, "",
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
 				characters_loaded.emit(json.data)
 			else:
-				characters_loaded.emit([]),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/characters/", _auth_headers(), HTTPClient.METHOD_GET)
+				characters_loaded.emit([]))
 
 
 func create_character(char_name: String, char_class: int) -> void:
 	var body := JSON.stringify({"character_name": char_name, "character_class": char_class})
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/characters/", _auth_json_headers(), HTTPClient.METHOD_POST, body,
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
 				character_created.emit(json.data)
 			else:
-				character_created.emit({}),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/characters/", _auth_json_headers(), HTTPClient.METHOD_POST, body)
+				character_created.emit({}))
 
 
 func delete_character(character_id: int) -> void:
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/characters/%d" % character_id, _auth_headers(), HTTPClient.METHOD_DELETE, "",
 		func(_result: int, _code: int, _headers: PackedStringArray, _body_bytes: PackedByteArray):
-			character_deleted.emit(),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/characters/%d" % character_id, _auth_headers(), HTTPClient.METHOD_DELETE)
+			character_deleted.emit())
 
 
 func select_character(char_data: Dictionary) -> void:
@@ -157,22 +165,20 @@ func select_character(char_data: Dictionary) -> void:
 # --- Games ---
 
 func fetch_games() -> void:
-	_http.request_completed.connect(
+	_make_request(lobby_url + "/games/", [], HTTPClient.METHOD_GET, "",
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
 				games_loaded.emit(json.data)
 			else:
-				games_loaded.emit([]),
-		CONNECT_ONE_SHOT)
-	_http.request(lobby_url + "/games/", [], HTTPClient.METHOD_GET)
+				games_loaded.emit([]))
 
 
 func create_game(game_name: String, max_players: int = 8, difficulty: String = "normal") -> void:
 	var body := JSON.stringify({"name": game_name, "max_players": max_players, "difficulty": difficulty})
 	var url := lobby_url + "/games/?character_id=%d" % selected_character_id
-	_http.request_completed.connect(
+	_make_request(url, _auth_json_headers(), HTTPClient.METHOD_POST, body,
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
@@ -180,14 +186,12 @@ func create_game(game_name: String, max_players: int = 8, difficulty: String = "
 				game_created.emit(json.data)
 			else:
 				var reason := _parse_error(body_bytes, "Failed to create game")
-				game_created.emit({"error": reason}),
-		CONNECT_ONE_SHOT)
-	_http.request(url, _auth_json_headers(), HTTPClient.METHOD_POST, body)
+				game_created.emit({"error": reason}))
 
 
 func join_game(game_id: int) -> void:
 	var url := lobby_url + "/games/%d/join?character_id=%d" % [game_id, selected_character_id]
-	_http.request_completed.connect(
+	_make_request(url, _auth_json_headers(), HTTPClient.METHOD_POST, "",
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
@@ -195,9 +199,7 @@ func join_game(game_id: int) -> void:
 				game_joined.emit(json.data)
 			else:
 				var reason := _parse_error(body_bytes, "Failed to join game")
-				game_joined.emit({"error": reason}),
-		CONNECT_ONE_SHOT)
-	_http.request(url, _auth_json_headers(), HTTPClient.METHOD_POST)
+				game_joined.emit({"error": reason}))
 
 
 # --- WebSocket Lobby ---

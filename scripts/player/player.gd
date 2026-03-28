@@ -481,7 +481,10 @@ func request_respawn() -> void:
 	if _is_server_auth:
 		_server_respawn_intent.rpc_id(1)
 	else:
-		_do_respawn.rpc()
+		# LAN mode: restore locally and broadcast
+		stats.health = stats.max_health
+		stats.mana = stats.max_mana
+		_do_respawn.rpc(stats.health, stats.mana)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -493,17 +496,21 @@ func _server_respawn_intent() -> void:
 		return
 	if stats.health > 0.0:
 		return
-	_do_respawn.rpc()
+	stats.health = stats.max_health
+	stats.mana = stats.max_mana
+	_do_respawn.rpc(stats.health, stats.mana)
 	# Teleport to town
 	var main_game := get_tree().current_scene
 	if main_game and main_game.has_method("respawn_player_in_town"):
 		main_game.respawn_player_in_town(get_multiplayer_authority())
 
 
-@rpc("authority", "call_local", "reliable")
-func _do_respawn() -> void:
-	stats.health = stats.max_health
-	stats.mana = stats.max_mana
+@rpc("authority", "call_remote", "reliable")
+func _do_respawn(new_health: float, new_mana: float) -> void:
+	stats.health = new_health
+	stats.mana = new_mana
+	stats.max_health = maxf(stats.max_health, new_health)
+	stats.max_mana = maxf(stats.max_mana, new_mana)
 	move_target = global_position
 	is_moving = false
 	is_attacking = false

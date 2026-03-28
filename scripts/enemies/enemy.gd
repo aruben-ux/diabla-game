@@ -217,7 +217,7 @@ static func _load_monster_data() -> void:
 	if _monster_data_loaded:
 		return
 	_monster_data_loaded = true
-	var file := FileAccess.open("res://data/monster_data.json", FileAccess.READ)
+	var file := FileAccess.open("res://data/game_data.json", FileAccess.READ)
 	if file:
 		var json := JSON.new()
 		if json.parse(file.get_as_text()) == OK:
@@ -226,7 +226,7 @@ static func _load_monster_data() -> void:
 
 
 func _apply_monster_data() -> void:
-	var type_key := EnemyType.keys()[enemy_type]
+	var type_key: String = EnemyType.keys()[enemy_type]
 	if not _monster_data_loaded or not _monster_data.has("monsters"):
 		return
 	var monsters: Dictionary = _monster_data["monsters"]
@@ -243,6 +243,14 @@ func _apply_monster_data() -> void:
 
 
 func _build_model() -> void:
+	# Try data-driven visual from JSON first
+	var type_key: String = EnemyType.keys()[enemy_type]
+	if _monster_data_loaded and _monster_data.has("monsters"):
+		var m: Dictionary = _monster_data["monsters"]
+		if m.has(type_key) and m[type_key].has("visual"):
+			model.build_from_data(m[type_key]["visual"])
+			return
+	# Fallback to hardcoded models
 	match enemy_type:
 		EnemyType.GRUNT:
 			model.build_enemy_grunt()
@@ -346,7 +354,7 @@ func _drop_loot() -> void:
 	# Drop gold
 	var g_min := 5
 	var g_max := 15
-	var type_key := EnemyType.keys()[enemy_type]
+	var type_key: String = EnemyType.keys()[enemy_type]
 	if _monster_data_loaded and _monster_data.has("monsters"):
 		var m: Dictionary = _monster_data["monsters"]
 		if m.has(type_key):
