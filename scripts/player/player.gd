@@ -692,25 +692,34 @@ func _server_interact_intent(target_pos: Vector3) -> void:
 		return
 	if stats.health <= 0.0:
 		return
+	print("[Interact] Server received interact intent from peer %d at %s" % [sender, target_pos])
 	# Find the nearest interactable to the given position
 	var best: Node3D = null
 	var best_dist := 2.0  # Must be within 2m of reported position
-	for node in get_tree().get_nodes_in_group("interactables"):
+	var interactables := get_tree().get_nodes_in_group("interactables")
+	print("[Interact] Found %d interactables in group" % interactables.size())
+	for node in interactables:
 		var d := (node as Node3D).global_position.distance_to(target_pos)
+		print("[Interact]   - %s at %s dist=%.2f" % [node.name, (node as Node3D).global_position, d])
 		if d < best_dist:
 			best_dist = d
 			best = node as Node3D
 	if best and best.has_method("interact"):
 		# Verify player is actually close enough
 		var player_dist := global_position.distance_to(best.global_position)
+		print("[Interact] Best: %s, player_dist=%.2f, limit=%.2f" % [best.name, player_dist, INTERACT_RANGE + 1.0])
 		if player_dist <= INTERACT_RANGE + 1.0:
 			best.interact(self)
 			# Server-only effects (loot drops etc.)
 			if best.has_method("server_interact"):
+				print("[Interact] Calling server_interact on %s" % best.name)
 				best.server_interact(self)
 			# Tell client to run interact() locally for stat changes
 			_sync_interact_done.rpc(best.global_position)
-
+		else:
+			print("[Interact] Player too far: %.2f > %.2f" % [player_dist, INTERACT_RANGE + 1.0])
+	else:
+		print("[Interact] No valid interactable found near %s" % target_pos)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _sync_interact_done(target_pos: Vector3) -> void:
