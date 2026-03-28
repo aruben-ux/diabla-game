@@ -35,9 +35,19 @@ var _is_server_auth: bool = false
 
 ## Currently hovered/targeted node (enemy, player, interactable)
 var current_target: Node3D = null
+var _prev_target: Node3D = null
+
+## Shared outline overlay material
+static var _outline_material: ShaderMaterial
 
 
 func _ready() -> void:
+	if _outline_material == null:
+		var shader := load("res://assets/shaders/outline.gdshader") as Shader
+		_outline_material = ShaderMaterial.new()
+		_outline_material.shader = shader
+		_outline_material.set_shader_parameter("outline_color", Color(1.0, 0.8, 0.2, 1.0))
+		_outline_material.set_shader_parameter("outline_width", 0.025)
 	move_target = global_position
 	add_to_group("players")
 	add_child(inventory)
@@ -219,6 +229,30 @@ func _update_mouse_target() -> void:
 			current_target = null
 	else:
 		current_target = null
+
+	# Apply/remove outline when target changes
+	if current_target != _prev_target:
+		if _prev_target and is_instance_valid(_prev_target):
+			_remove_outline(_prev_target)
+		if current_target and is_instance_valid(current_target):
+			_apply_outline(current_target)
+		_prev_target = current_target
+
+
+func _apply_outline(node: Node3D) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			child.material_overlay = _outline_material
+		elif child is Node3D:
+			_apply_outline(child)
+
+
+func _remove_outline(node: Node3D) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			child.material_overlay = null
+		elif child is Node3D:
+			_remove_outline(child)
 
 
 func _unhandled_input(event: InputEvent) -> void:
