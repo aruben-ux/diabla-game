@@ -400,7 +400,7 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	var bz2 := z2 - half_ts
 
 	# Door dimensions
-	var door_w := 1.4
+	var door_w := 2.2
 	var door_h := minf(2.8, h - 0.5)
 	var door_cx := (bx1 + bx2) / 2.0
 	var door_left := door_cx - door_w / 2.0
@@ -459,12 +459,15 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	floor_mi.name = "Building_%d_Floor" % idx
 	add_child(floor_mi)
 
-	# Building collision (4 wall blocks)
+	# Building collision (walls + floor)
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.name = "Building_%d_Collision" % idx
 	add_child(body)
+
+	# Floor collision inside building
+	_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, -0.05, (bz1 + bz2) / 2.0), Vector3(bx2 - bx1, 0.1, bz2 - bz1))
 
 	var thickness := 0.4
 	# Front wall — two segments around door gap
