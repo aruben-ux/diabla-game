@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, cull_back;
+render_mode blend_mix, depth_prepass_alpha, cull_back;
 
 // Base wall appearance
 uniform vec4 albedo_color : source_color = vec4(0.55, 0.50, 0.42, 1.0);

@@ -247,9 +247,11 @@ func _on_return_to_title() -> void:
 	var tree := get_tree()
 	if not tree:
 		return
-	# Close peer first so no signals fire during scene teardown
-	if multiplayer and multiplayer.multiplayer_peer:
+	# In networked mode, closing the peer triggers _on_server_lost which changes scene
+	if multiplayer and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED:
 		multiplayer.multiplayer_peer.close()
+		return
+	# Offline / no peer — change scene directly
 	tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
