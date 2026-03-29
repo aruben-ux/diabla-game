@@ -45,6 +45,9 @@ var mana_potions: int = 0
 var inventory_items: Array = []
 var equipment: Dictionary = {}
 
+# Quest progress
+var quest_data: Array = []
+
 # Metadata
 var created_at: String = ""
 var last_played: String = ""
@@ -140,6 +143,7 @@ func to_dict() -> Dictionary:
 		"mana_potions": mana_potions,
 		"inventory_items": inventory_items,
 		"equipment": equipment,
+		"quest_data": quest_data,
 		"created_at": created_at,
 		"last_played": last_played,
 		"save_slot": save_slot,
@@ -170,6 +174,7 @@ static func from_dict(d: Dictionary) -> CharacterData:
 	data.mana_potions = d.get("mana_potions", 0)
 	data.inventory_items = d.get("inventory_items", [])
 	data.equipment = d.get("equipment", {})
+	data.quest_data = d.get("quest_data", [])
 	data.created_at = d.get("created_at", "")
 	data.last_played = d.get("last_played", "")
 	data.save_slot = d.get("save_slot", 0)

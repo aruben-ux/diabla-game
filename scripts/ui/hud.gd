@@ -54,6 +54,17 @@ var _char_stat_labels: Dictionary = {}  # stat_name -> Label
 # Action buttons (lower-right)
 var _inventory_btn: Button
 var _character_btn: Button
+var _quest_btn: Button
+
+# Quest log panel
+var _quest_panel: Panel
+var _quest_content: VBoxContainer
+var _quest_scroll: ScrollContainer
+
+# Quest dialog (NPC offering quests)
+var _quest_dialog_panel: PanelContainer
+var _quest_dialog_vbox: VBoxContainer
+var _quest_dialog_npc_id: String = ""
 
 
 func _ready() -> void:
@@ -63,10 +74,14 @@ func _ready() -> void:
 	_build_party_panel()
 	_build_character_panel()
 	_build_action_buttons()
+	_build_quest_panel()
+	_build_quest_dialog_panel()
 	_style_potion_panel(health_potion_panel, Color(0.8, 0.15, 0.15, 0.7))
 	_style_potion_panel(mana_potion_panel, Color(0.15, 0.3, 0.8, 0.7))
 	EventBus.npc_dialog_opened.connect(_on_npc_dialog_opened)
 	EventBus.npc_dialog_closed.connect(_on_npc_dialog_closed)
+	EventBus.quest_updated.connect(_refresh_quest_panel)
+	EventBus.quest_dialog_requested.connect(_on_quest_dialog_requested)
 
 
 func _build_target_panel() -> void:
@@ -747,7 +762,7 @@ func _build_action_buttons() -> void:
 	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	btn_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	btn_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	btn_container.offset_left = -180
+	btn_container.offset_left = -270
 	btn_container.offset_top = -52
 	btn_container.offset_right = -16
 	btn_container.offset_bottom = -16
@@ -760,6 +775,9 @@ func _build_action_buttons() -> void:
 
 	_inventory_btn = _create_action_button("Inventory\n(I)", btn_container)
 	_inventory_btn.pressed.connect(_on_inventory_btn_pressed)
+
+	_quest_btn = _create_action_button("Quests\n(L)", btn_container)
+	_quest_btn.pressed.connect(_toggle_quest_panel)
 
 
 func _create_action_button(text: String, parent: Control) -> Button:
@@ -801,3 +819,315 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_character"):
 		_toggle_character_panel()
 		get_viewport().set_input_as_handled()
+	if event.is_action_pressed("toggle_quests"):
+		_toggle_quest_panel()
+		get_viewport().set_input_as_handled()
+
+
+## ─── QUEST LOG PANEL ───
+
+func _build_quest_panel() -> void:
+	_quest_panel = Panel.new()
+	_quest_panel.name = "QuestPanel"
+	var panel_w := 300
+	var panel_h := 420
+	_quest_panel.size = Vector2(panel_w, panel_h)
+	_quest_panel.position = Vector2(
+		16,
+		get_viewport_rect().size.y - panel_h - 60
+	)
+	_quest_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_quest_panel.z_index = 5
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 0.95)
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.4, 0.35, 0.2)
+	_quest_panel.add_theme_stylebox_override("panel", sb)
+	add_child(_quest_panel)
+
+	# Title
+	var title := Label.new()
+	title.text = "Quest Log"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(0, 6)
+	title.size = Vector2(panel_w, 20)
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	_quest_panel.add_child(title)
+
+	# Close button
+	var close_btn := Button.new()
+	close_btn.text = "X"
+	close_btn.position = Vector2(panel_w - 30, 4)
+	close_btn.size = Vector2(24, 24)
+	close_btn.pressed.connect(_toggle_quest_panel)
+	_quest_panel.add_child(close_btn)
+
+	# Scrollable content area
+	_quest_scroll = ScrollContainer.new()
+	_quest_scroll.position = Vector2(8, 32)
+	_quest_scroll.size = Vector2(panel_w - 16, panel_h - 40)
+	_quest_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	_quest_panel.add_child(_quest_scroll)
+
+	_quest_content = VBoxContainer.new()
+	_quest_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_quest_content.add_theme_constant_override("separation", 8)
+	_quest_scroll.add_child(_quest_content)
+
+	_quest_panel.visible = false
+
+
+func _toggle_quest_panel() -> void:
+	if _quest_panel:
+		_quest_panel.visible = not _quest_panel.visible
+		if _quest_panel.visible:
+			_refresh_quest_panel()
+
+
+func _refresh_quest_panel() -> void:
+	if not _quest_panel or not _quest_content:
+		return
+	# Clear existing entries
+	for child in _quest_content.get_children():
+		child.queue_free()
+
+	var active := QuestManager.get_active_quests()
+	var completed: Array[QuestData] = []
+	for qid in QuestManager.quests:
+		var q: QuestData = QuestManager.quests[qid]
+		if q.status == QuestData.QuestStatus.COMPLETED:
+			completed.append(q)
+
+	if active.size() == 0 and completed.size() == 0:
+		var empty_lbl := Label.new()
+		empty_lbl.text = "No active quests.\nTalk to NPCs in town to find quests."
+		empty_lbl.add_theme_font_size_override("font_size", 13)
+		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+		_quest_content.add_child(empty_lbl)
+		return
+
+	for q in active:
+		_add_quest_entry(q, Color(0.9, 0.85, 0.6))
+	for q in completed:
+		_add_quest_entry(q, Color(0.4, 0.9, 0.4))
+
+
+func _add_quest_entry(q: QuestData, title_color: Color) -> void:
+	var entry := VBoxContainer.new()
+	entry.add_theme_constant_override("separation", 2)
+
+	var title_lbl := Label.new()
+	title_lbl.text = q.title
+	title_lbl.add_theme_font_size_override("font_size", 14)
+	title_lbl.add_theme_color_override("font_color", title_color)
+	entry.add_child(title_lbl)
+
+	var desc_lbl := Label.new()
+	desc_lbl.text = q.description
+	desc_lbl.add_theme_font_size_override("font_size", 12)
+	desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	entry.add_child(desc_lbl)
+
+	var progress_lbl := Label.new()
+	if q.status == QuestData.QuestStatus.COMPLETED:
+		progress_lbl.text = "COMPLETE — Return to NPC"
+		progress_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	else:
+		progress_lbl.text = "Progress: %d / %d" % [q.current_count, q.target_count]
+		progress_lbl.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
+	progress_lbl.add_theme_font_size_override("font_size", 12)
+	entry.add_child(progress_lbl)
+
+	var reward_lbl := Label.new()
+	reward_lbl.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+	reward_lbl.add_theme_font_size_override("font_size", 11)
+	reward_lbl.add_theme_color_override("font_color", Color(0.6, 0.55, 0.4))
+	entry.add_child(reward_lbl)
+
+	var sep := HSeparator.new()
+	sep.modulate = Color(0.4, 0.35, 0.3, 0.4)
+	entry.add_child(sep)
+
+	_quest_content.add_child(entry)
+
+
+## ─── QUEST NPC DIALOG ───
+
+func _build_quest_dialog_panel() -> void:
+	_quest_dialog_panel = PanelContainer.new()
+	_quest_dialog_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_quest_dialog_panel.offset_left = -220
+	_quest_dialog_panel.offset_right = 220
+	_quest_dialog_panel.offset_top = -180
+	_quest_dialog_panel.offset_bottom = 180
+	_quest_dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_quest_dialog_panel.z_index = 20
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.07, 0.1, 0.95)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.6, 0.5, 0.3, 0.8)
+	_quest_dialog_panel.add_theme_stylebox_override("panel", style)
+
+	_quest_dialog_vbox = VBoxContainer.new()
+	_quest_dialog_vbox.add_theme_constant_override("separation", 8)
+	_quest_dialog_panel.add_child(_quest_dialog_vbox)
+
+	add_child(_quest_dialog_panel)
+	_quest_dialog_panel.visible = false
+
+
+func _on_quest_dialog_requested(npc_id: String) -> void:
+	_quest_dialog_npc_id = npc_id
+	_populate_quest_dialog(npc_id)
+
+
+func _populate_quest_dialog(npc_id: String) -> void:
+	# Clear old content
+	for child in _quest_dialog_vbox.get_children():
+		child.queue_free()
+
+	var available := QuestManager.get_available_quests(npc_id)
+	var turn_in := QuestManager.get_turn_in_quests(npc_id)
+
+	if available.size() == 0 and turn_in.size() == 0:
+		_quest_dialog_panel.visible = false
+		return
+
+	# Title
+	var title := Label.new()
+	title.text = "Quests"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	_quest_dialog_vbox.add_child(title)
+
+	# Turn-in quests first
+	for q in turn_in:
+		var entry := VBoxContainer.new()
+		entry.add_theme_constant_override("separation", 4)
+
+		var q_title := Label.new()
+		q_title.text = q.title + "  [COMPLETE]"
+		q_title.add_theme_font_size_override("font_size", 14)
+		q_title.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+		entry.add_child(q_title)
+
+		var reward := Label.new()
+		reward.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+		reward.add_theme_font_size_override("font_size", 12)
+		reward.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
+		entry.add_child(reward)
+
+		var btn := Button.new()
+		btn.text = "Turn In"
+		btn.custom_minimum_size = Vector2(100, 28)
+		var qid := q.quest_id
+		btn.pressed.connect(_on_turn_in_pressed.bind(qid))
+		entry.add_child(btn)
+
+		var sep := HSeparator.new()
+		sep.modulate = Color(0.4, 0.35, 0.3, 0.4)
+		entry.add_child(sep)
+		_quest_dialog_vbox.add_child(entry)
+
+	# Available quests
+	for q in available:
+		var entry := VBoxContainer.new()
+		entry.add_theme_constant_override("separation", 4)
+
+		var q_title := Label.new()
+		q_title.text = q.title
+		q_title.add_theme_font_size_override("font_size", 14)
+		q_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
+		entry.add_child(q_title)
+
+		var desc := Label.new()
+		desc.text = q.description
+		desc.add_theme_font_size_override("font_size", 12)
+		desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+		entry.add_child(desc)
+
+		var reward := Label.new()
+		reward.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+		reward.add_theme_font_size_override("font_size", 12)
+		reward.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
+		entry.add_child(reward)
+
+		var btn := Button.new()
+		btn.text = "Accept"
+		btn.custom_minimum_size = Vector2(100, 28)
+		var qid := q.quest_id
+		btn.pressed.connect(_on_accept_pressed.bind(qid))
+		entry.add_child(btn)
+
+		var sep := HSeparator.new()
+		sep.modulate = Color(0.4, 0.35, 0.3, 0.4)
+		entry.add_child(sep)
+		_quest_dialog_vbox.add_child(entry)
+
+	# Close button
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(80, 28)
+	close_btn.pressed.connect(func(): _quest_dialog_panel.visible = false)
+	_quest_dialog_vbox.add_child(close_btn)
+
+	_quest_dialog_panel.visible = true
+
+
+func _on_accept_pressed(quest_id: String) -> void:
+	QuestManager.accept_quest(quest_id)
+	_sync_quests()
+	# Refresh the dialog
+	_populate_quest_dialog(_quest_dialog_npc_id)
+
+
+func _on_turn_in_pressed(quest_id: String) -> void:
+	var rewards := QuestManager.turn_in_quest(quest_id)
+	if rewards.is_empty():
+		return
+	# Give rewards to player
+	if tracked_player and is_instance_valid(tracked_player):
+		tracked_player.inventory.gold += rewards["gold"]
+		tracked_player.inventory.gold_changed.emit(tracked_player.inventory.gold)
+		tracked_player.grant_xp(rewards["xp"])
+		if tracked_player.has_method("sync_gold_to_server"):
+			tracked_player.sync_gold_to_server()
+		EventBus.show_floating_text.emit(
+			tracked_player.global_position + Vector3(0, 2, 0),
+			"Quest Complete! +%d Gold +%d XP" % [rewards["gold"], int(rewards["xp"])],
+			Color.GOLD
+		)
+	# Refresh dialog — may close if no more quests
+	_populate_quest_dialog(_quest_dialog_npc_id)
+	_sync_quests()
+
+
+func _sync_quests() -> void:
+	if tracked_player and is_instance_valid(tracked_player):
+		if tracked_player.has_method("sync_quests_to_server"):
+			tracked_player.sync_quests_to_server()

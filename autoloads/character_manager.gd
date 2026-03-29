@@ -123,6 +123,9 @@ func capture_player_state(player: Node) -> void:
 		if eq_item != null:
 			active_character.equipment[slot_name] = eq_item.to_dict()
 
+	# Save quest progress
+	active_character.quest_data = QuestManager.save_to_array()
+
 
 func _load_file(path: String) -> CharacterData:
 	if not FileAccess.file_exists(path):

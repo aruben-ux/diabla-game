@@ -224,6 +224,7 @@ func _save_player(peer_id: int) -> void:
 		"mana_potions": inv.mana_potions,
 		"inventory_items": inv.serialize_grid(),
 		"equipment": {},
+		"quest_data": player_node.get("_quest_data_cache") if player_node.get("_quest_data_cache") else [],
 		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0) + (Time.get_unix_time_from_system() - info.get("join_time", Time.get_unix_time_from_system())),
 	}
 

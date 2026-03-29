@@ -141,6 +141,10 @@ func _load_from_character_data(data: CharacterData) -> void:
 			inventory.equipment[slot_name] = item
 			_apply_equipment_stats(item)
 
+	# Restore quests
+	if data.quest_data.size() > 0:
+		QuestManager.load_from_array(data.quest_data)
+
 
 func _apply_equipment_stats(item: ItemData) -> void:
 	stats.attack_damage += item.bonus_damage
@@ -220,9 +224,10 @@ func _load_from_dict(data: Dictionary) -> void:
 			var item := ItemData.from_dict(eq_dict)
 			inventory.equipment[slot_name] = item
 			_apply_equipment_stats(item)
-
-
-func _update_mouse_target() -> void:
+	# Restore quests (client only)
+	var quest_arr: Array = data.get("quest_data", [])
+	if quest_arr.size() > 0 and is_multiplayer_authority():
+		QuestManager.load_from_array(quest_arr)
 	var camera := get_viewport().get_camera_3d()
 	if not camera:
 		current_target = null
@@ -661,6 +666,22 @@ func _rpc_sync_gold(new_gold: int) -> void:
 	if not multiplayer.is_server():
 		return
 	inventory.gold = new_gold
+
+
+## Called to sync quest progress to the server for online save.
+var _quest_data_cache: Array = []
+
+func sync_quests_to_server() -> void:
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		var data := QuestManager.save_to_array()
+		_rpc_sync_quests.rpc_id(1, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_sync_quests(data: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	_quest_data_cache = data
 
 
 func _use_skill(slot: int) -> void:

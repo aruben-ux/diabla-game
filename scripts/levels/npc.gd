@@ -57,7 +57,16 @@ func setup(data: Dictionary) -> void:
 func interact(player: Node) -> void:
 	if not player:
 		return
-	if vendor_stock.size() > 0:
+	# Check if this NPC has quests to offer or turn in
+	var has_quests := false
+	if QuestManager.get_available_quests(npc_id).size() > 0:
+		has_quests = true
+	if QuestManager.get_turn_in_quests(npc_id).size() > 0:
+		has_quests = true
+
+	if has_quests:
+		EventBus.quest_dialog_requested.emit(npc_id)
+	elif vendor_stock.size() > 0:
 		EventBus.shop_opened.emit(display_name, vendor_stock, vendor_type)
 	else:
 		EventBus.npc_dialog_opened.emit(display_name, dialog_lines)

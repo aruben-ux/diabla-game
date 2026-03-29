@@ -300,6 +300,7 @@ func _die() -> void:
 func _sync_die() -> void:
 	state = State.DEAD
 	velocity = Vector3.ZERO
+	EventBus.enemy_killed.emit(enemy_type)
 	_apply_dissolve()
 	var tween := create_tween()
 	tween.tween_method(_set_dissolve_amount, 0.0, 1.0, 1.2)

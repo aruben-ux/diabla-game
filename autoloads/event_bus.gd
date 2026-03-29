@@ -30,3 +30,8 @@ signal npc_dialog_advance()
 # Shop / vendor events
 signal shop_opened(vendor_name: String, stock: Array, vendor_type: String)
 signal shop_closed()
+
+# Quest events
+signal enemy_killed(enemy_type: int)
+signal quest_updated()
+signal quest_dialog_requested(npc_id: String)
