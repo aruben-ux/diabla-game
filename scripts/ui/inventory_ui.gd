@@ -697,6 +697,7 @@ func _right_click_item(entry: Dictionary) -> void:
 		inventory.gold += sell_price
 		inventory.gold_changed.emit(inventory.gold)
 		_update_shop_gold()
+		_notify_server_gold()
 		_refresh()
 		return
 	inventory.equip_item_from_entry(entry, player_ref)
@@ -890,6 +891,11 @@ func _drop_on_ground() -> void:
 
 ## ─── SHOP BUY / SELL ───
 
+func _notify_server_gold() -> void:
+	if player_ref and player_ref.has_method("sync_gold_to_server"):
+		player_ref.sync_gold_to_server()
+
+
 func _try_buy_to_grid(grid_cell: Vector2i) -> bool:
 	if not _drag_item or not _drag_from_shop or _drag_shop_entry.is_empty():
 		return false
@@ -906,6 +912,7 @@ func _try_buy_to_grid(grid_cell: Vector2i) -> bool:
 		inventory.gold -= price
 		inventory.gold_changed.emit(inventory.gold)
 		_update_shop_gold()
+		_notify_server_gold()
 		return true
 	# Equipment — place at the specific grid cell
 	if not inventory.can_place_at(_drag_item, grid_cell.x, grid_cell.y):
@@ -914,6 +921,7 @@ func _try_buy_to_grid(grid_cell: Vector2i) -> bool:
 	inventory.gold -= price
 	inventory.gold_changed.emit(inventory.gold)
 	_update_shop_gold()
+	_notify_server_gold()
 	return true
 
 
@@ -938,6 +946,7 @@ func _try_buy_to_equip(slot_name: String) -> bool:
 	inventory.gold -= price
 	inventory.gold_changed.emit(inventory.gold)
 	_update_shop_gold()
+	_notify_server_gold()
 	return true
 
 
@@ -954,6 +963,7 @@ func _sell_dragged_item() -> void:
 	inventory.gold += sell_price
 	inventory.gold_changed.emit(inventory.gold)
 	_update_shop_gold()
+	_notify_server_gold()
 
 
 func _quick_buy(shop_entry: Dictionary) -> void:
@@ -976,6 +986,7 @@ func _quick_buy(shop_entry: Dictionary) -> void:
 	inventory.gold -= price
 	inventory.gold_changed.emit(inventory.gold)
 	_update_shop_gold()
+	_notify_server_gold()
 	_refresh()
 
 

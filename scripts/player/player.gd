@@ -649,6 +649,19 @@ func add_gold(amount: int) -> void:
 	)
 
 
+## Called by shop UI to sync gold changes to the server.
+func sync_gold_to_server() -> void:
+	if multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		_rpc_sync_gold.rpc_id(1, inventory.gold)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_sync_gold(new_gold: int) -> void:
+	if not multiplayer.is_server():
+		return
+	inventory.gold = new_gold
+
+
 func _use_skill(slot: int) -> void:
 	var target_pos := _raycast_ground()
 	if target_pos == Vector3.INF:
