@@ -44,7 +44,14 @@ func _process(delta: float) -> void:
 	var ground_dist := 7.0 * zoom_level
 	var cam_offset := Vector3(ground_dist, height, ground_dist)
 	var desired_position := target.global_position + cam_offset
-	global_position = global_position.lerp(desired_position, follow_speed * delta)
+
+	# Snap instantly if the target jumped far (floor transition / teleport)
+	var dist_sq := global_position.distance_squared_to(desired_position)
+	if dist_sq > 400.0:  # > 20 units away
+		global_position = desired_position
+	else:
+		global_position = global_position.lerp(desired_position, follow_speed * delta)
+
 	look_at(target.global_position + Vector3(0, 1, 0), Vector3.UP)
 
 	# Screen shake
