@@ -4,7 +4,7 @@ extends Node3D
 ## Creates rooms connected by corridors with walls, floors, and collision.
 ## Server generates the layout and syncs the seed to clients.
 
-signal dungeon_generated(rooms: Array, spawn_position: Vector3, stairs_up_pos: Vector3, stairs_down_pos: Vector3)
+signal dungeon_generated(rooms: Array, spawn_position: Vector3, stairs_up_pos: Vector3, stairs_down_pos: Vector3, boss_room_idx: int)
 
 var TILE_SIZE := 3.0
 var WALL_HEIGHT := 4.0
@@ -46,6 +46,8 @@ var rooms: Array[Rect2i] = []
 var _room_centers: Array[Vector3] = []
 var _stairs_up_pos := Vector3.ZERO
 var _stairs_down_pos := Vector3.ZERO
+var _boss_room_idx := -1
+var is_boss_floor := false
 
 
 func _ready() -> void:
@@ -71,6 +73,7 @@ func reset() -> void:
 	_room_centers.clear()
 	_stairs_up_pos = Vector3.ZERO
 	_stairs_down_pos = Vector3.ZERO
+	_boss_room_idx = -1
 	dungeon_seed = 0
 
 
@@ -83,16 +86,27 @@ func generate() -> void:
 	var bsp_nodes: Array[Rect2i] = []
 	_bsp_split(Rect2i(1, 1, dungeon_width - 2, dungeon_height - 2), 0, bsp_nodes)
 	_carve_rooms(bsp_nodes)
-	_connect_rooms()
-	_place_stairs()
+
+	# Shuffle rooms to remove directional bias (NW→SE)
+	_shuffle_rooms()
+
+	# Tighter connections: MST + extra links instead of linear chain
+	_connect_rooms_mst()
+
+	# Boss room on boss floors
+	_boss_room_idx = -1
+	if is_boss_floor:
+		_carve_boss_room()
+
+	# Place stairs using BFS distance for exploration depth
+	_place_stairs_bfs()
 	_build_walls()
 	_build_mesh()
 
-	# Determine spawn position (center of first room, away from stairs)
 	var spawn_pos := _room_centers[0] if _room_centers.size() > 0 else _stairs_up_pos
 
-	dungeon_generated.emit(rooms, spawn_pos, _stairs_up_pos, _stairs_down_pos)
-	print("Dungeon generated with seed %d: %d rooms" % [dungeon_seed, rooms.size()])
+	dungeon_generated.emit(rooms, spawn_pos, _stairs_up_pos, _stairs_down_pos, _boss_room_idx)
+	print("Dungeon generated with seed %d: %d rooms, boss_room=%d" % [dungeon_seed, rooms.size(), _boss_room_idx])
 
 
 func get_room_centers() -> Array[Vector3]:
@@ -184,17 +198,109 @@ func _carve_rooms(leaves: Array[Rect2i]) -> void:
 					grid[x][y] = 1
 
 
-# --- Corridors ---
+# --- Shuffle ---
 
-func _connect_rooms() -> void:
-	for i in range(1, rooms.size()):
-		var a := rooms[i - 1]
-		var b := rooms[i]
-		var ax := a.position.x + a.size.x / 2
-		var ay := a.position.y + a.size.y / 2
-		var bx := b.position.x + b.size.x / 2
-		var by := b.position.y + b.size.y / 2
-		_carve_corridor(ax, ay, bx, by)
+func _shuffle_rooms() -> void:
+	## Fisher-Yates shuffle to remove BSP directional ordering bias.
+	for i in range(rooms.size() - 1, 0, -1):
+		var j := randi_range(0, i)
+		var tmp_r := rooms[i]
+		rooms[i] = rooms[j]
+		rooms[j] = tmp_r
+		var tmp_c := _room_centers[i]
+		_room_centers[i] = _room_centers[j]
+		_room_centers[j] = tmp_c
+
+
+# --- Corridors (MST + extra links) ---
+
+func _connect_rooms_mst() -> void:
+	## Build a minimum spanning tree of room centers (Prim's algorithm),
+	## then add ~30% extra edges between nearby rooms for loops.
+	## This produces a tighter layout with fewer long hallways.
+	if rooms.size() < 2:
+		return
+
+	# Build edge list: all room pairs with distances
+	var n := rooms.size()
+	var in_tree: Array[bool] = []
+	in_tree.resize(n)
+	in_tree.fill(false)
+	var min_cost: Array[float] = []
+	min_cost.resize(n)
+	min_cost.fill(INF)
+	var min_edge: Array[int] = []
+	min_edge.resize(n)
+	min_edge.fill(-1)
+
+	var mst_edges: Array = []  # Array of [i, j] pairs
+
+	# Start from room 0
+	in_tree[0] = true
+	for j in range(1, n):
+		min_cost[j] = _room_grid_dist(0, j)
+		min_edge[j] = 0
+
+	for _step in range(n - 1):
+		# Find cheapest edge to add
+		var best := -1
+		var best_cost := INF
+		for j in range(n):
+			if not in_tree[j] and min_cost[j] < best_cost:
+				best_cost = min_cost[j]
+				best = j
+		if best == -1:
+			break
+		in_tree[best] = true
+		mst_edges.append([min_edge[best], best])
+		# Update costs
+		for j in range(n):
+			if not in_tree[j]:
+				var d := _room_grid_dist(best, j)
+				if d < min_cost[j]:
+					min_cost[j] = d
+					min_edge[j] = best
+
+	# Carve MST corridors
+	var connected_set := {}  # Track which pairs are connected
+	for edge in mst_edges:
+		_carve_room_corridor(edge[0], edge[1])
+		var key := mini(edge[0], edge[1]) * 10000 + maxi(edge[0], edge[1])
+		connected_set[key] = true
+
+	# Add ~30% extra edges between nearby rooms for tighter layout
+	var extra_count := maxi(1, int(mst_edges.size() * 0.35))
+	var candidates: Array = []
+	for i in range(n):
+		for j in range(i + 1, n):
+			var key := i * 10000 + j
+			if key not in connected_set:
+				candidates.append([i, j, _room_grid_dist(i, j)])
+	# Sort by distance (shortest first)
+	candidates.sort_custom(func(a, b): return a[2] < b[2])
+	for k in range(mini(extra_count, candidates.size())):
+		_carve_room_corridor(candidates[k][0], candidates[k][1])
+
+
+func _room_grid_dist(a: int, b: int) -> float:
+	## Manhattan distance between room centers in grid coordinates.
+	var ra := rooms[a]
+	var rb := rooms[b]
+	var ax := ra.position.x + ra.size.x / 2
+	var ay := ra.position.y + ra.size.y / 2
+	var bx := rb.position.x + rb.size.x / 2
+	var by := rb.position.y + rb.size.y / 2
+	return float(absi(ax - bx) + absi(ay - by))
+
+
+func _carve_room_corridor(a_idx: int, b_idx: int) -> void:
+	var ra := rooms[a_idx]
+	var rb := rooms[b_idx]
+	var ax := ra.position.x + ra.size.x / 2
+	var ay := ra.position.y + ra.size.y / 2
+	var bx := rb.position.x + rb.size.x / 2
+	var by := rb.position.y + rb.size.y / 2
+	_carve_corridor(ax, ay, bx, by)
 
 
 func _carve_corridor(x1: int, y1: int, x2: int, y2: int) -> void:
@@ -244,31 +350,150 @@ func _has_floor_neighbor(x: int, y: int) -> bool:
 	return false
 
 
-func _place_stairs() -> void:
-	# Stairs up in first room, stairs down in last room
+func _place_stairs_bfs() -> void:
+	## Place stairs using BFS distance to ensure exploration depth.
+	## Stairs up in room[0] (spawn). Stairs down in the room farthest from spawn
+	## by actual walkable grid distance (not Euclidean), ensuring the player
+	## must explore most of the dungeon to find them.
+	## On boss floors, stairs down go in the boss room instead.
 	if rooms.size() < 2:
 		return
 
-	var first := rooms[0]
-	var last := rooms[rooms.size() - 1]
+	var spawn_room := rooms[0]
 
-	# Place stairs_up in corner of first room
-	var up_x := first.position.x + 1
-	var up_y := first.position.y + 1
+	# Place stairs_up in spawn room corner
+	var up_x := spawn_room.position.x + 1
+	var up_y := spawn_room.position.y + 1
 	for sx in range(up_x, up_x + 2):
 		for sy in range(up_y, up_y + 2):
 			if sx < dungeon_width and sy < dungeon_height:
 				grid[sx][sy] = 4
 	_stairs_up_pos = Vector3((up_x + 1) * TILE_SIZE, 0.5, (up_y + 1) * TILE_SIZE)
 
-	# Place stairs_down in corner of last room
-	var down_x := last.position.x + last.size.x - 3
-	var down_y := last.position.y + last.size.y - 3
+	# Determine stairs-down room
+	var down_room_idx := -1
+	if is_boss_floor and _boss_room_idx >= 0:
+		# Boss floor: stairs go in boss room
+		down_room_idx = _boss_room_idx
+	else:
+		# BFS from spawn room center to find farthest room
+		var start_x := spawn_room.position.x + spawn_room.size.x / 2
+		var start_y := spawn_room.position.y + spawn_room.size.y / 2
+		var distances := _bfs_flood(start_x, start_y)
+
+		# Find room with maximum BFS distance from spawn
+		var best_dist := -1
+		for i in range(1, rooms.size()):
+			var r := rooms[i]
+			var cx := r.position.x + r.size.x / 2
+			var cy := r.position.y + r.size.y / 2
+			var d: int = distances[cx][cy] if distances[cx][cy] >= 0 else 0
+			if d > best_dist:
+				best_dist = d
+				down_room_idx = i
+
+	if down_room_idx < 0:
+		down_room_idx = rooms.size() - 1
+
+	var down_room := rooms[down_room_idx]
+	var down_x := down_room.position.x + down_room.size.x / 2 - 1
+	var down_y := down_room.position.y + down_room.size.y / 2 - 1
 	for sx in range(down_x, down_x + 2):
 		for sy in range(down_y, down_y + 2):
 			if sx >= 0 and sx < dungeon_width and sy >= 0 and sy < dungeon_height:
 				grid[sx][sy] = 5
 	_stairs_down_pos = Vector3((down_x + 1) * TILE_SIZE, 0.5, (down_y + 1) * TILE_SIZE)
+
+
+func _bfs_flood(start_x: int, start_y: int) -> Array:
+	## BFS flood fill from a grid position. Returns 2D distance array.
+	## Walkable tiles: floor(1), corridor(3), stairs(4,5).
+	var dist: Array = []
+	for x in dungeon_width:
+		var col: Array[int] = []
+		col.resize(dungeon_height)
+		col.fill(-1)
+		dist.append(col)
+
+	if start_x < 0 or start_x >= dungeon_width or start_y < 0 or start_y >= dungeon_height:
+		return dist
+
+	dist[start_x][start_y] = 0
+	var queue: Array = [[start_x, start_y]]
+	var head := 0
+
+	while head < queue.size():
+		var cur = queue[head]
+		head += 1
+		var cx: int = cur[0]
+		var cy: int = cur[1]
+		var cd: int = dist[cx][cy]
+		for dir in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+			var nx: int = cx + dir[0]
+			var ny: int = cy + dir[1]
+			if nx >= 0 and nx < dungeon_width and ny >= 0 and ny < dungeon_height:
+				if dist[nx][ny] < 0:
+					var tile: int = grid[nx][ny]
+					if tile == 1 or tile == 3 or tile == 4 or tile == 5:
+						dist[nx][ny] = cd + 1
+						queue.append([nx, ny])
+	return dist
+
+
+func _carve_boss_room() -> void:
+	## Carve a large boss room for boss floors.
+	## Picks a random quadrant of the grid and carves a big room there.
+	## Connects it to the nearest existing room.
+	var boss_size := 20  # 20x20 tile boss room
+	var margin := 3
+
+	# Try to find a clear spot by picking random positions (up to 20 attempts)
+	var best_pos := Vector2i(-1, -1)
+	for _attempt in 20:
+		var rx := randi_range(margin, dungeon_width - boss_size - margin)
+		var ry := randi_range(margin, dungeon_height - boss_size - margin)
+		# Check for overlap with existing rooms (allow some void)
+		var overlap := false
+		var boss_rect := Rect2i(rx, ry, boss_size, boss_size)
+		for room in rooms:
+			if boss_rect.intersects(room.grow(2)):
+				overlap = true
+				break
+		if not overlap:
+			best_pos = Vector2i(rx, ry)
+			break
+
+	if best_pos.x < 0:
+		# Fallback: place at grid edge
+		best_pos = Vector2i(dungeon_width - boss_size - margin, dungeon_height - boss_size - margin)
+
+	# Carve the boss room
+	var boss_rect := Rect2i(best_pos.x, best_pos.y, boss_size, boss_size)
+	for x in range(boss_rect.position.x, boss_rect.position.x + boss_rect.size.x):
+		for y in range(boss_rect.position.y, boss_rect.position.y + boss_rect.size.y):
+			if x >= 0 and x < dungeon_width and y >= 0 and y < dungeon_height:
+				grid[x][y] = 1
+
+	rooms.append(boss_rect)
+	var center := Vector3(
+		(boss_rect.position.x + boss_rect.size.x / 2.0) * TILE_SIZE,
+		0.0,
+		(boss_rect.position.y + boss_rect.size.y / 2.0) * TILE_SIZE
+	)
+	_room_centers.append(center)
+	_boss_room_idx = rooms.size() - 1
+
+	# Connect boss room to nearest existing room
+	var boss_cx := boss_rect.position.x + boss_rect.size.x / 2
+	var boss_cy := boss_rect.position.y + boss_rect.size.y / 2
+	var nearest_idx := 0
+	var nearest_dist := INF
+	for i in range(rooms.size() - 1):
+		var d := _room_grid_dist(i, _boss_room_idx)
+		if d < nearest_dist:
+			nearest_dist = d
+			nearest_idx = i
+	_carve_room_corridor(nearest_idx, _boss_room_idx)
 
 
 func get_stairs_up_pos() -> Vector3:
@@ -277,6 +502,10 @@ func get_stairs_up_pos() -> Vector3:
 
 func get_stairs_down_pos() -> Vector3:
 	return _stairs_down_pos
+
+
+func get_boss_room_idx() -> int:
+	return _boss_room_idx
 
 
 # --- Mesh Building ---

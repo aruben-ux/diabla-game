@@ -107,6 +107,440 @@
                     }
                 ]
             }
+        },
+        "SKELETON": {
+            "max_health": 30.0,
+            "move_speed": 6.0,
+            "attack_damage": 7.0,
+            "attack_range": 2.0,
+            "aggro_range": 15.0,
+            "attack_cooldown": 0.5,
+            "xp_reward": 20.0,
+            "gold_min": 3,
+            "gold_max": 12,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.12, 0.25, 0], "scale": [0.06, 0.25, 0.06], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.12, 0.25, 0], "scale": [0.06, 0.25, 0.06], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                    {"name": "Spine", "mesh": "cylinder", "position": [0, 0.65, 0], "scale": [0.08, 0.3, 0.08], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                    {"name": "Ribcage", "mesh": "box", "position": [0, 0.78, 0], "scale": [0.35, 0.2, 0.2], "color": [0.85, 0.8, 0.7, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.25, 0.65, 0], "scale": [0.05, 0.25, 0.05], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                    {"name": "Skull", "mesh": "sphere", "position": [0, 1.0, 0], "scale": [0.18, 0.2, 0.18], "color": [0.95, 0.9, 0.8, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.05, 1.02, 0.14], "scale": [0.04, 0.05, 0.03], "color": [0.2, 0.9, 0.2, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.05, 1.02, 0.14], "scale": [0.04, 0.05, 0.03], "color": [0.2, 0.9, 0.2, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.25, 0.85, 0],
+                        "rotation_x": 0.3,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.2, 0], "scale": [0.05, 0.25, 0.05], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                            {"name": "BoneSword", "mesh": "box", "position": [0, -0.5, 0], "scale": [0.04, 0.35, 0.12], "color": [0.8, 0.8, 0.75, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
+        },
+        "SPIDER": {
+            "max_health": 25.0,
+            "move_speed": 7.0,
+            "attack_damage": 5.0,
+            "attack_range": 1.8,
+            "aggro_range": 12.0,
+            "attack_cooldown": 0.4,
+            "xp_reward": 15.0,
+            "gold_min": 2,
+            "gold_max": 8,
+            "visual": {
+                "parts": [
+                    {"name": "Body", "mesh": "sphere", "position": [0, 0.35, 0], "scale": [0.3, 0.2, 0.4], "color": [0.25, 0.18, 0.12, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 0.35, 0.3], "scale": [0.18, 0.15, 0.18], "color": [0.2, 0.15, 0.1, 1.0], "emissive": false},
+                    {"name": "FangL", "mesh": "cylinder", "position": [-0.06, 0.25, 0.42], "scale": [0.02, 0.08, 0.02], "color": [0.6, 0.55, 0.45, 1.0], "emissive": false},
+                    {"name": "FangR", "mesh": "cylinder", "position": [0.06, 0.25, 0.42], "scale": [0.02, 0.08, 0.02], "color": [0.6, 0.55, 0.45, 1.0], "emissive": false},
+                    {"name": "LegFL", "mesh": "cylinder", "position": [-0.3, 0.25, 0.15], "scale": [0.03, 0.2, 0.03], "color": [0.25, 0.18, 0.12, 1.0], "emissive": false},
+                    {"name": "LegFR", "mesh": "cylinder", "position": [0.3, 0.25, 0.15], "scale": [0.03, 0.2, 0.03], "color": [0.25, 0.18, 0.12, 1.0], "emissive": false},
+                    {"name": "LegBL", "mesh": "cylinder", "position": [-0.3, 0.25, -0.15], "scale": [0.03, 0.2, 0.03], "color": [0.25, 0.18, 0.12, 1.0], "emissive": false},
+                    {"name": "LegBR", "mesh": "cylinder", "position": [0.3, 0.25, -0.15], "scale": [0.03, 0.2, 0.03], "color": [0.25, 0.18, 0.12, 1.0], "emissive": false},
+                    {"name": "EyeL", "mesh": "sphere", "position": [-0.06, 0.42, 0.38], "scale": [0.03, 0.03, 0.03], "color": [1.0, 0.1, 0.1, 1.0], "emissive": true},
+                    {"name": "EyeR", "mesh": "sphere", "position": [0.06, 0.42, 0.38], "scale": [0.03, 0.03, 0.03], "color": [1.0, 0.1, 0.1, 1.0], "emissive": true}
+                ],
+                "pivots": []
+            }
+        },
+        "GHOST": {
+            "max_health": 35.0,
+            "move_speed": 4.5,
+            "attack_damage": 9.0,
+            "attack_range": 6.0,
+            "aggro_range": 18.0,
+            "attack_cooldown": 1.0,
+            "xp_reward": 30.0,
+            "gold_min": 5,
+            "gold_max": 18,
+            "visual": {
+                "parts": [
+                    {"name": "Robe", "mesh": "cylinder", "position": [0, 0.5, 0], "scale": [0.3, 0.5, 0.3], "color": [0.7, 0.75, 0.9, 0.5], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 0.85, 0], "scale": [0.3, 0.25, 0.2], "color": [0.75, 0.8, 0.95, 0.5], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.15, 0], "scale": [0.2, 0.22, 0.2], "color": [0.85, 0.88, 0.95, 0.6], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.06, 1.18, 0.15], "scale": [0.04, 0.06, 0.03], "color": [0.3, 0.6, 1.0, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.06, 1.18, 0.15], "scale": [0.04, 0.06, 0.03], "color": [0.3, 0.6, 1.0, 1.0], "emissive": true},
+                    {"name": "Core", "mesh": "sphere", "position": [0, 0.75, 0], "scale": [0.1, 0.1, 0.1], "color": [0.5, 0.7, 1.0, 0.8], "emissive": true}
+                ],
+                "pivots": []
+            }
+        },
+        "ARCHER": {
+            "max_health": 35.0,
+            "move_speed": 4.0,
+            "attack_damage": 10.0,
+            "attack_range": 8.0,
+            "aggro_range": 18.0,
+            "attack_cooldown": 1.1,
+            "xp_reward": 30.0,
+            "gold_min": 5,
+            "gold_max": 18,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.12, 0.25, 0], "scale": [0.1, 0.25, 0.1], "color": [0.35, 0.3, 0.2, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.12, 0.25, 0], "scale": [0.1, 0.25, 0.1], "color": [0.35, 0.3, 0.2, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 0.7, 0], "scale": [0.4, 0.35, 0.25], "color": [0.3, 0.45, 0.2, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.28, 0.6, 0], "scale": [0.08, 0.22, 0.08], "color": [0.4, 0.35, 0.25, 1.0], "emissive": false},
+                    {"name": "Hood", "mesh": "sphere", "position": [0, 1.08, -0.02], "scale": [0.22, 0.2, 0.22], "color": [0.3, 0.45, 0.2, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.05, 0], "scale": [0.17, 0.17, 0.17], "color": [0.5, 0.42, 0.32, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.05, 1.08, 0.14], "scale": [0.03, 0.03, 0.03], "color": [0.8, 0.9, 0.3, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.05, 1.08, 0.14], "scale": [0.03, 0.03, 0.03], "color": [0.8, 0.9, 0.3, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.28, 0.8, 0],
+                        "rotation_x": 0.2,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.2, 0], "scale": [0.08, 0.22, 0.08], "color": [0.4, 0.35, 0.25, 1.0], "emissive": false},
+                            {"name": "Bow", "mesh": "cylinder", "position": [0.08, -0.2, 0], "scale": [0.02, 0.5, 0.02], "color": [0.5, 0.35, 0.15, 1.0], "emissive": false},
+                            {"name": "BowString", "mesh": "cylinder", "position": [0.12, -0.2, 0], "scale": [0.01, 0.45, 0.01], "color": [0.8, 0.8, 0.7, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
+        },
+        "SHAMAN": {
+            "max_health": 50.0,
+            "move_speed": 3.5,
+            "attack_damage": 6.0,
+            "attack_range": 5.0,
+            "aggro_range": 16.0,
+            "attack_cooldown": 0.8,
+            "xp_reward": 35.0,
+            "gold_min": 8,
+            "gold_max": 22,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.12, 0.25, 0], "scale": [0.1, 0.25, 0.1], "color": [0.4, 0.3, 0.2, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.12, 0.25, 0], "scale": [0.1, 0.25, 0.1], "color": [0.4, 0.3, 0.2, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 0.7, 0], "scale": [0.4, 0.35, 0.3], "color": [0.35, 0.4, 0.2, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.28, 0.6, 0], "scale": [0.08, 0.22, 0.08], "color": [0.45, 0.35, 0.2, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.05, 0], "scale": [0.18, 0.18, 0.18], "color": [0.45, 0.35, 0.2, 1.0], "emissive": false},
+                    {"name": "Headdress", "mesh": "cylinder", "position": [0, 1.3, 0], "scale": [0.15, 0.18, 0.15], "color": [0.9, 0.3, 0.1, 1.0], "emissive": false},
+                    {"name": "Feather1", "mesh": "box", "position": [-0.1, 1.45, 0], "scale": [0.02, 0.15, 0.06], "color": [0.1, 0.7, 0.3, 1.0], "emissive": false},
+                    {"name": "Feather2", "mesh": "box", "position": [0.1, 1.45, 0], "scale": [0.02, 0.15, 0.06], "color": [0.9, 0.8, 0.1, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.05, 1.08, 0.14], "scale": [0.035, 0.035, 0.035], "color": [0.1, 1.0, 0.3, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.05, 1.08, 0.14], "scale": [0.035, 0.035, 0.035], "color": [0.1, 1.0, 0.3, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.28, 0.85, 0],
+                        "rotation_x": 0.25,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.2, 0], "scale": [0.08, 0.22, 0.08], "color": [0.45, 0.35, 0.2, 1.0], "emissive": false},
+                            {"name": "Staff", "mesh": "cylinder", "position": [0, -0.45, 0], "scale": [0.04, 0.6, 0.04], "color": [0.4, 0.25, 0.1, 1.0], "emissive": false},
+                            {"name": "StaffGem", "mesh": "sphere", "position": [0, 0.15, 0], "scale": [0.08, 0.08, 0.08], "color": [0.1, 1.0, 0.4, 1.0], "emissive": true}
+                        ]
+                    }
+                ]
+            }
+        },
+        "GOLEM": {
+            "max_health": 120.0,
+            "move_speed": 2.5,
+            "attack_damage": 18.0,
+            "attack_range": 2.5,
+            "aggro_range": 12.0,
+            "attack_cooldown": 1.5,
+            "xp_reward": 45.0,
+            "gold_min": 10,
+            "gold_max": 30,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "box", "position": [-0.25, 0.35, 0], "scale": [0.22, 0.35, 0.22], "color": [0.5, 0.5, 0.52, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "box", "position": [0.25, 0.35, 0], "scale": [0.22, 0.35, 0.22], "color": [0.5, 0.5, 0.52, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 1.0, 0], "scale": [0.7, 0.6, 0.45], "color": [0.55, 0.55, 0.58, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "box", "position": [-0.5, 0.8, 0], "scale": [0.18, 0.4, 0.18], "color": [0.5, 0.5, 0.52, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "box", "position": [0, 1.45, 0], "scale": [0.3, 0.22, 0.25], "color": [0.55, 0.55, 0.58, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.08, 1.48, 0.12], "scale": [0.05, 0.04, 0.04], "color": [1.0, 0.7, 0.1, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.08, 1.48, 0.12], "scale": [0.05, 0.04, 0.04], "color": [1.0, 0.7, 0.1, 1.0], "emissive": true},
+                    {"name": "Rune", "mesh": "sphere", "position": [0, 1.0, 0.24], "scale": [0.06, 0.06, 0.02], "color": [0.8, 0.6, 0.1, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.5, 1.15, 0],
+                        "rotation_x": 0.2,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "box", "position": [0, -0.35, 0], "scale": [0.18, 0.4, 0.18], "color": [0.5, 0.5, 0.52, 1.0], "emissive": false},
+                            {"name": "Fist", "mesh": "sphere", "position": [0, -0.6, 0], "scale": [0.18, 0.18, 0.18], "color": [0.55, 0.55, 0.58, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
+        },
+        "SCARAB": {
+            "max_health": 15.0,
+            "move_speed": 8.0,
+            "attack_damage": 3.0,
+            "attack_range": 1.5,
+            "aggro_range": 10.0,
+            "attack_cooldown": 0.3,
+            "xp_reward": 10.0,
+            "gold_min": 1,
+            "gold_max": 5,
+            "visual": {
+                "parts": [
+                    {"name": "Shell", "mesh": "sphere", "position": [0, 0.2, 0], "scale": [0.22, 0.12, 0.28], "color": [0.1, 0.2, 0.25, 1.0], "emissive": false},
+                    {"name": "ShellHighlight", "mesh": "sphere", "position": [0, 0.25, 0], "scale": [0.18, 0.08, 0.22], "color": [0.15, 0.35, 0.4, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 0.18, 0.22], "scale": [0.1, 0.08, 0.1], "color": [0.12, 0.22, 0.28, 1.0], "emissive": false},
+                    {"name": "LegFL", "mesh": "cylinder", "position": [-0.18, 0.08, 0.1], "scale": [0.02, 0.08, 0.02], "color": [0.1, 0.18, 0.22, 1.0], "emissive": false},
+                    {"name": "LegFR", "mesh": "cylinder", "position": [0.18, 0.08, 0.1], "scale": [0.02, 0.08, 0.02], "color": [0.1, 0.18, 0.22, 1.0], "emissive": false},
+                    {"name": "LegBL", "mesh": "cylinder", "position": [-0.18, 0.08, -0.1], "scale": [0.02, 0.08, 0.02], "color": [0.1, 0.18, 0.22, 1.0], "emissive": false},
+                    {"name": "LegBR", "mesh": "cylinder", "position": [0.18, 0.08, -0.1], "scale": [0.02, 0.08, 0.02], "color": [0.1, 0.18, 0.22, 1.0], "emissive": false},
+                    {"name": "EyeL", "mesh": "sphere", "position": [-0.04, 0.22, 0.28], "scale": [0.02, 0.02, 0.02], "color": [0.2, 1.0, 0.8, 1.0], "emissive": true},
+                    {"name": "EyeR", "mesh": "sphere", "position": [0.04, 0.22, 0.28], "scale": [0.02, 0.02, 0.02], "color": [0.2, 1.0, 0.8, 1.0], "emissive": true}
+                ],
+                "pivots": []
+            }
+        },
+        "WRAITH": {
+            "max_health": 40.0,
+            "move_speed": 5.5,
+            "attack_damage": 12.0,
+            "attack_range": 2.0,
+            "aggro_range": 16.0,
+            "attack_cooldown": 0.6,
+            "xp_reward": 35.0,
+            "gold_min": 6,
+            "gold_max": 20,
+            "visual": {
+                "parts": [
+                    {"name": "Cloak", "mesh": "cylinder", "position": [0, 0.55, 0], "scale": [0.35, 0.55, 0.35], "color": [0.15, 0.08, 0.2, 0.7], "emissive": false},
+                    {"name": "InnerBody", "mesh": "cylinder", "position": [0, 0.6, 0], "scale": [0.2, 0.4, 0.2], "color": [0.2, 0.1, 0.3, 0.5], "emissive": false},
+                    {"name": "Hood", "mesh": "sphere", "position": [0, 1.1, -0.04], "scale": [0.24, 0.22, 0.24], "color": [0.12, 0.06, 0.18, 0.8], "emissive": false},
+                    {"name": "Face", "mesh": "sphere", "position": [0, 1.08, 0.05], "scale": [0.15, 0.15, 0.12], "color": [0.08, 0.04, 0.12, 0.6], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.05, 1.1, 0.12], "scale": [0.04, 0.05, 0.03], "color": [1.0, 0.15, 0.15, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.05, 1.1, 0.12], "scale": [0.04, 0.05, 0.03], "color": [1.0, 0.15, 0.15, 1.0], "emissive": true},
+                    {"name": "Core", "mesh": "sphere", "position": [0, 0.7, 0], "scale": [0.08, 0.08, 0.08], "color": [0.8, 0.1, 0.3, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.3, 0.95, 0],
+                        "rotation_x": 0.4,
+                        "parts": [
+                            {"name": "ClawArm", "mesh": "cylinder", "position": [0, -0.2, 0], "scale": [0.06, 0.25, 0.06], "color": [0.15, 0.08, 0.2, 0.7], "emissive": false},
+                            {"name": "Claw", "mesh": "box", "position": [0, -0.45, 0.05], "scale": [0.06, 0.15, 0.1], "color": [0.4, 0.15, 0.3, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
+        },
+        "NECROMANCER": {
+            "max_health": 45.0,
+            "move_speed": 3.5,
+            "attack_damage": 11.0,
+            "attack_range": 7.5,
+            "aggro_range": 20.0,
+            "attack_cooldown": 1.2,
+            "xp_reward": 40.0,
+            "gold_min": 8,
+            "gold_max": 25,
+            "visual": {
+                "parts": [
+                    {"name": "Robe", "mesh": "cylinder", "position": [0, 0.5, 0], "scale": [0.32, 0.5, 0.32], "color": [0.1, 0.08, 0.1, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 0.9, 0], "scale": [0.35, 0.3, 0.25], "color": [0.12, 0.1, 0.12, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.26, 0.75, 0], "scale": [0.07, 0.22, 0.07], "color": [0.35, 0.3, 0.28, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.22, 0], "scale": [0.18, 0.18, 0.18], "color": [0.4, 0.38, 0.35, 1.0], "emissive": false},
+                    {"name": "Hood", "mesh": "cylinder", "position": [0, 1.3, 0], "scale": [0.2, 0.12, 0.2], "color": [0.1, 0.08, 0.1, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.05, 1.25, 0.14], "scale": [0.035, 0.035, 0.035], "color": [0.2, 1.0, 0.3, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.05, 1.25, 0.14], "scale": [0.035, 0.035, 0.035], "color": [0.2, 1.0, 0.3, 1.0], "emissive": true}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.26, 1.0, 0],
+                        "rotation_x": 0.15,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.2, 0], "scale": [0.07, 0.22, 0.07], "color": [0.35, 0.3, 0.28, 1.0], "emissive": false},
+                            {"name": "SkullStaff", "mesh": "cylinder", "position": [0, -0.45, 0], "scale": [0.04, 0.65, 0.04], "color": [0.2, 0.15, 0.1, 1.0], "emissive": false},
+                            {"name": "SkullTop", "mesh": "sphere", "position": [0, 0.2, 0], "scale": [0.1, 0.1, 0.1], "color": [0.9, 0.85, 0.75, 1.0], "emissive": false},
+                            {"name": "SkullGlow", "mesh": "sphere", "position": [0, 0.2, 0.05], "scale": [0.05, 0.05, 0.05], "color": [0.2, 1.0, 0.3, 1.0], "emissive": true}
+                        ]
+                    }
+                ]
+            }
+        },
+        "DEMON": {
+            "max_health": 65.0,
+            "move_speed": 4.5,
+            "attack_damage": 12.0,
+            "attack_range": 2.5,
+            "aggro_range": 16.0,
+            "attack_cooldown": 0.8,
+            "xp_reward": 40.0,
+            "gold_min": 8,
+            "gold_max": 25,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.18, 0.3, 0], "scale": [0.14, 0.3, 0.14], "color": [0.6, 0.15, 0.1, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.18, 0.3, 0], "scale": [0.14, 0.3, 0.14], "color": [0.6, 0.15, 0.1, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 0.85, 0], "scale": [0.55, 0.45, 0.35], "color": [0.65, 0.12, 0.08, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.38, 0.7, 0], "scale": [0.12, 0.3, 0.12], "color": [0.6, 0.15, 0.1, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.25, 0], "scale": [0.22, 0.2, 0.22], "color": [0.65, 0.12, 0.08, 1.0], "emissive": false},
+                    {"name": "LeftHorn", "mesh": "cylinder", "position": [-0.15, 1.45, 0], "scale": [0.04, 0.15, 0.04], "color": [0.2, 0.1, 0.08, 1.0], "emissive": false},
+                    {"name": "RightHorn", "mesh": "cylinder", "position": [0.15, 1.45, 0], "scale": [0.04, 0.15, 0.04], "color": [0.2, 0.1, 0.08, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.07, 1.28, 0.18], "scale": [0.04, 0.04, 0.04], "color": [1.0, 0.6, 0.0, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.07, 1.28, 0.18], "scale": [0.04, 0.04, 0.04], "color": [1.0, 0.6, 0.0, 1.0], "emissive": true},
+                    {"name": "Tail", "mesh": "cylinder", "position": [0, 0.5, -0.3], "scale": [0.05, 0.3, 0.05], "color": [0.6, 0.15, 0.1, 1.0], "emissive": false}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.38, 1.0, 0],
+                        "rotation_x": 0.3,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.28, 0], "scale": [0.12, 0.3, 0.12], "color": [0.6, 0.15, 0.1, 1.0], "emissive": false},
+                            {"name": "FlameSword", "mesh": "box", "position": [0, -0.6, 0], "scale": [0.05, 0.4, 0.15], "color": [0.3, 0.3, 0.35, 1.0], "emissive": false},
+                            {"name": "FlameGlow", "mesh": "sphere", "position": [0, -0.55, 0], "scale": [0.06, 0.2, 0.06], "color": [1.0, 0.5, 0.0, 1.0], "emissive": true}
+                        ]
+                    }
+                ]
+            }
+        },
+        "BOSS_GOLEM": {
+            "max_health": 800.0,
+            "move_speed": 2.0,
+            "attack_damage": 35.0,
+            "attack_range": 3.5,
+            "aggro_range": 20.0,
+            "attack_cooldown": 2.0,
+            "xp_reward": 500.0,
+            "gold_min": 50,
+            "gold_max": 150,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "box", "position": [-0.4, 0.5, 0], "scale": [0.35, 0.5, 0.35], "color": [0.45, 0.45, 0.5, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "box", "position": [0.4, 0.5, 0], "scale": [0.35, 0.5, 0.35], "color": [0.45, 0.45, 0.5, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 1.4, 0], "scale": [1.1, 0.8, 0.7], "color": [0.5, 0.5, 0.55, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "box", "position": [-0.75, 1.1, 0], "scale": [0.28, 0.6, 0.28], "color": [0.45, 0.45, 0.5, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "box", "position": [0, 2.0, 0], "scale": [0.45, 0.32, 0.4], "color": [0.5, 0.5, 0.55, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.12, 2.05, 0.2], "scale": [0.08, 0.06, 0.06], "color": [1.0, 0.5, 0.0, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.12, 2.05, 0.2], "scale": [0.08, 0.06, 0.06], "color": [1.0, 0.5, 0.0, 1.0], "emissive": true},
+                    {"name": "ChestRune", "mesh": "sphere", "position": [0, 1.4, 0.36], "scale": [0.12, 0.12, 0.03], "color": [1.0, 0.6, 0.1, 1.0], "emissive": true},
+                    {"name": "ShoulderL", "mesh": "box", "position": [-0.55, 1.8, 0], "scale": [0.25, 0.15, 0.25], "color": [0.48, 0.48, 0.52, 1.0], "emissive": false},
+                    {"name": "ShoulderR", "mesh": "box", "position": [0.55, 1.8, 0], "scale": [0.25, 0.15, 0.25], "color": [0.48, 0.48, 0.52, 1.0], "emissive": false}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.75, 1.6, 0],
+                        "rotation_x": 0.2,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "box", "position": [0, -0.5, 0], "scale": [0.28, 0.6, 0.28], "color": [0.45, 0.45, 0.5, 1.0], "emissive": false},
+                            {"name": "Fist", "mesh": "sphere", "position": [0, -0.85, 0], "scale": [0.3, 0.3, 0.3], "color": [0.5, 0.5, 0.55, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
+        },
+        "BOSS_DEMON": {
+            "max_health": 1200.0,
+            "move_speed": 3.0,
+            "attack_damage": 45.0,
+            "attack_range": 3.5,
+            "aggro_range": 25.0,
+            "attack_cooldown": 1.5,
+            "xp_reward": 800.0,
+            "gold_min": 100,
+            "gold_max": 300,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.3, 0.45, 0], "scale": [0.22, 0.45, 0.22], "color": [0.55, 0.1, 0.05, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.3, 0.45, 0], "scale": [0.22, 0.45, 0.22], "color": [0.55, 0.1, 0.05, 1.0], "emissive": false},
+                    {"name": "Torso", "mesh": "box", "position": [0, 1.3, 0], "scale": [0.9, 0.7, 0.55], "color": [0.7, 0.12, 0.06, 1.0], "emissive": false},
+                    {"name": "LeftArm", "mesh": "cylinder", "position": [-0.6, 1.0, 0], "scale": [0.18, 0.45, 0.18], "color": [0.55, 0.1, 0.05, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "sphere", "position": [0, 1.9, 0], "scale": [0.32, 0.28, 0.32], "color": [0.7, 0.12, 0.06, 1.0], "emissive": false},
+                    {"name": "LeftHorn", "mesh": "cylinder", "position": [-0.22, 2.2, -0.05], "scale": [0.06, 0.25, 0.06], "color": [0.15, 0.08, 0.05, 1.0], "emissive": false},
+                    {"name": "RightHorn", "mesh": "cylinder", "position": [0.22, 2.2, -0.05], "scale": [0.06, 0.25, 0.06], "color": [0.15, 0.08, 0.05, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.1, 1.95, 0.26], "scale": [0.06, 0.06, 0.04], "color": [1.0, 0.4, 0.0, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.1, 1.95, 0.26], "scale": [0.06, 0.06, 0.04], "color": [1.0, 0.4, 0.0, 1.0], "emissive": true},
+                    {"name": "ChestFlame", "mesh": "sphere", "position": [0, 1.3, 0.28], "scale": [0.15, 0.2, 0.08], "color": [1.0, 0.5, 0.0, 1.0], "emissive": true},
+                    {"name": "WingL", "mesh": "box", "position": [-0.55, 1.6, -0.25], "scale": [0.5, 0.4, 0.04], "color": [0.3, 0.06, 0.02, 1.0], "emissive": false},
+                    {"name": "WingR", "mesh": "box", "position": [0.55, 1.6, -0.25], "scale": [0.5, 0.4, 0.04], "color": [0.3, 0.06, 0.02, 1.0], "emissive": false}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightArmPivot",
+                        "position": [0.6, 1.5, 0],
+                        "rotation_x": 0.3,
+                        "parts": [
+                            {"name": "RightArm", "mesh": "cylinder", "position": [0, -0.4, 0], "scale": [0.18, 0.45, 0.18], "color": [0.55, 0.1, 0.05, 1.0], "emissive": false},
+                            {"name": "GreatSword", "mesh": "box", "position": [0, -0.9, 0], "scale": [0.08, 0.65, 0.2], "color": [0.25, 0.25, 0.3, 1.0], "emissive": false},
+                            {"name": "SwordFlame", "mesh": "sphere", "position": [0, -0.85, 0], "scale": [0.1, 0.35, 0.08], "color": [1.0, 0.4, 0.0, 1.0], "emissive": true}
+                        ]
+                    }
+                ]
+            }
+        },
+        "BOSS_DRAGON": {
+            "max_health": 2000.0,
+            "move_speed": 3.5,
+            "attack_damage": 60.0,
+            "attack_range": 4.0,
+            "aggro_range": 30.0,
+            "attack_cooldown": 1.8,
+            "xp_reward": 1200.0,
+            "gold_min": 200,
+            "gold_max": 500,
+            "visual": {
+                "parts": [
+                    {"name": "LeftLeg", "mesh": "cylinder", "position": [-0.35, 0.5, 0.2], "scale": [0.25, 0.5, 0.25], "color": [0.2, 0.35, 0.15, 1.0], "emissive": false},
+                    {"name": "RightLeg", "mesh": "cylinder", "position": [0.35, 0.5, 0.2], "scale": [0.25, 0.5, 0.25], "color": [0.2, 0.35, 0.15, 1.0], "emissive": false},
+                    {"name": "Body", "mesh": "box", "position": [0, 1.3, 0], "scale": [0.9, 0.65, 1.0], "color": [0.22, 0.4, 0.18, 1.0], "emissive": false},
+                    {"name": "Belly", "mesh": "box", "position": [0, 1.1, 0.1], "scale": [0.7, 0.35, 0.8], "color": [0.4, 0.45, 0.25, 1.0], "emissive": false},
+                    {"name": "Neck", "mesh": "cylinder", "position": [0, 1.8, 0.35], "scale": [0.2, 0.35, 0.2], "color": [0.22, 0.4, 0.18, 1.0], "emissive": false},
+                    {"name": "Head", "mesh": "box", "position": [0, 2.15, 0.5], "scale": [0.35, 0.25, 0.45], "color": [0.22, 0.4, 0.18, 1.0], "emissive": false},
+                    {"name": "Jaw", "mesh": "box", "position": [0, 2.02, 0.6], "scale": [0.28, 0.1, 0.35], "color": [0.2, 0.35, 0.15, 1.0], "emissive": false},
+                    {"name": "HornL", "mesh": "cylinder", "position": [-0.12, 2.35, 0.4], "scale": [0.05, 0.18, 0.05], "color": [0.5, 0.48, 0.35, 1.0], "emissive": false},
+                    {"name": "HornR", "mesh": "cylinder", "position": [0.12, 2.35, 0.4], "scale": [0.05, 0.18, 0.05], "color": [0.5, 0.48, 0.35, 1.0], "emissive": false},
+                    {"name": "LeftEye", "mesh": "sphere", "position": [-0.12, 2.2, 0.7], "scale": [0.06, 0.05, 0.05], "color": [1.0, 0.8, 0.0, 1.0], "emissive": true},
+                    {"name": "RightEye", "mesh": "sphere", "position": [0.12, 2.2, 0.7], "scale": [0.06, 0.05, 0.05], "color": [1.0, 0.8, 0.0, 1.0], "emissive": true},
+                    {"name": "Tail", "mesh": "cylinder", "position": [0, 1.0, -0.7], "scale": [0.12, 0.5, 0.12], "color": [0.2, 0.35, 0.15, 1.0], "emissive": false},
+                    {"name": "WingL", "mesh": "box", "position": [-0.65, 1.7, -0.1], "scale": [0.6, 0.5, 0.05], "color": [0.18, 0.3, 0.12, 0.8], "emissive": false},
+                    {"name": "WingR", "mesh": "box", "position": [0.65, 1.7, -0.1], "scale": [0.6, 0.5, 0.05], "color": [0.18, 0.3, 0.12, 0.8], "emissive": false}
+                ],
+                "pivots": [
+                    {
+                        "name": "RightClawPivot",
+                        "position": [0.45, 1.3, 0.3],
+                        "rotation_x": 0.4,
+                        "parts": [
+                            {"name": "RightClaw", "mesh": "box", "position": [0, -0.25, 0.1], "scale": [0.2, 0.15, 0.3], "color": [0.22, 0.4, 0.18, 1.0], "emissive": false},
+                            {"name": "Talon1", "mesh": "cylinder", "position": [-0.06, -0.35, 0.2], "scale": [0.03, 0.1, 0.03], "color": [0.5, 0.48, 0.35, 1.0], "emissive": false},
+                            {"name": "Talon2", "mesh": "cylinder", "position": [0.06, -0.35, 0.2], "scale": [0.03, 0.1, 0.03], "color": [0.5, 0.48, 0.35, 1.0], "emissive": false}
+                        ]
+                    }
+                ]
+            }
         }
     },
     "classes": {
@@ -267,21 +701,33 @@
         "max_enemies": 6,
         "spawn_interval": 5.0,
         "spawn_radius": 15.0,
-        "dungeon_max_per_room": 4,
+        "dungeon_max_per_room": 5,
         "dungeon_respawn_interval": 15.0,
-        "dungeon_room_density_divisor": 15,
-        "type_weight_grunt": 0.60,
-        "type_weight_mage": 0.25,
-        "type_weight_brute": 0.15
+        "dungeon_room_density_divisor": 12,
+        "type_weights": {
+            "GRUNT": 0.18,
+            "MAGE": 0.10,
+            "BRUTE": 0.08,
+            "SKELETON": 0.15,
+            "SPIDER": 0.12,
+            "GHOST": 0.06,
+            "ARCHER": 0.08,
+            "SHAMAN": 0.04,
+            "GOLEM": 0.03,
+            "SCARAB": 0.10,
+            "WRAITH": 0.03,
+            "NECROMANCER": 0.02,
+            "DEMON": 0.01
+        }
     },
     "world": {
         "tile_size": 3.0,
-        "dungeon_width": 60,
-        "dungeon_height": 60,
-        "bsp_max_depth": 5,
-        "min_room_size": 5,
-        "max_room_size": 12,
-        "min_split_size": 12,
+        "dungeon_width": 100,
+        "dungeon_height": 100,
+        "bsp_max_depth": 6,
+        "min_room_size": 6,
+        "max_room_size": 16,
+        "min_split_size": 14,
         "corridor_width": 3,
         "wall_height": 4.0,
         "town_width": 40,

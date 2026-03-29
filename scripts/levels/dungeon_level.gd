@@ -22,6 +22,8 @@ var _stair_props_container: Node3D
 var _particles_node: GPUParticles3D
 var _chest_container: Node3D
 var _flicker_time := 0.0
+var _boss_room_idx := -1
+var _stairs_down_locked := false
 
 
 func _process(delta: float) -> void:
@@ -52,10 +54,15 @@ func start_generation(floor_num: int = 1, gen_seed: int = 0) -> void:
 	if gen_seed != 0:
 		generator.dungeon_seed = gen_seed
 
+	# Boss floors every 5 levels (5, 10, 15, ...)
+	generator.is_boss_floor = (floor_num >= 5 and floor_num % 5 == 0)
+
 	generator.generate.call_deferred()
 
 
 func _cleanup_floor() -> void:
+	_boss_room_idx = -1
+	_stairs_down_locked = false
 	# Remove stair triggers
 	if _stairs_up_area and is_instance_valid(_stairs_up_area):
 		_stairs_up_area.queue_free()
@@ -83,16 +90,23 @@ func _cleanup_floor() -> void:
 		child.queue_free()
 
 
-func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vector3, stairs_down: Vector3) -> void:
+func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vector3, stairs_down: Vector3, boss_room_idx: int) -> void:
 	spawn_position = spawn_pos
 	stairs_up_position = stairs_up
 	stairs_down_position = stairs_down
+	_boss_room_idx = boss_room_idx
 
-	# Setup enemy spawner with room data + floor scaling
+	# Setup enemy spawner with room data + floor scaling + boss room
 	var typed_rooms: Array[Rect2i] = []
 	for r in room_list:
 		typed_rooms.append(r as Rect2i)
-	enemy_spawner.setup(typed_rooms, generator.get_room_centers(), generator.TILE_SIZE, current_floor)
+	enemy_spawner.setup(typed_rooms, generator.get_room_centers(), generator.TILE_SIZE, current_floor, boss_room_idx)
+
+	# Connect boss_died signal if this is a boss floor
+	if boss_room_idx >= 0:
+		_stairs_down_locked = true
+		if not enemy_spawner.boss_died.is_connected(_on_boss_died):
+			enemy_spawner.boss_died.connect(_on_boss_died)
 
 	# Place lights in rooms
 	_place_room_lights(room_list)
@@ -257,6 +271,8 @@ func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:
 	var label_text := "Stairs Up (Floor %d)" % (current_floor - 1) if is_up else "Stairs Down (Floor %d)" % (current_floor + 1)
 	if is_up and current_floor == 1:
 		label_text = "Return to Town"
+	if not is_up and _stairs_down_locked:
+		label_text = "BOSS GUARDS THIS PASSAGE"
 
 	var label := Label3D.new()
 	label.text = label_text
@@ -306,8 +322,27 @@ func _on_stairs_up_entered(body: Node3D) -> void:
 func _on_stairs_down_entered(body: Node3D) -> void:
 	if not multiplayer.is_server():
 		return
+	if _stairs_down_locked:
+		return  # Boss must be defeated first
 	if body.is_in_group("players"):
 		go_down.emit(body)
+
+
+func _on_boss_died() -> void:
+	_stairs_down_locked = false
+	# Notify all peers that stairs are unlocked
+	_sync_unlock_stairs.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_unlock_stairs() -> void:
+	_stairs_down_locked = false
+	# Update the stairs label to show they're now accessible
+	if _stair_props_container:
+		for child in _stair_props_container.get_children():
+			if child is Label3D and "Stairs Down" in child.text:
+				child.text = "Stairs Down (Floor %d)" % (current_floor + 1)
+				child.modulate = Color(0.5, 0.5, 1.0)
 
 
 func _place_room_lights(room_list: Array) -> void:

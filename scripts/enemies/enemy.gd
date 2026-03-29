@@ -21,7 +21,7 @@ const GRAVITY := 9.8
 static var _monster_data: Dictionary = {}
 static var _monster_data_loaded := false
 
-enum EnemyType { GRUNT, MAGE, BRUTE }
+enum EnemyType { GRUNT, MAGE, BRUTE, SKELETON, SPIDER, GHOST, ARCHER, SHAMAN, GOLEM, SCARAB, WRAITH, NECROMANCER, DEMON, BOSS_GOLEM, BOSS_DEMON, BOSS_DRAGON }
 
 @onready var model = $Model
 @onready var hitbox: Area3D = $Hitbox

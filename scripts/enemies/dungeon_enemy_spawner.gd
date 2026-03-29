@@ -5,8 +5,10 @@ extends Node3D
 ## Initial spawn runs on all peers (deterministic from dungeon seed).
 ## Respawn is server-authoritative and synced via RPC.
 
+signal boss_died()
+
 @export var enemy_scene: PackedScene
-@export var max_enemies_per_room := 4
+@export var max_enemies_per_room := 5
 @export var respawn_interval := 15.0
 @export var skip_first_room := true  # Don't spawn in the spawn room
 
@@ -20,7 +22,10 @@ var floor_level := 1
 var _spawn_counter := 0
 var _sync_timer := 0.0
 const SYNC_INTERVAL := 0.05  # 20 Hz batch broadcast
-var _room_density_div := 15
+var _room_density_div := 12
+var _boss_room_idx := -1
+var _boss_alive := false
+var _type_weights: Array = []  # Array of [type_int, cumulative_weight]
 
 static var _spawning_cfg: Dictionary = {}
 static var _spawning_loaded := false
@@ -47,13 +52,45 @@ func _ready() -> void:
 	max_enemies_per_room = int(_spawning_cfg.get("dungeon_max_per_room", max_enemies_per_room))
 	respawn_interval = _spawning_cfg.get("dungeon_respawn_interval", respawn_interval)
 	_room_density_div = int(_spawning_cfg.get("dungeon_room_density_divisor", _room_density_div))
+	_build_type_weights()
 
 
-func setup(rooms: Array[Rect2i], centers: Array[Vector3], ts: float, floor_num: int = 1) -> void:
+func _build_type_weights() -> void:
+	## Build cumulative weight table from the type_weights dictionary in config.
+	_type_weights.clear()
+	var weights: Dictionary = _spawning_cfg.get("type_weights", {})
+	if weights.is_empty():
+		# Fallback to old format
+		_type_weights = [[0, 0.60], [1, 0.85], [2, 1.0]]
+		return
+	var cumulative := 0.0
+	var type_names := Enemy.EnemyType.keys()
+	for i in range(type_names.size()):
+		var w: float = weights.get(type_names[i], 0.0)
+		if w > 0.0 and not type_names[i].begins_with("BOSS"):
+			cumulative += w
+			_type_weights.append([i, cumulative])
+	# Normalize
+	if cumulative > 0.0 and _type_weights.size() > 0:
+		for entry in _type_weights:
+			entry[1] /= cumulative
+
+
+func _pick_enemy_type() -> int:
+	var roll := randf()
+	for entry in _type_weights:
+		if roll <= entry[1]:
+			return entry[0]
+	return 0  # GRUNT fallback
+
+
+func setup(rooms: Array[Rect2i], centers: Array[Vector3], ts: float, floor_num: int = 1, boss_room_idx: int = -1) -> void:
 	room_data = rooms
 	room_centers = centers
 	tile_size = ts
 	floor_level = floor_num
+	_boss_room_idx = boss_room_idx
+	_boss_alive = false
 	enemies_per_room.clear()
 	enemies_per_room.resize(rooms.size())
 	enemies_per_room.fill(0)
@@ -81,6 +118,10 @@ func _process(delta: float) -> void:
 func _initial_spawn() -> void:
 	var start_idx := 1 if skip_first_room else 0
 	for i in range(start_idx, room_data.size()):
+		if i == _boss_room_idx:
+			# Spawn the boss instead of regular enemies
+			_spawn_boss_in_room(i)
+			continue
 		var room := room_data[i]
 		var area := room.size.x * room.size.y
 		var count := clampi(area / _room_density_div, 1, max_enemies_per_room)
@@ -91,6 +132,8 @@ func _initial_spawn() -> void:
 func _respawn_pass() -> void:
 	var start_idx := 1 if skip_first_room else 0
 	for i in range(start_idx, room_data.size()):
+		if i == _boss_room_idx:
+			continue  # Don't respawn in boss room
 		var room := room_data[i]
 		var area := room.size.x * room.size.y
 		var target_count := clampi(area / _room_density_div, 1, max_enemies_per_room)
@@ -99,14 +142,7 @@ func _respawn_pass() -> void:
 			var rx := randf_range(room.position.x + 1, room.position.x + room.size.x - 1) * tile_size
 			var rz := randf_range(room.position.y + 1, room.position.y + room.size.y - 1) * tile_size
 			var spawn_pos := Vector3(rx, 1.0, rz)
-			var roll := randf()
-			var brute_w: float = _spawning_cfg.get("type_weight_brute", 0.15)
-			var mage_w: float = _spawning_cfg.get("type_weight_mage", 0.25)
-			var type: int = 0  # GRUNT
-			if roll < brute_w:
-				type = 2  # BRUTE
-			elif roll < brute_w + mage_w:
-				type = 1  # MAGE
+			var type: int = _pick_enemy_type()
 			_spawn_counter += 1
 			_rpc_respawn_enemy.rpc("E_%d" % _spawn_counter, i, spawn_pos, type)
 
@@ -125,15 +161,7 @@ func _spawn_enemy_in_room(room_idx: int) -> void:
 	var rz := randf_range(room.position.y + 1, room.position.y + room.size.y - 1) * tile_size
 	var spawn_pos := Vector3(rx, 1.0, rz)
 
-	# Randomize enemy type based on config weights
-	var roll := randf()
-	var brute_w: float = _spawning_cfg.get("type_weight_brute", 0.15)
-	var mage_w: float = _spawning_cfg.get("type_weight_mage", 0.25)
-	var type: int = 0  # GRUNT
-	if roll < brute_w:
-		type = 2  # BRUTE
-	elif roll < brute_w + mage_w:
-		type = 1  # MAGE
+	var type: int = _pick_enemy_type()
 
 	_create_enemy("E_%d" % _spawn_counter, room_idx, spawn_pos, type)
 
@@ -141,11 +169,7 @@ func _spawn_enemy_in_room(room_idx: int) -> void:
 func _create_enemy(enemy_name: String, room_idx: int, spawn_pos: Vector3, type: int) -> void:
 	var instance := enemy_scene_loaded.instantiate()
 	instance.name = enemy_name
-
-	match type:
-		1: instance.enemy_type = Enemy.EnemyType.MAGE
-		2: instance.enemy_type = Enemy.EnemyType.BRUTE
-
+	instance.enemy_type = type as Enemy.EnemyType
 	instance.floor_level = floor_level
 	add_child(instance)
 	instance.position = spawn_pos
@@ -153,6 +177,45 @@ func _create_enemy(enemy_name: String, room_idx: int, spawn_pos: Vector3, type: 
 	var idx := room_idx  # Capture for lambda
 	instance.died.connect(func(_e: Node): enemies_per_room[idx] = maxi(enemies_per_room[idx] - 1, 0))
 	enemies_per_room[room_idx] += 1
+
+
+func _spawn_boss_in_room(room_idx: int) -> void:
+	## Spawn a boss enemy in the center of the boss room.
+	var room := room_data[room_idx]
+	_spawn_counter += 1
+
+	var cx := (room.position.x + room.size.x / 2.0) * tile_size
+	var cz := (room.position.y + room.size.y / 2.0) * tile_size
+	var spawn_pos := Vector3(cx, 1.0, cz)
+
+	# Cycle boss types: floor 5=BOSS_GOLEM, 10=BOSS_DEMON, 15=BOSS_DRAGON, 20=BOSS_GOLEM...
+	var boss_cycle := ((floor_level / 5) - 1) % 3  # 0, 1, or 2
+	var boss_type: int
+	match boss_cycle:
+		0: boss_type = Enemy.EnemyType.BOSS_GOLEM
+		1: boss_type = Enemy.EnemyType.BOSS_DEMON
+		2: boss_type = Enemy.EnemyType.BOSS_DRAGON
+		_: boss_type = Enemy.EnemyType.BOSS_GOLEM
+
+	var instance := enemy_scene_loaded.instantiate()
+	instance.name = "Boss_%d" % _spawn_counter
+	instance.enemy_type = boss_type as Enemy.EnemyType
+	instance.floor_level = floor_level
+	add_child(instance)
+	instance.position = spawn_pos
+	_boss_alive = true
+
+	var idx := room_idx
+	instance.died.connect(func(_e: Node):
+		enemies_per_room[idx] = maxi(enemies_per_room[idx] - 1, 0)
+		_boss_alive = false
+		boss_died.emit()
+	)
+	enemies_per_room[room_idx] += 1
+
+	# Also spawn some guards in the boss room
+	for _i in 4:
+		_spawn_enemy_in_room(room_idx)
 
 
 func _broadcast_all_enemies() -> void:
