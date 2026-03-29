@@ -134,7 +134,7 @@ func _place_buildings() -> void:
 		# SW — Residence
 		{"rect": Rect2i(3, 30, 5, 5), "label": "Residence", "height": 4.0},
 		# SE — Blacksmith / Armory
-		{"rect": Rect2i(31, 30, 6, 5), "label": "Blacksmith", "height": 4.5, "door_face": "north"},
+		{"rect": Rect2i(31, 30, 6, 5), "label": "Blacksmith", "height": 4.5, "door_face": "west"},
 		# Inner ring — small buildings near plaza
 		{"rect": Rect2i(11, 5, 3, 3), "label": "Healer", "height": 4.0},
 		{"rect": Rect2i(26, 5, 3, 3), "label": "Jeweler", "height": 4.0},
@@ -438,6 +438,22 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, doo
 		_add_quad(st, Vector3(bx1, 0, bz1), Vector3(bx1, h, bz1), Vector3(bx1, h, bz2), Vector3(bx1, 0, bz2))
 		# Right (X+) — solid
 		_add_quad(st, Vector3(bx2, 0, bz2), Vector3(bx2, h, bz2), Vector3(bx2, h, bz1), Vector3(bx2, 0, bz1))
+	elif door_face == "west":
+		# Door on X- wall, centered on Z axis
+		var door_cz := (bz1 + bz2) / 2.0
+		var door_z_min := door_cz - door_w / 2.0
+		var door_z_max := door_cz + door_w / 2.0
+		# Front (Z+) — solid
+		_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
+		# Back (Z-) — solid
+		_add_quad(st, Vector3(bx2, 0, bz1), Vector3(bx2, h, bz1), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
+		# Left (X-) — split around door
+		_add_quad(st, Vector3(bx1, 0, door_z_min), Vector3(bx1, h, door_z_min), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
+		_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(bx1, h, door_z_max), Vector3(bx1, 0, door_z_max))
+		# Lintel above door
+		_add_quad(st, Vector3(bx1, door_h, door_z_min), Vector3(bx1, h, door_z_min), Vector3(bx1, h, door_z_max), Vector3(bx1, door_h, door_z_max))
+		# Right (X+) — solid
+		_add_quad(st, Vector3(bx2, 0, bz2), Vector3(bx2, h, bz2), Vector3(bx2, h, bz1), Vector3(bx2, 0, bz1))
 	else:
 		# Default: Door on Z+ (south) wall, centered on X axis
 		var door_cx := (bx1 + bx2) / 2.0
@@ -551,6 +567,25 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, doo
 		_add_box_collision(body, Vector3(bx1, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
 		# Right wall (X+) — solid
 		_add_box_collision(body, Vector3(bx2, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
+	elif door_face == "west":
+		var door_cz := (bz1 + bz2) / 2.0
+		var door_z_min := door_cz - door_w / 2.0
+		var door_z_max := door_cz + door_w / 2.0
+		# Front wall (Z+) — solid
+		_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz2), Vector3(bx2 - bx1, h, thickness))
+		# Back wall (Z-) — solid
+		_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz1), Vector3(bx2 - bx1, h, thickness))
+		# Left wall (X-) — split around door gap
+		var seg_far := bz2 - door_z_max
+		if seg_far > 0.1:
+			_add_box_collision(body, Vector3(bx1, h / 2.0, door_z_max + seg_far / 2.0), Vector3(thickness, h, seg_far))
+		var seg_near := door_z_min - bz1
+		if seg_near > 0.1:
+			_add_box_collision(body, Vector3(bx1, h / 2.0, bz1 + seg_near / 2.0), Vector3(thickness, h, seg_near))
+		# Lintel above door
+		_add_box_collision(body, Vector3(bx1, (door_h + h) / 2.0, door_cz), Vector3(thickness, h - door_h, door_w))
+		# Right wall (X+) — solid
+		_add_box_collision(body, Vector3(bx2, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
 	else:
 		var door_cx := (bx1 + bx2) / 2.0
 		var door_left := door_cx - door_w / 2.0
@@ -628,6 +663,31 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, doo
 		lintel.position = Vector3(door_cx2, door_h, bz1)
 		lintel.material_override = frame_mat
 		add_child(lintel)
+	elif door_face == "west":
+		var door_cz2 := (bz1 + bz2) / 2.0
+		var dz_min := door_cz2 - door_w / 2.0
+		var dz_max := door_cz2 + door_w / 2.0
+		# Jambs (along Z axis on X- face)
+		var jamb_l := MeshInstance3D.new()
+		var jamb_mesh := BoxMesh.new()
+		jamb_mesh.size = Vector3(frame_thickness, door_h, frame_thickness)
+		jamb_l.mesh = jamb_mesh
+		jamb_l.position = Vector3(bx1, door_h / 2.0, dz_min)
+		jamb_l.material_override = frame_mat
+		add_child(jamb_l)
+		var jamb_r := MeshInstance3D.new()
+		jamb_r.mesh = jamb_mesh
+		jamb_r.position = Vector3(bx1, door_h / 2.0, dz_max)
+		jamb_r.material_override = frame_mat
+		add_child(jamb_r)
+		# Lintel beam (runs along Z)
+		var lintel := MeshInstance3D.new()
+		var lintel_mesh := BoxMesh.new()
+		lintel_mesh.size = Vector3(frame_thickness, frame_thickness, door_w + frame_thickness * 2)
+		lintel.mesh = lintel_mesh
+		lintel.position = Vector3(bx1, door_h, door_cz2)
+		lintel.material_override = frame_mat
+		add_child(lintel)
 	else:
 		var door_cx2 := (bx1 + bx2) / 2.0
 		var dl := door_cx2 - door_w / 2.0
@@ -695,6 +755,13 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, doo
 			board_mesh.size = Vector3(board_w, 0.5, 0.06)
 			sign_board.mesh = board_mesh
 			sign_board.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz1 - 0.1)
+		elif door_face == "west":
+			sign_label.position = Vector3(bx1 - 0.15, h * 0.7, (bz1 + bz2) / 2.0)
+			sign_label.rotation.y = PI / 2.0
+			var board_mesh := BoxMesh.new()
+			board_mesh.size = Vector3(0.06, 0.5, board_w)
+			sign_board.mesh = board_mesh
+			sign_board.position = Vector3(bx1 - 0.1, h * 0.7, (bz1 + bz2) / 2.0)
 		else:
 			sign_label.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.15)
 			var board_mesh := BoxMesh.new()
@@ -1176,8 +1243,9 @@ func _build_forge() -> void:
 	if not found:
 		return
 
-	var forge_x: float = (smith_rect.position.x + smith_rect.size.x / 2) * TILE_SIZE
-	var forge_z: float = (smith_rect.position.y + smith_rect.size.y) * TILE_SIZE + 3.0
+	# Place forge props on the west side (door side) of the building
+	var forge_x: float = smith_rect.position.x * TILE_SIZE - 3.0
+	var forge_z: float = (smith_rect.position.y + smith_rect.size.y / 2) * TILE_SIZE
 
 	# Anvil (dark metallic box)
 	var anvil := MeshInstance3D.new()
@@ -1197,7 +1265,7 @@ func _build_forge() -> void:
 	var pit_mesh := BoxMesh.new()
 	pit_mesh.size = Vector3(1.0, 0.4, 1.0)
 	pit.mesh = pit_mesh
-	pit.position = Vector3(forge_x + 2.0, 0.2, forge_z)
+	pit.position = Vector3(forge_x, 0.2, forge_z + 2.0)
 	var fire_mat := StandardMaterial3D.new()
 	fire_mat.albedo_color = Color(0.3, 0.15, 0.05)
 	fire_mat.emission_enabled = true
@@ -1208,7 +1276,7 @@ func _build_forge() -> void:
 
 	# Fire particles
 	var fire := GPUParticles3D.new()
-	fire.position = Vector3(forge_x + 2.0, 0.6, forge_z)
+	fire.position = Vector3(forge_x, 0.6, forge_z + 2.0)
 	fire.amount = 20
 	fire.lifetime = 0.8
 	fire.explosiveness = 0.1
@@ -1240,7 +1308,7 @@ func _build_forge() -> void:
 
 	# Smoke particles above the forge
 	var smoke := GPUParticles3D.new()
-	smoke.position = Vector3(forge_x + 2.0, 1.5, forge_z)
+	smoke.position = Vector3(forge_x, 1.5, forge_z + 2.0)
 	smoke.amount = 10
 	smoke.lifetime = 2.5
 	smoke.explosiveness = 0.0
@@ -1269,7 +1337,7 @@ func _build_forge() -> void:
 
 	# Forge light
 	var forge_light := OmniLight3D.new()
-	forge_light.position = Vector3(forge_x + 2.0, 1.0, forge_z)
+	forge_light.position = Vector3(forge_x, 1.0, forge_z + 2.0)
 	forge_light.omni_range = 6.0
 	forge_light.light_energy = 1.5
 	forge_light.light_color = Color(1.0, 0.6, 0.2)
@@ -1814,6 +1882,11 @@ func _place_npcs() -> void:
 			npc_x = (bx1 + bx2) / 2.0
 			npc_z = bz1 - 2.0
 			npc_rot = 0.0
+		elif bld_door_face == "west":
+			# NPC in front of west door
+			npc_x = bx1 - 2.0
+			npc_z = (bz1 + bz2) / 2.0
+			npc_rot = -PI / 2.0
 		else:
 			# Default: NPC in front of south door
 			npc_x = (bx1 + bx2) / 2.0
