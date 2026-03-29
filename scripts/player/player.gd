@@ -28,6 +28,7 @@ var is_attacking: bool = false
 var _left_mouse_held: bool = false
 var _remote_pos := Vector3.ZERO
 var _remote_rot_y := 0.0
+var _spawn_grace: float = 0.5  # Seconds to ignore gravity after spawn
 var _grid_sync_dirty: bool = false
 var _grid_sync_timer: float = 0.0
 const GRID_SYNC_INTERVAL := 0.5
@@ -982,6 +983,12 @@ func _sync_spawn_loot(loot_name: String, item_dict: Dictionary, pos: Vector3) ->
 
 
 func _process_movement(delta: float) -> void:
+	# Spawn grace — skip gravity until physics has processed floor collision
+	if _spawn_grace > 0.0:
+		_spawn_grace -= delta
+		velocity.y = 0.0
+		move_and_slide()
+		return
 	# Gravity
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
