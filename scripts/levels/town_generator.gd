@@ -78,6 +78,7 @@ func generate() -> void:
 	_build_town_walls()
 	_build_mesh()
 	_place_props()
+	_place_npcs()
 
 	town_generated.emit(_spawn_pos, _stairs_pos)
 	print("Town generated: %d buildings" % buildings.size())
@@ -121,7 +122,7 @@ func _place_buildings() -> void:
 	# Heights vary for visual interest
 	var plots: Array[Dictionary] = [
 		# NW — Town Hall / Elder's house (large, tall)
-		{"rect": Rect2i(3, 3, 6, 5), "label": "Town Hall", "height": 6.0},
+		{"rect": Rect2i(3, 3, 6, 5), "label": "Town Hall", "height": 6.0, "door_face": "east"},
 		# N — Marketplace building (wide)
 		{"rect": Rect2i(15, 2, 7, 4), "label": "Marketplace", "height": 4.0},
 		# NE — Alchemist / Potion shop
@@ -382,10 +383,10 @@ func _build_wall_blocks(positions: Array) -> void:
 func _build_buildings() -> void:
 	for i in buildings.size():
 		var b: Dictionary = buildings[i]
-		_build_single_building(b["rect"], i, b.get("height", BUILDING_HEIGHT), b.get("label", ""))
+		_build_single_building(b["rect"], i, b.get("height", BUILDING_HEIGHT), b.get("label", ""), b.get("door_face", "south"))
 
 
-func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> void:
+func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, door_face: String = "south") -> void:
 	var x1 := rect.position.x * TILE_SIZE
 	var z1 := rect.position.y * TILE_SIZE
 	var x2 := (rect.position.x + rect.size.x) * TILE_SIZE
@@ -404,21 +405,39 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	# Door dimensions
 	var door_w := 2.2
 	var door_h := minf(2.8, h - 0.5)
-	var door_cx := (bx1 + bx2) / 2.0
-	var door_left := door_cx - door_w / 2.0
-	var door_right := door_cx + door_w / 2.0
 
-	# Front (Z+) — split around door opening
-	_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(door_left, h, bz2), Vector3(door_left, 0, bz2))
-	_add_quad(st, Vector3(door_right, 0, bz2), Vector3(door_right, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
-	# Lintel above door
-	_add_quad(st, Vector3(door_left, door_h, bz2), Vector3(door_left, h, bz2), Vector3(door_right, h, bz2), Vector3(door_right, door_h, bz2))
-	# Back (Z-)
-	_add_quad(st, Vector3(bx2, 0, bz1), Vector3(bx2, h, bz1), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
-	# Left (X-)
-	_add_quad(st, Vector3(bx1, 0, bz1), Vector3(bx1, h, bz1), Vector3(bx1, h, bz2), Vector3(bx1, 0, bz2))
-	# Right (X+)
-	_add_quad(st, Vector3(bx2, 0, bz2), Vector3(bx2, h, bz2), Vector3(bx2, h, bz1), Vector3(bx2, 0, bz1))
+	if door_face == "east":
+		# Door on X+ wall, centered on Z axis
+		var door_cz := (bz1 + bz2) / 2.0
+		var door_z_min := door_cz - door_w / 2.0
+		var door_z_max := door_cz + door_w / 2.0
+		# Front (Z+) — solid
+		_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
+		# Back (Z-) — solid
+		_add_quad(st, Vector3(bx2, 0, bz1), Vector3(bx2, h, bz1), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
+		# Left (X-) — solid
+		_add_quad(st, Vector3(bx1, 0, bz1), Vector3(bx1, h, bz1), Vector3(bx1, h, bz2), Vector3(bx1, 0, bz2))
+		# Right (X+) — split around door
+		_add_quad(st, Vector3(bx2, 0, bz2), Vector3(bx2, h, bz2), Vector3(bx2, h, door_z_max), Vector3(bx2, 0, door_z_max))
+		_add_quad(st, Vector3(bx2, 0, door_z_min), Vector3(bx2, h, door_z_min), Vector3(bx2, h, bz1), Vector3(bx2, 0, bz1))
+		# Lintel above door
+		_add_quad(st, Vector3(bx2, door_h, door_z_max), Vector3(bx2, h, door_z_max), Vector3(bx2, h, door_z_min), Vector3(bx2, door_h, door_z_min))
+	else:
+		# Default: Door on Z+ (south) wall, centered on X axis
+		var door_cx := (bx1 + bx2) / 2.0
+		var door_left := door_cx - door_w / 2.0
+		var door_right := door_cx + door_w / 2.0
+		# Front (Z+) — split around door opening
+		_add_quad(st, Vector3(bx1, 0, bz2), Vector3(bx1, h, bz2), Vector3(door_left, h, bz2), Vector3(door_left, 0, bz2))
+		_add_quad(st, Vector3(door_right, 0, bz2), Vector3(door_right, h, bz2), Vector3(bx2, h, bz2), Vector3(bx2, 0, bz2))
+		# Lintel above door
+		_add_quad(st, Vector3(door_left, door_h, bz2), Vector3(door_left, h, bz2), Vector3(door_right, h, bz2), Vector3(door_right, door_h, bz2))
+		# Back (Z-)
+		_add_quad(st, Vector3(bx2, 0, bz1), Vector3(bx2, h, bz1), Vector3(bx1, h, bz1), Vector3(bx1, 0, bz1))
+		# Left (X-)
+		_add_quad(st, Vector3(bx1, 0, bz1), Vector3(bx1, h, bz1), Vector3(bx1, h, bz2), Vector3(bx1, 0, bz2))
+		# Right (X+)
+		_add_quad(st, Vector3(bx2, 0, bz2), Vector3(bx2, h, bz2), Vector3(bx2, h, bz1), Vector3(bx2, 0, bz1))
 
 	st.generate_normals()
 	var wall_mesh := st.commit()
@@ -477,50 +496,103 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, -0.05, (bz1 + bz2) / 2.0), Vector3(bx2 - bx1, 0.1, bz2 - bz1))
 
 	var thickness := 0.4
-	# Front wall — two segments around door gap
-	var left_seg_w := door_left - bx1
-	if left_seg_w > 0.1:
-		_add_box_collision(body, Vector3(bx1 + left_seg_w / 2.0, h / 2.0, bz2), Vector3(left_seg_w, h, thickness))
-	var right_seg_w := bx2 - door_right
-	if right_seg_w > 0.1:
-		_add_box_collision(body, Vector3(door_right + right_seg_w / 2.0, h / 2.0, bz2), Vector3(right_seg_w, h, thickness))
-	# Lintel collision above door
-	_add_box_collision(body, Vector3(door_cx, (door_h + h) / 2.0, bz2), Vector3(door_w, h - door_h, thickness))
-	# Back wall
-	_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz1), Vector3(bx2 - bx1, h, thickness))
-	# Left wall
-	_add_box_collision(body, Vector3(bx1, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
-	# Right wall
-	_add_box_collision(body, Vector3(bx2, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
+
+	if door_face == "east":
+		var door_cz := (bz1 + bz2) / 2.0
+		var door_z_min := door_cz - door_w / 2.0
+		var door_z_max := door_cz + door_w / 2.0
+		# Front wall (Z+) — solid
+		_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz2), Vector3(bx2 - bx1, h, thickness))
+		# Back wall (Z-) — solid
+		_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz1), Vector3(bx2 - bx1, h, thickness))
+		# Left wall (X-) — solid
+		_add_box_collision(body, Vector3(bx1, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
+		# Right wall (X+) — split around door gap
+		var seg_far := bz2 - door_z_max
+		if seg_far > 0.1:
+			_add_box_collision(body, Vector3(bx2, h / 2.0, door_z_max + seg_far / 2.0), Vector3(thickness, h, seg_far))
+		var seg_near := door_z_min - bz1
+		if seg_near > 0.1:
+			_add_box_collision(body, Vector3(bx2, h / 2.0, bz1 + seg_near / 2.0), Vector3(thickness, h, seg_near))
+		# Lintel above door
+		_add_box_collision(body, Vector3(bx2, (door_h + h) / 2.0, door_cz), Vector3(thickness, h - door_h, door_w))
+	else:
+		var door_cx := (bx1 + bx2) / 2.0
+		var door_left := door_cx - door_w / 2.0
+		var door_right := door_cx + door_w / 2.0
+		# Front wall — two segments around door gap
+		var left_seg_w := door_left - bx1
+		if left_seg_w > 0.1:
+			_add_box_collision(body, Vector3(bx1 + left_seg_w / 2.0, h / 2.0, bz2), Vector3(left_seg_w, h, thickness))
+		var right_seg_w := bx2 - door_right
+		if right_seg_w > 0.1:
+			_add_box_collision(body, Vector3(door_right + right_seg_w / 2.0, h / 2.0, bz2), Vector3(right_seg_w, h, thickness))
+		# Lintel collision above door
+		_add_box_collision(body, Vector3(door_cx, (door_h + h) / 2.0, bz2), Vector3(door_w, h - door_h, thickness))
+		# Back wall
+		_add_box_collision(body, Vector3((bx1 + bx2) / 2.0, h / 2.0, bz1), Vector3(bx2 - bx1, h, thickness))
+		# Left wall
+		_add_box_collision(body, Vector3(bx1, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
+		# Right wall
+		_add_box_collision(body, Vector3(bx2, h / 2.0, (bz1 + bz2) / 2.0), Vector3(thickness, h, bz2 - bz1))
 
 	# Door frame (darker wood trim around the opening)
 	var frame_mat := StandardMaterial3D.new()
 	frame_mat.albedo_color = Color(0.3, 0.18, 0.08)
 	frame_mat.roughness = 0.8
-
 	var frame_thickness := 0.12
-	# Left jamb
-	var jamb_l := MeshInstance3D.new()
-	var jamb_mesh := BoxMesh.new()
-	jamb_mesh.size = Vector3(frame_thickness, door_h, frame_thickness)
-	jamb_l.mesh = jamb_mesh
-	jamb_l.position = Vector3(door_left, door_h / 2.0, bz2)
-	jamb_l.material_override = frame_mat
-	add_child(jamb_l)
-	# Right jamb
-	var jamb_r := MeshInstance3D.new()
-	jamb_r.mesh = jamb_mesh
-	jamb_r.position = Vector3(door_right, door_h / 2.0, bz2)
-	jamb_r.material_override = frame_mat
-	add_child(jamb_r)
-	# Top lintel beam
-	var lintel := MeshInstance3D.new()
-	var lintel_mesh := BoxMesh.new()
-	lintel_mesh.size = Vector3(door_w + frame_thickness * 2, frame_thickness, frame_thickness)
-	lintel.mesh = lintel_mesh
-	lintel.position = Vector3(door_cx, door_h, bz2)
-	lintel.material_override = frame_mat
-	add_child(lintel)
+
+	if door_face == "east":
+		var door_cz2 := (bz1 + bz2) / 2.0
+		var dz_min := door_cz2 - door_w / 2.0
+		var dz_max := door_cz2 + door_w / 2.0
+		# Jambs (along Z axis on X+ face)
+		var jamb_l := MeshInstance3D.new()
+		var jamb_mesh := BoxMesh.new()
+		jamb_mesh.size = Vector3(frame_thickness, door_h, frame_thickness)
+		jamb_l.mesh = jamb_mesh
+		jamb_l.position = Vector3(bx2, door_h / 2.0, dz_min)
+		jamb_l.material_override = frame_mat
+		add_child(jamb_l)
+		var jamb_r := MeshInstance3D.new()
+		jamb_r.mesh = jamb_mesh
+		jamb_r.position = Vector3(bx2, door_h / 2.0, dz_max)
+		jamb_r.material_override = frame_mat
+		add_child(jamb_r)
+		# Lintel beam (runs along Z)
+		var lintel := MeshInstance3D.new()
+		var lintel_mesh := BoxMesh.new()
+		lintel_mesh.size = Vector3(frame_thickness, frame_thickness, door_w + frame_thickness * 2)
+		lintel.mesh = lintel_mesh
+		lintel.position = Vector3(bx2, door_h, door_cz2)
+		lintel.material_override = frame_mat
+		add_child(lintel)
+	else:
+		var door_cx2 := (bx1 + bx2) / 2.0
+		var dl := door_cx2 - door_w / 2.0
+		var dr := door_cx2 + door_w / 2.0
+		# Left jamb
+		var jamb_l := MeshInstance3D.new()
+		var jamb_mesh := BoxMesh.new()
+		jamb_mesh.size = Vector3(frame_thickness, door_h, frame_thickness)
+		jamb_l.mesh = jamb_mesh
+		jamb_l.position = Vector3(dl, door_h / 2.0, bz2)
+		jamb_l.material_override = frame_mat
+		add_child(jamb_l)
+		# Right jamb
+		var jamb_r := MeshInstance3D.new()
+		jamb_r.mesh = jamb_mesh
+		jamb_r.position = Vector3(dr, door_h / 2.0, bz2)
+		jamb_r.material_override = frame_mat
+		add_child(jamb_r)
+		# Top lintel beam
+		var lintel := MeshInstance3D.new()
+		var lintel_mesh := BoxMesh.new()
+		lintel_mesh.size = Vector3(door_w + frame_thickness * 2, frame_thickness, frame_thickness)
+		lintel.mesh = lintel_mesh
+		lintel.position = Vector3(door_cx2, door_h, bz2)
+		lintel.material_override = frame_mat
+		add_child(lintel)
 
 	# Interior light
 	var light := OmniLight3D.new()
@@ -531,28 +603,38 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String) -> 
 	light.shadow_enabled = false
 	add_child(light)
 
-	# Building name sign above the front door
+	# Building name sign above the door
 	if label != "":
 		var sign_label := Label3D.new()
 		sign_label.text = label
-		sign_label.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.15)
 		sign_label.pixel_size = 0.01
 		sign_label.font_size = 36
 		sign_label.modulate = Color(0.95, 0.88, 0.65)
 		sign_label.outline_modulate = Color(0.1, 0.05, 0.0)
 		sign_label.outline_size = 6
 		sign_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-		add_child(sign_label)
 
-		# Hanging sign board behind the text
 		var sign_board := MeshInstance3D.new()
-		var board_mesh := BoxMesh.new()
-		board_mesh.size = Vector3(label.length() * 0.22 + 0.4, 0.5, 0.06)
-		sign_board.mesh = board_mesh
-		sign_board.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.1)
+		var board_w := label.length() * 0.22 + 0.4
 		var wood_mat := StandardMaterial3D.new()
 		wood_mat.albedo_color = Color(0.35, 0.22, 0.1)
 		sign_board.material_override = wood_mat
+
+		if door_face == "east":
+			sign_label.position = Vector3(bx2 + 0.15, h * 0.7, (bz1 + bz2) / 2.0)
+			sign_label.rotation.y = -PI / 2.0
+			var board_mesh := BoxMesh.new()
+			board_mesh.size = Vector3(0.06, 0.5, board_w)
+			sign_board.mesh = board_mesh
+			sign_board.position = Vector3(bx2 + 0.1, h * 0.7, (bz1 + bz2) / 2.0)
+		else:
+			sign_label.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.15)
+			var board_mesh := BoxMesh.new()
+			board_mesh.size = Vector3(board_w, 0.5, 0.06)
+			sign_board.mesh = board_mesh
+			sign_board.position = Vector3((bx1 + bx2) / 2.0, h * 0.7, bz2 + 0.1)
+
+		add_child(sign_label)
 		add_child(sign_board)
 
 
@@ -1490,6 +1572,161 @@ func _make_stone_gradient(light: Color, dark: Color) -> Gradient:
 	grad.add_point(0.7, dark.lerp(light, 0.6))
 	grad.set_color(1, light.lerp(dark, 0.2))
 	return grad
+
+
+# --- NPCs ---
+
+const NPC_SCRIPT = preload("res://scripts/levels/npc.gd")
+
+const _NPC_DEFS: Array[Dictionary] = [
+	{
+		"id": "elder",
+		"name": "Elder Maren",
+		"building": "Town Hall",
+		"dialog": [
+			"Welcome to our humble town, adventurer.",
+			"The dungeon beneath this land has been growing restless.",
+			"If you are brave enough, seek the stairs at the edge of town.",
+			"May the light guide your blade."
+		],
+		"appearance": {
+			"body_color": "#8B7355",
+			"shirt_color": "#6B3A5C",
+			"pants_color": "#3D3020",
+			"hair_color": "#B0B0B0",
+			"skin_color": "#D2A679"
+		}
+	},
+	{
+		"id": "alchemist",
+		"name": "Nyx the Alchemist",
+		"building": "Alchemist",
+		"dialog": [
+			"Ah, another seeker of potions and elixirs!",
+			"My brews can mend wounds and restore your spirit.",
+			"Come back when you've gathered coin — I may have something for you."
+		],
+		"appearance": {
+			"body_color": "#5A4A3A",
+			"shirt_color": "#2D5A27",
+			"pants_color": "#2B2B2B",
+			"hair_color": "#4A0E4E",
+			"skin_color": "#C9956B"
+		}
+	},
+	{
+		"id": "blacksmith",
+		"name": "Gorm Ironhand",
+		"building": "Blacksmith",
+		"dialog": [
+			"*clang* *clang* — Oh! Didn't see you there.",
+			"Need something forged? I work with the finest ore in the region.",
+			"Bring me materials and I'll craft you something worth swinging."
+		],
+		"appearance": {
+			"body_color": "#6B5040",
+			"shirt_color": "#8B4513",
+			"pants_color": "#3A2F20",
+			"hair_color": "#2F1A0E",
+			"skin_color": "#A0724A"
+		}
+	},
+	{
+		"id": "healer",
+		"name": "Sister Elara",
+		"building": "Healer",
+		"dialog": [
+			"Blessings upon you, traveler.",
+			"If you are wounded, rest here a moment.",
+			"The dungeon's darkness corrupts all it touches. Be careful."
+		],
+		"appearance": {
+			"body_color": "#EEEEEE",
+			"shirt_color": "#E8E0D0",
+			"pants_color": "#C8B89A",
+			"hair_color": "#D4A84B",
+			"skin_color": "#FCDFC4"
+		}
+	},
+	{
+		"id": "tavern_keeper",
+		"name": "Bram Stoutbarrel",
+		"building": "Tavern",
+		"dialog": [
+			"Ha! Pull up a chair and have a drink!",
+			"Adventurers come through here with wild tales.",
+			"I heard something stirs on the lower floors of the dungeon...",
+			"But that's none of my business. Another round?"
+		],
+		"appearance": {
+			"body_color": "#7A5A3A",
+			"shirt_color": "#A05030",
+			"pants_color": "#4A3A2A",
+			"hair_color": "#8B4513",
+			"skin_color": "#D2A679"
+		}
+	},
+	{
+		"id": "jeweler",
+		"name": "Vessa Glintstone",
+		"building": "Jeweler",
+		"dialog": [
+			"Gems and trinkets, rings and amulets!",
+			"Each piece tells a story, don't you think?",
+			"Perhaps one day I'll have enchanted wares for the right price."
+		],
+		"appearance": {
+			"body_color": "#5A4A6A",
+			"shirt_color": "#3A2858",
+			"pants_color": "#2A2040",
+			"hair_color": "#1A1A2E",
+			"skin_color": "#E0C8A8"
+		}
+	},
+]
+
+
+func _place_npcs() -> void:
+	var half_ts := TILE_SIZE / 2.0
+	for def in _NPC_DEFS:
+		# Find the matching building by label
+		var bld: Dictionary = {}
+		for b in buildings:
+			if b.get("label", "") == def["building"]:
+				bld = b
+				break
+		if bld.is_empty():
+			push_warning("NPC '%s' — building '%s' not found" % [def["name"], def["building"]])
+			continue
+
+		var rect: Rect2i = bld["rect"]
+		var bx1 := rect.position.x * TILE_SIZE - half_ts
+		var bx2 := (rect.position.x + rect.size.x) * TILE_SIZE - half_ts
+		var bz1 := rect.position.y * TILE_SIZE - half_ts
+		var bz2 := (rect.position.y + rect.size.y) * TILE_SIZE - half_ts
+		var bld_door_face: String = bld.get("door_face", "south")
+
+		var npc_x: float
+		var npc_z: float
+		var npc_rot: float
+
+		if bld_door_face == "east":
+			# NPC in front of east door
+			npc_x = bx2 + 2.0
+			npc_z = (bz1 + bz2) / 2.0
+			npc_rot = PI / 2.0
+		else:
+			# Default: NPC in front of south door
+			npc_x = (bx1 + bx2) / 2.0
+			npc_z = bz2 + 2.0
+			npc_rot = PI
+
+		var npc := StaticBody3D.new()
+		npc.set_script(NPC_SCRIPT)
+		add_child(npc)
+		npc.setup(def)
+		npc.global_position = Vector3(npc_x, 0.0, npc_z)
+		npc.rotation.y = npc_rot
 
 
 func _make_occlusion_material(src: StandardMaterial3D) -> ShaderMaterial:

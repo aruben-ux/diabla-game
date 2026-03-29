@@ -479,6 +479,8 @@ func _update_minimap_for_dungeon(floor_num: int) -> void:
 
 
 func _get_local_player() -> Node:
+	if not multiplayer or not multiplayer.multiplayer_peer:
+		return null
 	var my_id := multiplayer.get_unique_id()
 	return player_container.get_node_or_null(str(my_id))
 

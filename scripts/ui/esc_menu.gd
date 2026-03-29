@@ -247,10 +247,10 @@ func _on_return_to_title() -> void:
 	var tree := get_tree()
 	if not tree:
 		return
-	var peer = multiplayer.multiplayer_peer if multiplayer else null
+	# Close peer first so no signals fire during scene teardown
+	if multiplayer and multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
 	tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
-	if peer:
-		peer.close()
 
 
 func _on_quit() -> void:

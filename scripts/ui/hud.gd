@@ -32,12 +32,24 @@ var _target_health_bar: ProgressBar
 var _target_health_label: Label
 var _target_info_label: Label
 
+# NPC dialog panel (built in code)
+var _dialog_panel: PanelContainer
+var _dialog_name_label: Label
+var _dialog_text_label: RichTextLabel
+var _dialog_continue_btn: Button
+var _dialog_close_btn: Button
+var _dialog_lines: Array = []
+var _dialog_index: int = 0
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
 	_build_target_panel()
+	_build_dialog_panel()
 	_style_potion_panel(health_potion_panel, Color(0.8, 0.15, 0.15, 0.7))
 	_style_potion_panel(mana_potion_panel, Color(0.15, 0.3, 0.8, 0.7))
+	EventBus.npc_dialog_opened.connect(_on_npc_dialog_opened)
+	EventBus.npc_dialog_closed.connect(_on_npc_dialog_closed)
 
 
 func _build_target_panel() -> void:
@@ -98,6 +110,111 @@ func _build_target_panel() -> void:
 	_target_panel.add_child(vbox)
 	add_child(_target_panel)
 	_target_panel.visible = false
+
+
+func _build_dialog_panel() -> void:
+	_dialog_panel = PanelContainer.new()
+	_dialog_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_dialog_panel.offset_left = -250
+	_dialog_panel.offset_right = 250
+	_dialog_panel.offset_top = -200
+	_dialog_panel.offset_bottom = -20
+	_dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.05, 0.08, 0.92)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.6, 0.5, 0.3, 0.8)
+	_dialog_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+
+	_dialog_name_label = Label.new()
+	_dialog_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dialog_name_label.add_theme_font_size_override("font_size", 20)
+	_dialog_name_label.modulate = Color(0.95, 0.85, 0.55)
+	vbox.add_child(_dialog_name_label)
+
+	var sep := HSeparator.new()
+	sep.modulate = Color(0.5, 0.4, 0.3, 0.5)
+	vbox.add_child(sep)
+
+	_dialog_text_label = RichTextLabel.new()
+	_dialog_text_label.bbcode_enabled = true
+	_dialog_text_label.fit_content = true
+	_dialog_text_label.custom_minimum_size = Vector2(0, 80)
+	_dialog_text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dialog_text_label.add_theme_font_size_override("normal_font_size", 16)
+	_dialog_text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(_dialog_text_label)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_END
+	btn_row.add_theme_constant_override("separation", 10)
+
+	_dialog_continue_btn = Button.new()
+	_dialog_continue_btn.text = "Continue"
+	_dialog_continue_btn.custom_minimum_size = Vector2(100, 32)
+	_dialog_continue_btn.pressed.connect(_on_dialog_continue)
+	btn_row.add_child(_dialog_continue_btn)
+
+	_dialog_close_btn = Button.new()
+	_dialog_close_btn.text = "Close"
+	_dialog_close_btn.custom_minimum_size = Vector2(80, 32)
+	_dialog_close_btn.pressed.connect(_on_dialog_close)
+	btn_row.add_child(_dialog_close_btn)
+
+	vbox.add_child(btn_row)
+	_dialog_panel.add_child(vbox)
+	add_child(_dialog_panel)
+	_dialog_panel.visible = false
+
+
+func _on_npc_dialog_opened(npc_name: String, lines: Array) -> void:
+	_dialog_lines = lines
+	_dialog_index = 0
+	_dialog_name_label.text = npc_name
+	_show_dialog_line()
+	_dialog_panel.visible = true
+
+
+func _on_npc_dialog_closed() -> void:
+	_dialog_panel.visible = false
+	_dialog_lines = []
+	_dialog_index = 0
+
+
+func _show_dialog_line() -> void:
+	if _dialog_index < _dialog_lines.size():
+		_dialog_text_label.text = str(_dialog_lines[_dialog_index])
+		_dialog_continue_btn.visible = _dialog_index < _dialog_lines.size() - 1
+	else:
+		_on_dialog_close()
+
+
+func _on_dialog_continue() -> void:
+	_dialog_index += 1
+	EventBus.npc_dialog_advance.emit()
+	_show_dialog_line()
+
+
+func _on_dialog_close() -> void:
+	_dialog_panel.visible = false
+	_dialog_lines = []
+	_dialog_index = 0
+	EventBus.npc_dialog_closed.emit()
 
 
 func _style_potion_panel(panel: Panel, color: Color) -> void:
