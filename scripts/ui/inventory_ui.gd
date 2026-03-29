@@ -120,7 +120,7 @@ func _build_ui() -> void:
 	var panel_w := paperdoll_w + 24 + CELL_SIZE * GRID_COLS + 16
 	var panel_h := CELL_SIZE * GRID_ROWS + 80
 	main_panel.size = Vector2(panel_w, panel_h)
-	main_panel.position = Vector2(get_viewport_rect().size.x - panel_w - 16, get_viewport_rect().size.y - panel_h - 16)
+	main_panel.position = Vector2(get_viewport_rect().size.x - panel_w - 16, get_viewport_rect().size.y - panel_h - 60)
 	main_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var panel_sb := StyleBoxFlat.new()
 	panel_sb.bg_color = COLOR_GRID_BG

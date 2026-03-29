@@ -597,8 +597,8 @@ func _build_character_panel() -> void:
 	var panel_h := 420
 	_char_panel.size = Vector2(panel_w, panel_h)
 	_char_panel.position = Vector2(
-		get_viewport_rect().size.x - panel_w - 16,
-		get_viewport_rect().size.y - panel_h - 16
+		16,
+		get_viewport_rect().size.y - panel_h - 60
 	)
 	_char_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_char_panel.z_index = 5
