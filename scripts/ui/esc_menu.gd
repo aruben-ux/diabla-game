@@ -9,6 +9,7 @@ signal closed
 # --- Main menu panel ---
 var _main_panel: PanelContainer
 var _options_panel: PanelContainer
+var _debug_panel: PanelContainer
 
 # --- Options state ---
 var _master_slider: HSlider
@@ -19,6 +20,10 @@ var _camera_sens_slider: HSlider
 
 var _main_center: CenterContainer
 var _options_center: CenterContainer
+var _debug_center: CenterContainer
+
+# --- Debug state ---
+var _invincible_check: CheckBox
 
 
 func _ready() -> void:
@@ -44,14 +49,23 @@ func _ready() -> void:
 	_options_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_options_center)
 
+	_debug_center = CenterContainer.new()
+	_debug_center.set_anchors_preset(PRESET_FULL_RECT)
+	_debug_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_debug_center)
+
 	_build_main_panel()
 	_build_options_panel()
+	if OS.has_feature("debug"):
+		_build_debug_panel()
 	_show_main()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		if _options_panel.visible:
+			_show_main()
+		elif _debug_center.visible:
 			_show_main()
 		else:
 			_close()
@@ -108,6 +122,14 @@ func _build_main_panel() -> void:
 	var btn_options := _make_button("Options")
 	btn_options.pressed.connect(_show_options)
 	vbox.add_child(btn_options)
+
+	if OS.has_feature("debug"):
+		var btn_debug := _make_button("Debug Menu")
+		btn_debug.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		btn_debug.add_theme_color_override("font_hover_color", Color(1.0, 0.5, 0.5))
+		btn_debug.add_theme_color_override("font_pressed_color", Color(0.8, 0.2, 0.2))
+		btn_debug.pressed.connect(_show_debug)
+		vbox.add_child(btn_debug)
 
 	var btn_title := _make_button("Return to Title")
 	btn_title.pressed.connect(_on_return_to_title)
@@ -234,11 +256,19 @@ func _add_slider_row(parent: VBoxContainer, label_text: String, initial: float, 
 func _show_main() -> void:
 	_main_center.visible = true
 	_options_center.visible = false
+	_debug_center.visible = false
 
 
 func _show_options() -> void:
 	_main_center.visible = false
 	_options_center.visible = true
+	_debug_center.visible = false
+
+
+func _show_debug() -> void:
+	_main_center.visible = false
+	_options_center.visible = false
+	_debug_center.visible = true
 
 
 # --- Callbacks ---
@@ -304,3 +334,174 @@ func _on_vsync_toggled(enabled: bool) -> void:
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
 	else:
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+
+
+# --- Debug Panel ---
+
+func _build_debug_panel() -> void:
+	_debug_panel = PanelContainer.new()
+	_debug_panel.custom_minimum_size = Vector2(320, 0)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.08, 0.08, 0.95)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.8, 0.2, 0.2, 0.8)
+	_debug_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+
+	var title := Label.new()
+	title.text = "DEBUG MENU"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	vbox.add_child(title)
+
+	var warn := Label.new()
+	warn.text = "Debug build only — hidden in production"
+	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warn.add_theme_font_size_override("font_size", 11)
+	warn.add_theme_color_override("font_color", Color(0.6, 0.4, 0.4))
+	vbox.add_child(warn)
+
+	vbox.add_child(HSeparator.new())
+
+	# Invincible toggle
+	_invincible_check = CheckBox.new()
+	_invincible_check.text = "  Invincible"
+	_invincible_check.add_theme_color_override("font_color", Color(0.9, 0.8, 0.6))
+	var player := _get_local_player()
+	if player:
+		_invincible_check.button_pressed = player.debug_invincible
+	_invincible_check.toggled.connect(_on_invincible_toggled)
+	vbox.add_child(_invincible_check)
+
+	vbox.add_child(HSeparator.new())
+
+	# Action buttons
+	var btn_reveal := _make_debug_button("Reveal Entire Minimap")
+	btn_reveal.pressed.connect(_on_debug_reveal_minimap)
+	vbox.add_child(btn_reveal)
+
+	var btn_gold := _make_debug_button("+1000 Gold")
+	btn_gold.pressed.connect(_on_debug_add_gold)
+	vbox.add_child(btn_gold)
+
+	var btn_xp := _make_debug_button("+1000 XP")
+	btn_xp.pressed.connect(_on_debug_add_xp)
+	vbox.add_child(btn_xp)
+
+	var btn_heal := _make_debug_button("Full Heal + Mana")
+	btn_heal.pressed.connect(_on_debug_full_heal)
+	vbox.add_child(btn_heal)
+
+	var btn_kill := _make_debug_button("Kill Nearby Enemies")
+	btn_kill.pressed.connect(_on_debug_kill_enemies)
+	vbox.add_child(btn_kill)
+
+	var btn_quests := _make_debug_button("Complete Active Quests")
+	btn_quests.pressed.connect(_on_debug_complete_quests)
+	vbox.add_child(btn_quests)
+
+	var btn_level := _make_debug_button("Level Up")
+	btn_level.pressed.connect(_on_debug_level_up)
+	vbox.add_child(btn_level)
+
+	vbox.add_child(HSeparator.new())
+
+	var btn_back := _make_button("Back")
+	btn_back.pressed.connect(_show_main)
+	vbox.add_child(btn_back)
+
+	_debug_panel.add_child(vbox)
+	_debug_center.add_child(_debug_panel)
+	_debug_center.visible = false
+
+
+func _make_debug_button(label: String) -> Button:
+	var btn := Button.new()
+	btn.text = label
+	btn.custom_minimum_size.y = 32
+	btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.7))
+	return btn
+
+
+func _get_local_player() -> Node:
+	var players := get_tree().get_nodes_in_group("players")
+	for p in players:
+		if p.is_multiplayer_authority():
+			return p
+	return null
+
+
+func _on_invincible_toggled(enabled: bool) -> void:
+	var player := _get_local_player()
+	if player:
+		player.debug_invincible = enabled
+
+
+func _on_debug_reveal_minimap() -> void:
+	var minimap := get_tree().current_scene.get_node_or_null("CanvasLayer/Minimap")
+	if minimap and minimap.has_method("debug_reveal_all"):
+		minimap.debug_reveal_all()
+
+
+func _on_debug_add_gold() -> void:
+	var player := _get_local_player()
+	if player:
+		player.add_gold(1000)
+		if player.has_method("sync_gold_to_server"):
+			player.sync_gold_to_server()
+
+
+func _on_debug_add_xp() -> void:
+	var player := _get_local_player()
+	if player and player.has_method("grant_xp"):
+		player.grant_xp(1000.0)
+
+
+func _on_debug_full_heal() -> void:
+	var player := _get_local_player()
+	if player:
+		player.stats.health = player.stats.max_health
+		player.stats.mana = player.stats.max_mana
+
+
+func _on_debug_kill_enemies() -> void:
+	var player := _get_local_player()
+	if not player:
+		return
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if is_instance_valid(enemy) and enemy.global_position.distance_to(player.global_position) < 30.0:
+			if enemy.has_method("take_damage"):
+				enemy.take_damage(99999.0, player)
+
+
+func _on_debug_complete_quests() -> void:
+	for qid in QuestManager.quests:
+		var q: QuestData = QuestManager.quests[qid]
+		if q.status == QuestData.QuestStatus.ACTIVE:
+			q.current_count = q.target_count
+			q.status = QuestData.QuestStatus.COMPLETED
+	EventBus.quest_updated.emit()
+
+
+func _on_debug_level_up() -> void:
+	var player := _get_local_player()
+	if player:
+		var needed := player.stats.experience_to_next_level - player.stats.experience
+		if needed > 0:
+			player.grant_xp(needed + 1.0)

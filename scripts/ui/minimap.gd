@@ -102,6 +102,14 @@ func _is_revealed(gx: int, gy: int) -> bool:
 	return _revealed[gx][gy]
 
 
+func debug_reveal_all() -> void:
+	for x in grid_width:
+		for y in grid_height:
+			_revealed[x][y] = true
+	_fog_image.fill(Color(0, 0, 0, 0))
+	_fog_texture.update(_fog_image)
+
+
 func _build_map_texture() -> void:
 	var img := Image.create(grid_width, grid_height, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))

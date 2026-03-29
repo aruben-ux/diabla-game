@@ -42,6 +42,7 @@ var current_target: Node3D = null
 var _prev_target: Node3D = null
 var _pending_interact: Node3D = null
 const INTERACT_RANGE := 4.0
+var debug_invincible: bool = false
 
 ## Shared outline overlay material
 static var _outline_material: ShaderMaterial
@@ -575,6 +576,8 @@ func _perform_attack() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func receive_damage(amount: float) -> void:
+	if debug_invincible:
+		return
 	var actual := stats.take_damage(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.2, 0),
