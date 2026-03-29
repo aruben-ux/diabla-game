@@ -541,6 +541,7 @@ func _build_mesh() -> void:
 	_build_floor_chunks(stairs_up_data, "StairsUp", stairs_up_material)
 	_build_floor_chunks(stairs_down_data, "StairsDown", stairs_down_material)
 	_build_wall_blocks(wall_positions)
+	_build_merged_floor_collision()
 	_build_navigation()
 
 
@@ -548,8 +549,8 @@ func _build_floor_chunks(positions: Array, group_name: String, mat: StandardMate
 	if positions.is_empty():
 		return
 
-	# Build in chunks of 500 tiles for performance
-	var chunk_size := 500
+	# Build in chunks of 2000 tiles to reduce draw calls
+	var chunk_size := 2000
 	var chunk_idx := 0
 
 	for i in range(0, positions.size(), chunk_size):
@@ -571,29 +572,13 @@ func _build_floor_chunks(positions: Array, group_name: String, mat: StandardMate
 		add_child(mesh_instance)
 		chunk_idx += 1
 
-	# Solid box collision for all floor tiles (thin slab)
-	var floor_body := StaticBody3D.new()
-	floor_body.collision_layer = 1  # Ground
-	floor_body.collision_mask = 0
-	floor_body.name = "%s_Collision" % group_name
-	add_child(floor_body)
-
-	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(TILE_SIZE, 0.2, TILE_SIZE)
-
-	for pos in positions:
-		var col := CollisionShape3D.new()
-		col.shape = box_shape
-		col.position = pos + Vector3(0, -0.1, 0)
-		floor_body.add_child(col)
-
 
 func _build_wall_blocks(positions: Array) -> void:
 	if positions.is_empty():
 		return
 
-	# Visual mesh in chunks
-	var chunk_size := 500
+	# Visual mesh in chunks of 2000
+	var chunk_size := 2000
 	var chunk_idx := 0
 
 	for i in range(0, positions.size(), chunk_size):
@@ -616,21 +601,8 @@ func _build_wall_blocks(positions: Array) -> void:
 		add_child(mesh_instance)
 		chunk_idx += 1
 
-	# Solid box collision per wall tile (not trimesh — trimesh is one-sided)
-	var wall_body := StaticBody3D.new()
-	wall_body.collision_layer = 1
-	wall_body.collision_mask = 0
-	wall_body.name = "WallCollision"
-	add_child(wall_body)
-
-	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(TILE_SIZE, WALL_HEIGHT, TILE_SIZE)
-
-	for pos in positions:
-		var col := CollisionShape3D.new()
-		col.shape = box_shape
-		col.position = pos + Vector3(0, WALL_HEIGHT / 2.0, 0)
-		wall_body.add_child(col)
+	# Merge wall collisions into row runs instead of per-tile shapes
+	_build_merged_wall_collision(positions)
 
 
 func _add_floor_quad(st: SurfaceTool, pos: Vector3) -> void:
@@ -687,13 +659,73 @@ func _add_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) 
 	st.add_vertex(d)
 
 
+func _build_merged_floor_collision() -> void:
+	## Single large floor plane covering the entire dungeon — replaces per-tile collision.
+	var floor_body := StaticBody3D.new()
+	floor_body.collision_layer = 1
+	floor_body.collision_mask = 0
+	floor_body.name = "FloorCollision"
+	add_child(floor_body)
+
+	var box := BoxShape3D.new()
+	box.size = Vector3(dungeon_width * TILE_SIZE, 0.2, dungeon_height * TILE_SIZE)
+	var col := CollisionShape3D.new()
+	col.shape = box
+	col.position = Vector3(
+		dungeon_width * TILE_SIZE * 0.5,
+		-0.1,
+		dungeon_height * TILE_SIZE * 0.5
+	)
+	floor_body.add_child(col)
+
+
+func _build_merged_wall_collision(positions: Array) -> void:
+	## Merge adjacent wall tiles into row-runs to minimize collision nodes.
+	## Scans X rows; adjacent same-row tiles become one stretched box.
+	var wall_body := StaticBody3D.new()
+	wall_body.collision_layer = 1
+	wall_body.collision_mask = 0
+	wall_body.name = "WallCollision"
+	add_child(wall_body)
+
+	# Build a set of (grid_x, grid_y) for quick lookup
+	var wall_set := {}
+	for pos in positions:
+		var gx := roundi(pos.x / TILE_SIZE)
+		var gy := roundi(pos.z / TILE_SIZE)
+		wall_set[gx * 10000 + gy] = true
+
+	# Scan rows and merge horizontal runs
+	for y in dungeon_height:
+		var run_start := -1
+		for x in range(dungeon_width + 1):
+			var key := x * 10000 + y
+			if x < dungeon_width and wall_set.has(key):
+				if run_start < 0:
+					run_start = x
+			else:
+				if run_start >= 0:
+					var run_len := x - run_start
+					var box := BoxShape3D.new()
+					box.size = Vector3(run_len * TILE_SIZE, WALL_HEIGHT, TILE_SIZE)
+					var col := CollisionShape3D.new()
+					col.shape = box
+					col.position = Vector3(
+						(run_start + run_len * 0.5) * TILE_SIZE,
+						WALL_HEIGHT * 0.5,
+						y * TILE_SIZE
+					)
+					wall_body.add_child(col)
+					run_start = -1
+
+
 func _build_navigation() -> void:
 	var nav_region := NavigationRegion3D.new()
 	nav_region.name = "DungeonNavRegion"
 
 	var nav_mesh := NavigationMesh.new()
-	nav_mesh.cell_size = 0.25
-	nav_mesh.cell_height = 0.1
+	nav_mesh.cell_size = 0.5
+	nav_mesh.cell_height = 0.2
 	nav_mesh.agent_radius = 0.5
 	nav_mesh.agent_height = 1.8
 

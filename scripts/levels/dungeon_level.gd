@@ -354,14 +354,16 @@ func _place_room_lights(room_list: Array) -> void:
 		var cx: float = (r.position.x + r.size.x / 2.0) * generator.TILE_SIZE
 		var cz: float = (r.position.y + r.size.y / 2.0) * generator.TILE_SIZE
 
-		# Central room light — warm, shadow-casting
+		# Central room light — warm, shadows only on large rooms
 		var light := OmniLight3D.new()
 		light.global_position = Vector3(cx, 3.5, cz)
 		light.omni_range = maxf(r.size.x, r.size.y) * generator.TILE_SIZE * 0.75
 		light.light_energy = 3.0
 		light.light_color = Color(1.0, 0.85, 0.6)
-		light.shadow_enabled = true
-		light.omni_shadow_mode = OmniLight3D.SHADOW_CUBE
+		var is_large := r.size.x >= 10 or r.size.y >= 10
+		light.shadow_enabled = is_large
+		if is_large:
+			light.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
 		light_container.add_child(light)
 
 		# Place wall torches around room perimeter
@@ -376,20 +378,19 @@ func _place_corridor_lights() -> void:
 	var gw: int = generator.dungeon_width
 	var gh: int = generator.dungeon_height
 	var ts: float = generator.TILE_SIZE
-	var spacing := 4  # Place a light every N corridor tiles
+	var spacing := 8  # Place a light every N corridor tiles
 	var count := 0
 
-	for x in gw:
-		for y in gh:
+	for x in range(0, gw, 2):  # Skip every other column for speed
+		for y in range(0, gh, 2):
 			if g[x][y] != 3:  # 3 = corridor
 				continue
-			# Only place at intervals to avoid too many lights
 			if (x + y) % spacing != 0:
 				continue
 			var light := OmniLight3D.new()
 			light.position = Vector3(x * ts, 2.5, y * ts)
-			light.omni_range = 10.0
-			light.light_energy = 1.5
+			light.omni_range = 12.0
+			light.light_energy = 2.0
 			light.light_color = Color(0.8, 0.7, 0.55)
 			light.shadow_enabled = false
 			light_container.add_child(light)
@@ -401,7 +402,7 @@ func _place_corridor_lights() -> void:
 func _place_torches_in_room(room: Rect2i) -> void:
 	var ts: float = generator.TILE_SIZE
 	var half_ts: float = ts / 2.0
-	var spacing := 4
+	var spacing := 6
 	var g: Array = generator.grid
 	var gw: int = generator.dungeon_width
 	var gh: int = generator.dungeon_height
@@ -500,15 +501,14 @@ func _create_torch(pos: Vector3, rot_y: float) -> void:
 	fire.draw_pass_1 = quad
 	torch.add_child(fire)
 
-	# Point light for torch with shadow
+	# Point light for torch (no shadows for performance)
 	var torch_light := OmniLight3D.new()
 	torch_light.name = "TorchLight"
 	torch_light.position = Vector3(0, 0.5, 0.55)
 	torch_light.omni_range = 7.0
 	torch_light.light_energy = 1.0
 	torch_light.light_color = Color(1.0, 0.75, 0.4)
-	torch_light.shadow_enabled = true
-	torch_light.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
+	torch_light.shadow_enabled = false
 	torch.add_child(torch_light)
 
 	light_container.add_child(torch)
