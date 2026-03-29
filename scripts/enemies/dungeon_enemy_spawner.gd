@@ -109,11 +109,6 @@ func _process(delta: float) -> void:
 		_sync_timer = 0.0
 		_broadcast_all_enemies()
 
-	respawn_timer += delta
-	if respawn_timer >= respawn_interval:
-		respawn_timer = 0.0
-		_respawn_pass()
-
 
 func _initial_spawn() -> void:
 	var start_idx := 1 if skip_first_room else 0
