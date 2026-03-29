@@ -7,6 +7,7 @@ var display_name: String = "Treasure Chest"
 var interact_hint: String = "Click to open"
 
 var _opened := false
+var _loot_dropped := false
 var _lid_node: Node3D
 var _floor_level: int = 1
 

@@ -829,10 +829,12 @@ func _server_interact_intent(target_name: String) -> void:
 	var player_dist := global_position.distance_to(best.global_position)
 	print("[Interact] %s -> %s  dist=%.1f" % [player_name, target_name, player_dist])
 	best.interact(self)
-	# If this is a chest, spawn loot
-	if best.has_method("get_floor_level"):
-		var floor_lvl: int = best.get_floor_level()
-		_spawn_chest_loot(floor_lvl, best.global_position)
+	# If this is a chest that just opened, spawn loot
+	if best.has_method("get_floor_level") and best.get("_opened") == true:
+		if not best.get("_loot_dropped"):
+			best._loot_dropped = true
+			var floor_lvl: int = best.get_floor_level()
+			_spawn_chest_loot(floor_lvl, best.global_position)
 	# Tell client to run interact() locally for stat changes (fountain heal etc.)
 	_sync_interact_done.rpc(target_name)
 
