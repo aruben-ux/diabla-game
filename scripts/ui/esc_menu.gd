@@ -502,6 +502,6 @@ func _on_debug_complete_quests() -> void:
 func _on_debug_level_up() -> void:
 	var player := _get_local_player()
 	if player:
-		var needed := player.stats.experience_to_next_level - player.stats.experience
+		var needed: float = player.stats.experience_to_next_level - player.stats.experience
 		if needed > 0:
 			player.grant_xp(needed + 1.0)
