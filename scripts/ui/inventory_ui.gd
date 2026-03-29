@@ -40,6 +40,7 @@ var _tooltip: Panel
 var _tooltip_label: RichTextLabel
 var _gold_label: Label
 var _paperdoll_panel: Panel
+var _main_panel: Panel
 var _tooltip_from_equip: bool = false
 
 ## Shop mode state
@@ -113,6 +114,7 @@ func _input(event: InputEvent) -> void:
 func _build_ui() -> void:
 	# Main panel (right side of screen)
 	var main_panel := Panel.new()
+	_main_panel = main_panel
 	main_panel.name = "MainPanel"
 	var paperdoll_w := 260
 	var panel_w := paperdoll_w + 24 + CELL_SIZE * GRID_COLS + 16
@@ -141,6 +143,14 @@ func _build_ui() -> void:
 	title.position = Vector2(0, 4)
 	title.size = Vector2(panel_w, 20)
 	main_panel.add_child(title)
+
+	# Close button
+	var close_btn := Button.new()
+	close_btn.text = "X"
+	close_btn.position = Vector2(panel_w - 30, 4)
+	close_btn.size = Vector2(24, 24)
+	close_btn.pressed.connect(func(): visible = false; if _in_shop_mode: close_shop())
+	main_panel.add_child(close_btn)
 
 	# Gold label
 	_gold_label = Label.new()

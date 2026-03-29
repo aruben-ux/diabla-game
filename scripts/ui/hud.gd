@@ -47,12 +47,22 @@ var _party_entries: Dictionary = {}  # peer_id -> Dictionary of controls
 const DUNGEON_X_THRESHOLD := 250.0
 const FLOOR_SPACING := 200.0
 
+# Character panel (stats window)
+var _char_panel: Panel
+var _char_stat_labels: Dictionary = {}  # stat_name -> Label
+
+# Action buttons (lower-right)
+var _inventory_btn: Button
+var _character_btn: Button
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
 	_build_target_panel()
 	_build_dialog_panel()
 	_build_party_panel()
+	_build_character_panel()
+	_build_action_buttons()
 	_style_potion_panel(health_potion_panel, Color(0.8, 0.15, 0.15, 0.7))
 	_style_potion_panel(mana_potion_panel, Color(0.15, 0.3, 0.8, 0.7))
 	EventBus.npc_dialog_opened.connect(_on_npc_dialog_opened)
@@ -505,6 +515,7 @@ func _process(delta: float) -> void:
 	# Update target info
 	_update_target_display()
 	_update_party_panel()
+	_update_character_panel()
 
 
 func _update_target_display() -> void:
@@ -575,3 +586,218 @@ func _on_cooldown_updated(slot: int, remaining: float, total: float) -> void:
 		panel.modulate = Color(0.4, 0.4, 0.4)
 	else:
 		panel.modulate = Color.WHITE
+
+
+## ─── CHARACTER PANEL ───
+
+func _build_character_panel() -> void:
+	_char_panel = Panel.new()
+	_char_panel.name = "CharacterPanel"
+	var panel_w := 280
+	var panel_h := 420
+	_char_panel.size = Vector2(panel_w, panel_h)
+	_char_panel.position = Vector2(
+		get_viewport_rect().size.x - panel_w - 16,
+		get_viewport_rect().size.y - panel_h - 16
+	)
+	_char_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_char_panel.z_index = 5
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.12, 0.12, 0.15, 0.95)
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.4, 0.35, 0.2)
+	_char_panel.add_theme_stylebox_override("panel", sb)
+	add_child(_char_panel)
+
+	# Title
+	var title := Label.new()
+	title.text = "Character"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(0, 6)
+	title.size = Vector2(panel_w, 20)
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	_char_panel.add_child(title)
+
+	# Close button
+	var close_btn := Button.new()
+	close_btn.text = "X"
+	close_btn.position = Vector2(panel_w - 30, 4)
+	close_btn.size = Vector2(24, 24)
+	close_btn.pressed.connect(_toggle_character_panel)
+	_char_panel.add_child(close_btn)
+
+	# Stats list
+	var y_offset := 34
+	var line_h := 22
+	var stats_list := [
+		["name", "Name"],
+		["class", "Class"],
+		["level", "Level"],
+		["experience", "Experience"],
+		["sep1", ""],
+		["health", "Health"],
+		["mana", "Mana"],
+		["sep2", ""],
+		["strength", "Strength"],
+		["dexterity", "Dexterity"],
+		["intelligence", "Intelligence"],
+		["vitality", "Vitality"],
+		["sep3", ""],
+		["attack_damage", "Attack Damage"],
+		["attack_speed", "Attack Speed"],
+		["defense", "Defense"],
+		["move_speed", "Move Speed"],
+	]
+
+	for entry in stats_list:
+		var key: String = entry[0]
+		var label_text: String = entry[1]
+
+		if key.begins_with("sep"):
+			# Separator line
+			var sep := HSeparator.new()
+			sep.position = Vector2(12, y_offset + 4)
+			sep.size = Vector2(panel_w - 24, 2)
+			sep.modulate = Color(0.4, 0.35, 0.3, 0.5)
+			_char_panel.add_child(sep)
+			y_offset += 12
+			continue
+
+		# Label on the left
+		var name_lbl := Label.new()
+		name_lbl.text = label_text
+		name_lbl.position = Vector2(16, y_offset)
+		name_lbl.size = Vector2(140, line_h)
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_char_panel.add_child(name_lbl)
+
+		# Value on the right
+		var val_lbl := Label.new()
+		val_lbl.text = "—"
+		val_lbl.position = Vector2(140, y_offset)
+		val_lbl.size = Vector2(panel_w - 156, line_h)
+		val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val_lbl.add_theme_font_size_override("font_size", 13)
+		val_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_char_panel.add_child(val_lbl)
+		_char_stat_labels[key] = val_lbl
+
+		y_offset += line_h
+
+	_char_panel.visible = false
+
+
+func _update_character_panel() -> void:
+	if not _char_panel or not _char_panel.visible:
+		return
+	if not tracked_player or not is_instance_valid(tracked_player):
+		return
+
+	var s: PlayerStats = tracked_player.stats
+	if not s:
+		return
+
+	_set_stat("name", tracked_player.player_name)
+
+	var char_class_name := "Unknown"
+	if CharacterManager.active_character:
+		var cc = CharacterManager.active_character.character_class
+		char_class_name = CharacterData.class_name_from_enum(cc)
+	_set_stat("class", char_class_name)
+
+	_set_stat("level", str(s.level))
+	_set_stat("experience", "%d / %d" % [int(s.experience), int(s.experience_to_next_level)])
+	_set_stat("health", "%d / %d" % [int(s.health), int(s.max_health)])
+	_set_stat("mana", "%d / %d" % [int(s.mana), int(s.max_mana)])
+	_set_stat("strength", str(s.strength))
+	_set_stat("dexterity", str(s.dexterity))
+	_set_stat("intelligence", str(s.intelligence))
+	_set_stat("vitality", str(s.vitality))
+	_set_stat("attack_damage", "%.1f" % s.attack_damage)
+	_set_stat("attack_speed", "%.2f" % s.attack_speed)
+	_set_stat("defense", "%.1f" % s.defense)
+	_set_stat("move_speed", "%.1f" % s.move_speed)
+
+
+func _set_stat(key: String, value: String) -> void:
+	if key in _char_stat_labels:
+		_char_stat_labels[key].text = value
+
+
+func _toggle_character_panel() -> void:
+	if _char_panel:
+		_char_panel.visible = not _char_panel.visible
+
+
+## ─── ACTION BUTTONS ───
+
+func _build_action_buttons() -> void:
+	var btn_container := HBoxContainer.new()
+	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	btn_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	btn_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	btn_container.offset_left = -180
+	btn_container.offset_top = -52
+	btn_container.offset_right = -16
+	btn_container.offset_bottom = -16
+	btn_container.add_theme_constant_override("separation", 8)
+	btn_container.alignment = BoxContainer.ALIGNMENT_END
+	add_child(btn_container)
+
+	_character_btn = _create_action_button("Character\n(C)", btn_container)
+	_character_btn.pressed.connect(_toggle_character_panel)
+
+	_inventory_btn = _create_action_button("Inventory\n(I)", btn_container)
+	_inventory_btn.pressed.connect(_on_inventory_btn_pressed)
+
+
+func _create_action_button(text: String, parent: Control) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(76, 36)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.15, 0.13, 0.18, 0.9)
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.border_width_left = 1
+	sb.border_width_right = 1
+	sb.border_width_top = 1
+	sb.border_width_bottom = 1
+	sb.border_color = Color(0.5, 0.4, 0.3, 0.7)
+	btn.add_theme_stylebox_override("normal", sb)
+	var hover_sb := sb.duplicate()
+	hover_sb.bg_color = Color(0.22, 0.18, 0.26, 0.95)
+	btn.add_theme_stylebox_override("hover", hover_sb)
+	var pressed_sb := sb.duplicate()
+	pressed_sb.bg_color = Color(0.1, 0.08, 0.12, 0.95)
+	btn.add_theme_stylebox_override("pressed", pressed_sb)
+	btn.add_theme_font_size_override("font_size", 12)
+	parent.add_child(btn)
+	return btn
+
+
+func _on_inventory_btn_pressed() -> void:
+	# Toggle inventory via the same input action
+	var ev := InputEventAction.new()
+	ev.action = "toggle_inventory"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_character"):
+		_toggle_character_panel()
+		get_viewport().set_input_as_handled()
