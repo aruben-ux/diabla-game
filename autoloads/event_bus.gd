@@ -26,3 +26,7 @@ signal game_token_received(peer_id: int, token: String)
 signal npc_dialog_opened(npc_name: String, lines: Array)
 signal npc_dialog_closed()
 signal npc_dialog_advance()
+
+# Shop / vendor events
+signal shop_opened(vendor_name: String, stock: Array, vendor_type: String)
+signal shop_closed()

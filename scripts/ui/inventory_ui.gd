@@ -42,14 +42,33 @@ var _gold_label: Label
 var _paperdoll_panel: Panel
 var _tooltip_from_equip: bool = false
 
+## Shop mode state
+var _in_shop_mode: bool = false
+var _shop_stock: Array = []         # Raw stock dicts from NPC
+var _shop_placed: Array = []        # { "item": ItemData, "x": int, "y": int, "price": int, "stock_entry": Dictionary }
+var _shop_vendor_name: String = ""
+var _shop_panel: Panel              # Panel on the left side showing vendor grid
+var _shop_grid_container: Control   # Draws shop item grid
+var _shop_title_label: Label
+var _shop_gold_label: Label
+var _drag_from_shop: bool = false   # True when dragging FROM the shop grid
+var _drag_shop_entry: Dictionary = {}  # The shop_placed entry being dragged (for visual only)
+
+const SHOP_GRID_COLS := 5
+const SHOP_GRID_ROWS := 10
+
 
 func setup(inv: Inventory, player: Node) -> void:
 	inventory = inv
 	player_ref = player
 	if not _grid_container:
 		_build_ui()
+	if not _shop_panel:
+		_build_shop_panel()
 	inventory.inventory_changed.connect(_refresh)
 	inventory.gold_changed.connect(_on_gold_changed)
+	if not EventBus.shop_opened.is_connected(_on_event_shop_opened):
+		EventBus.shop_opened.connect(_on_event_shop_opened)
 	_refresh()
 	_update_gold()
 
@@ -64,8 +83,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		visible = !visible
 		if visible:
 			_refresh()
-		elif _dragging:
-			_cancel_drag()
+		else:
+			if _dragging:
+				_cancel_drag()
+			if _in_shop_mode:
+				close_shop()
+
+	if event.is_action_pressed("ui_cancel") and _in_shop_mode and visible:
+		close_shop()
+		get_viewport().set_input_as_handled()
 
 	if _dragging and event is InputEventKey:
 		if event.pressed and event.keycode == KEY_R:
@@ -214,6 +240,177 @@ func _build_ui() -> void:
 	_tooltip.add_child(_tooltip_label)
 
 
+func _build_shop_panel() -> void:
+	_shop_panel = Panel.new()
+	_shop_panel.name = "ShopPanel"
+	var panel_w := CELL_SIZE * SHOP_GRID_COLS + 24
+	var panel_h := CELL_SIZE * SHOP_GRID_ROWS + 80
+	_shop_panel.size = Vector2(panel_w, panel_h)
+	_shop_panel.position = Vector2(16, get_viewport_rect().size.y - panel_h - 16)
+	_shop_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = COLOR_GRID_BG
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 6
+	sb.corner_radius_bottom_left = 6
+	sb.corner_radius_bottom_right = 6
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.5, 0.4, 0.25)
+	_shop_panel.add_theme_stylebox_override("panel", sb)
+	add_child(_shop_panel)
+
+	# Vendor name title
+	_shop_title_label = Label.new()
+	_shop_title_label.text = "Shop"
+	_shop_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_title_label.position = Vector2(0, 4)
+	_shop_title_label.size = Vector2(panel_w, 20)
+	_shop_title_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	_shop_panel.add_child(_shop_title_label)
+
+	# Gold label
+	_shop_gold_label = Label.new()
+	_shop_gold_label.text = "Gold: 0"
+	_shop_gold_label.position = Vector2(12, 26)
+	_shop_gold_label.add_theme_color_override("font_color", Color.GOLD)
+	_shop_panel.add_child(_shop_gold_label)
+
+	# Close button
+	var close_btn := Button.new()
+	close_btn.text = "X"
+	close_btn.position = Vector2(panel_w - 30, 4)
+	close_btn.size = Vector2(24, 24)
+	close_btn.pressed.connect(close_shop)
+	_shop_panel.add_child(close_btn)
+
+	# Shop grid
+	_shop_grid_container = Control.new()
+	_shop_grid_container.name = "ShopGridContainer"
+	_shop_grid_container.position = Vector2(12, 48)
+	_shop_grid_container.size = Vector2(CELL_SIZE * SHOP_GRID_COLS, CELL_SIZE * SHOP_GRID_ROWS)
+	_shop_grid_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	_shop_grid_container.draw.connect(_draw_shop_grid)
+	_shop_grid_container.gui_input.connect(_on_shop_grid_gui_input)
+	_shop_panel.add_child(_shop_grid_container)
+
+	_shop_panel.visible = false
+
+
+func open_shop(vendor_name: String, stock: Array) -> void:
+	_in_shop_mode = true
+	_shop_vendor_name = vendor_name
+	_shop_stock = stock
+	_place_shop_stock()
+	if not _shop_panel:
+		_build_shop_panel()
+	_shop_title_label.text = vendor_name
+	_update_shop_gold()
+	_shop_panel.visible = true
+	visible = true
+	_refresh()
+
+
+func close_shop() -> void:
+	_in_shop_mode = false
+	_shop_stock = []
+	_shop_placed = []
+	if _shop_panel:
+		_shop_panel.visible = false
+	EventBus.shop_closed.emit()
+
+
+func _on_event_shop_opened(vendor_name: String, stock: Array, _vendor_type: String) -> void:
+	open_shop(vendor_name, stock)
+
+
+func _place_shop_stock() -> void:
+	## Auto-place vendor stock items into the shop grid.
+	_shop_placed = []
+	var occupancy: Array = []
+	for y in SHOP_GRID_ROWS:
+		var row: Array = []
+		for x in SHOP_GRID_COLS:
+			row.append(false)
+		occupancy.append(row)
+
+	for stock_entry in _shop_stock:
+		var item := _create_item_from_stock(stock_entry)
+		var sz := item.get_grid_size()
+		var placed := false
+		for gy in SHOP_GRID_ROWS:
+			if placed:
+				break
+			for gx in SHOP_GRID_COLS:
+				if gx + sz.x > SHOP_GRID_COLS or gy + sz.y > SHOP_GRID_ROWS:
+					continue
+				var fits := true
+				for dy in sz.y:
+					for dx in sz.x:
+						if occupancy[gy + dy][gx + dx]:
+							fits = false
+							break
+					if not fits:
+						break
+				if fits:
+					for dy in sz.y:
+						for dx in sz.x:
+							occupancy[gy + dy][gx + dx] = true
+					_shop_placed.append({
+						"item": item,
+						"x": gx,
+						"y": gy,
+						"price": int(stock_entry.get("price", 0)),
+						"stock_entry": stock_entry,
+					})
+					placed = true
+					break
+
+
+func _create_item_from_stock(entry: Dictionary) -> ItemData:
+	var item := ItemData.new()
+	item.id = entry.get("id", "item_%d" % randi())
+	item.display_name = entry.get("name", "Item")
+	item.description = entry.get("description", "")
+	item.item_type = int(entry.get("item_type", ItemData.ItemType.MISC)) as ItemData.ItemType
+	item.rarity = int(entry.get("rarity", ItemData.Rarity.COMMON)) as ItemData.Rarity
+	item.bonus_damage = entry.get("bonus_damage", 0.0)
+	item.bonus_defense = entry.get("bonus_defense", 0.0)
+	item.bonus_health = entry.get("bonus_health", 0.0)
+	item.bonus_mana = entry.get("bonus_mana", 0.0)
+	item.bonus_strength = int(entry.get("bonus_strength", 0))
+	item.bonus_dexterity = int(entry.get("bonus_dexterity", 0))
+	item.bonus_intelligence = int(entry.get("bonus_intelligence", 0))
+	item.heal_amount = entry.get("heal_amount", 0.0)
+	item.mana_restore = entry.get("mana_restore", 0.0)
+	item.grid_w = int(entry.get("grid_w", 1))
+	item.grid_h = int(entry.get("grid_h", 1))
+	item.icon_color = ItemData.get_rarity_color(item.rarity)
+	return item
+
+
+func _update_shop_gold() -> void:
+	if _shop_gold_label and inventory:
+		_shop_gold_label.text = "Gold: %d" % inventory.gold
+
+
+func _get_sell_price(item: ItemData) -> int:
+	var value := 0.0
+	value += item.bonus_damage * 5.0
+	value += item.bonus_defense * 4.0
+	value += item.bonus_health * 0.5
+	value += item.bonus_mana * 0.5
+	value += item.bonus_strength * 8.0
+	value += item.bonus_dexterity * 8.0
+	value += item.bonus_intelligence * 8.0
+	value += item.heal_amount * 0.3
+	value += item.mana_restore * 0.3
+	value *= (1.0 + item.rarity * 0.3)
+	return maxi(int(value), 1)
+
+
 func _create_equip_slot(slot_name: String, pos: Vector2, slot_size: Vector2 = Vector2(48, 48)) -> Panel:
 	var panel := Panel.new()
 	panel.name = "Equip_" + slot_name
@@ -322,10 +519,114 @@ func _draw_grid() -> void:
 						_grid_container.draw_rect(r, preview_color)
 
 
+func _draw_shop_grid() -> void:
+	if not _shop_grid_container:
+		return
+	# Draw empty cell backgrounds
+	for gy in SHOP_GRID_ROWS:
+		for gx in SHOP_GRID_COLS:
+			var rect := Rect2(gx * CELL_SIZE, gy * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+			_shop_grid_container.draw_rect(rect, Color(0.15, 0.14, 0.18, 1.0))
+			_shop_grid_container.draw_rect(rect, Color(0.28, 0.26, 0.3, 1.0), false, 1.0)
+
+	# Draw shop items
+	var font := ThemeDB.fallback_font
+	for entry in _shop_placed:
+		var item: ItemData = entry["item"]
+		var gx: int = entry["x"]
+		var gy: int = entry["y"]
+		var sz := item.get_grid_size()
+		var item_rect := Rect2(gx * CELL_SIZE + 1, gy * CELL_SIZE + 1, sz.x * CELL_SIZE - 2, sz.y * CELL_SIZE - 2)
+		var bg_color := ItemData.get_rarity_color(item.rarity) * Color(0.3, 0.3, 0.3, 0.6)
+		_shop_grid_container.draw_rect(item_rect, bg_color)
+		_shop_grid_container.draw_rect(item_rect, ItemData.get_rarity_color(item.rarity) * Color(1, 1, 1, 0.7), false, 2.0)
+		# Item name
+		var text := item.display_name.left(8)
+		var text_pos := Vector2(gx * CELL_SIZE + 4, gy * CELL_SIZE + sz.y * CELL_SIZE * 0.5)
+		_shop_grid_container.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, sz.x * CELL_SIZE - 8, 11, ItemData.get_rarity_color(item.rarity))
+		# Price below name
+		var price_text := "%dg" % entry["price"]
+		var price_pos := Vector2(gx * CELL_SIZE + 4, gy * CELL_SIZE + sz.y * CELL_SIZE * 0.5 + 14)
+		_shop_grid_container.draw_string(font, price_pos, price_text, HORIZONTAL_ALIGNMENT_LEFT, sz.x * CELL_SIZE - 8, 10, Color(1.0, 0.85, 0.2))
+
+	# Draw sell highlight when dragging player item over shop grid
+	if _dragging and not _drag_from_shop and _drag_item:
+		var shop_cell := _get_shop_cell_under_mouse()
+		if shop_cell.x >= 0:
+			var sz := _drag_item.get_grid_size()
+			var sell_color := Color(1.0, 0.85, 0.2, 0.3)
+			for dy in sz.y:
+				for dx in sz.x:
+					var cx := shop_cell.x + dx
+					var cy := shop_cell.y + dy
+					if cx < SHOP_GRID_COLS and cy < SHOP_GRID_ROWS:
+						var r := Rect2(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+						_shop_grid_container.draw_rect(r, sell_color)
+
+
+func _get_shop_cell_under_mouse() -> Vector2i:
+	if not _shop_grid_container:
+		return Vector2i(-1, -1)
+	var local := _shop_grid_container.get_local_mouse_position()
+	var gx := int(local.x / CELL_SIZE)
+	var gy := int(local.y / CELL_SIZE)
+	if gx < 0 or gy < 0 or gx >= SHOP_GRID_COLS or gy >= SHOP_GRID_ROWS:
+		return Vector2i(-1, -1)
+	return Vector2i(gx, gy)
+
+
+func _get_shop_entry_at(gx: int, gy: int) -> Dictionary:
+	for entry in _shop_placed:
+		var item: ItemData = entry["item"]
+		var ex: int = entry["x"]
+		var ey: int = entry["y"]
+		var sz := item.get_grid_size()
+		if gx >= ex and gx < ex + sz.x and gy >= ey and gy < ey + sz.y:
+			return entry
+	return {}
+
+
+func _on_shop_grid_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var cell := _get_shop_cell_under_mouse()
+		if cell.x < 0:
+			return
+		var entry := _get_shop_entry_at(cell.x, cell.y)
+		if entry.is_empty():
+			return
+		_start_drag_from_shop(entry)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		# Right-click to quick-buy
+		var cell := _get_shop_cell_under_mouse()
+		if cell.x < 0:
+			return
+		var entry := _get_shop_entry_at(cell.x, cell.y)
+		if entry.is_empty():
+			return
+		_quick_buy(entry)
+		get_viewport().set_input_as_handled()
+
+
+func _handle_shop_grid_hover() -> void:
+	if _dragging or not _in_shop_mode:
+		return
+	var cell := _get_shop_cell_under_mouse()
+	if cell.x < 0:
+		return
+	var entry := _get_shop_entry_at(cell.x, cell.y)
+	if entry.is_empty():
+		return
+	_show_shop_item_tooltip(entry)
+
+
 func _process(_delta: float) -> void:
 	if visible and _grid_container:
 		_grid_container.queue_redraw()
 		_handle_grid_hover()
+	if visible and _in_shop_mode and _shop_grid_container:
+		_shop_grid_container.queue_redraw()
+		_handle_shop_grid_hover()
 
 
 ## ─── GRID INTERACTION ───
@@ -389,6 +690,15 @@ func _on_grid_gui_input(event: InputEvent) -> void:
 
 func _right_click_item(entry: Dictionary) -> void:
 	var item: ItemData = entry["item"]
+	if _in_shop_mode:
+		# Right-click to quick-sell in shop mode
+		var sell_price := _get_sell_price(item)
+		inventory.remove_entry(entry)
+		inventory.gold += sell_price
+		inventory.gold_changed.emit(inventory.gold)
+		_update_shop_gold()
+		_refresh()
+		return
 	inventory.equip_item_from_entry(entry, player_ref)
 
 
@@ -396,6 +706,8 @@ func _start_drag_from_grid(entry: Dictionary) -> void:
 	_dragging = true
 	_drag_entry = entry
 	_drag_equip_slot = ""
+	_drag_from_shop = false
+	_drag_shop_entry = {}
 	_drag_item = entry["item"]
 	_drag_stack = entry.get("stack", 1)
 	_hide_tooltip()
@@ -409,7 +721,26 @@ func _start_drag_from_equip(slot_name: String) -> void:
 	_dragging = true
 	_drag_entry = {}
 	_drag_equip_slot = slot_name
+	_drag_from_shop = false
+	_drag_shop_entry = {}
 	_drag_item = item
+	_drag_stack = 1
+	_hide_tooltip()
+	_create_drag_ghost()
+
+
+func _start_drag_from_shop(shop_entry: Dictionary) -> void:
+	var item: ItemData = shop_entry["item"]
+	var price: int = shop_entry["price"]
+	if not inventory or inventory.gold < price:
+		return  # Can't afford
+	# Create a fresh copy for the drag
+	_dragging = true
+	_drag_entry = {}
+	_drag_equip_slot = ""
+	_drag_from_shop = true
+	_drag_shop_entry = shop_entry
+	_drag_item = _create_item_from_stock(shop_entry["stock_entry"])
 	_drag_stack = 1
 	_hide_tooltip()
 	_create_drag_ghost()
@@ -455,6 +786,28 @@ func _finish_drag() -> void:
 		return
 
 	var placed := false
+
+	# --- Shop buy: dragging from shop grid to player inventory ---
+	if _drag_from_shop:
+		# Can only drop on player grid or equip slot
+		var target_equip := _get_equip_slot_under_mouse()
+		if not target_equip.is_empty():
+			placed = _try_buy_to_equip(target_equip)
+		if not placed:
+			var grid_cell := _get_grid_cell_under_mouse()
+			if grid_cell.x >= 0:
+				placed = _try_buy_to_grid(grid_cell)
+		# If not placed, just cancel (don't drop on ground)
+		_end_drag()
+		return
+
+	# --- Sell: dragging player item onto shop grid ---
+	if _in_shop_mode and not _drag_from_shop:
+		var shop_cell := _get_shop_cell_under_mouse()
+		if shop_cell.x >= 0:
+			_sell_dragged_item()
+			_end_drag()
+			return
 
 	# Check if mouse is over a valid equip slot
 	var target_equip := _get_equip_slot_under_mouse()
@@ -535,6 +888,139 @@ func _drop_on_ground() -> void:
 	drop_item_on_ground.emit(_drag_item)
 
 
+## ─── SHOP BUY / SELL ───
+
+func _try_buy_to_grid(grid_cell: Vector2i) -> bool:
+	if not _drag_item or not _drag_from_shop or _drag_shop_entry.is_empty():
+		return false
+	var price: int = _drag_shop_entry["price"]
+	if inventory.gold < price:
+		return false
+	var stock_entry: Dictionary = _drag_shop_entry["stock_entry"]
+	var item_type: String = stock_entry.get("type", "")
+	if item_type == "potion":
+		var potion_id: String = stock_entry.get("id", "")
+		if not inventory.can_hold_potion(potion_id):
+			return false
+		inventory.add_potion(potion_id)
+		inventory.gold -= price
+		inventory.gold_changed.emit(inventory.gold)
+		_update_shop_gold()
+		return true
+	# Equipment — place at the specific grid cell
+	if not inventory.can_place_at(_drag_item, grid_cell.x, grid_cell.y):
+		return false
+	inventory.place_item_at(_drag_item, grid_cell.x, grid_cell.y)
+	inventory.gold -= price
+	inventory.gold_changed.emit(inventory.gold)
+	_update_shop_gold()
+	return true
+
+
+func _try_buy_to_equip(slot_name: String) -> bool:
+	if not _drag_item or not _drag_from_shop or _drag_shop_entry.is_empty():
+		return false
+	var expected_slot := inventory._get_equip_slot(_drag_item.item_type)
+	if expected_slot != slot_name:
+		return false
+	var price: int = _drag_shop_entry["price"]
+	if inventory.gold < price:
+		return false
+	# Need to place in grid first, then equip from there
+	var pos := inventory.find_free_position(_drag_item)
+	if pos.x < 0:
+		return false
+	inventory.place_item_at(_drag_item, pos.x, pos.y)
+	var entry := inventory.get_entry_at(pos.x, pos.y)
+	if entry.is_empty():
+		return false
+	inventory.equip_item_from_entry(entry, player_ref)
+	inventory.gold -= price
+	inventory.gold_changed.emit(inventory.gold)
+	_update_shop_gold()
+	return true
+
+
+func _sell_dragged_item() -> void:
+	if not _drag_item or not inventory:
+		return
+	var sell_price := _get_sell_price(_drag_item)
+	if not _drag_equip_slot.is_empty():
+		_remove_equipment_bonuses(_drag_equip_slot)
+		inventory.equipment[_drag_equip_slot] = null
+		inventory.item_unequipped.emit(_drag_equip_slot)
+	elif not _drag_entry.is_empty():
+		inventory.remove_entry(_drag_entry)
+	inventory.gold += sell_price
+	inventory.gold_changed.emit(inventory.gold)
+	_update_shop_gold()
+
+
+func _quick_buy(shop_entry: Dictionary) -> void:
+	if not inventory:
+		return
+	var price: int = shop_entry["price"]
+	if inventory.gold < price:
+		return
+	var stock_entry: Dictionary = shop_entry["stock_entry"]
+	var item_type: String = stock_entry.get("type", "")
+	if item_type == "potion":
+		var potion_id: String = stock_entry.get("id", "")
+		if not inventory.can_hold_potion(potion_id):
+			return
+		inventory.add_potion(potion_id)
+	else:
+		var item := _create_item_from_stock(stock_entry)
+		if not inventory.add_item(item):
+			return
+	inventory.gold -= price
+	inventory.gold_changed.emit(inventory.gold)
+	_update_shop_gold()
+	_refresh()
+
+
+func _show_shop_item_tooltip(shop_entry: Dictionary) -> void:
+	var item: ItemData = shop_entry["item"]
+	if not _tooltip:
+		return
+	_tooltip.visible = true
+	var text := "[b]%s[/b]\n" % item.display_name
+	text += "[color=#%s]%s[/color]\n" % [
+		ItemData.get_rarity_color(item.rarity).to_html(false),
+		ItemData.Rarity.keys()[item.rarity]
+	]
+	text += "[color=#FFD700]Price: %d gold[/color]\n" % shop_entry["price"]
+	if item.bonus_damage > 0:
+		text += "+%.0f Damage\n" % item.bonus_damage
+	if item.bonus_defense > 0:
+		text += "+%.0f Defense\n" % item.bonus_defense
+	if item.bonus_health > 0:
+		text += "+%.0f Health\n" % item.bonus_health
+	if item.bonus_mana > 0:
+		text += "+%.0f Mana\n" % item.bonus_mana
+	if item.bonus_strength > 0:
+		text += "+%d Strength\n" % item.bonus_strength
+	if item.bonus_dexterity > 0:
+		text += "+%d Dexterity\n" % item.bonus_dexterity
+	if item.bonus_intelligence > 0:
+		text += "+%d Intelligence\n" % item.bonus_intelligence
+	if item.heal_amount > 0:
+		text += "Heals %.0f HP\n" % item.heal_amount
+	if item.mana_restore > 0:
+		text += "Restores %.0f Mana\n" % item.mana_restore
+	text += "\n[color=#AAAAAA]Left-click drag to buy\nRight-click to quick buy[/color]"
+	_tooltip_label.text = text
+	_tooltip_label.size.y = 200
+	_tooltip.size.y = _tooltip_label.get_content_height() + 16
+	var vp_size := get_viewport_rect().size
+	var tip_pos := get_global_mouse_position() + Vector2(16, 0)
+	if tip_pos.x + _tooltip.size.x > vp_size.x:
+		tip_pos.x = get_global_mouse_position().x - _tooltip.size.x - 16
+	if tip_pos.y + _tooltip.size.y > vp_size.y:
+		tip_pos.y = vp_size.y - _tooltip.size.y
+	_tooltip.global_position = tip_pos
+
+
 func _remove_equipment_bonuses(slot_name: String) -> void:
 	var item: ItemData = inventory.equipment[slot_name]
 	if item and player_ref:
@@ -545,6 +1031,8 @@ func _end_drag() -> void:
 	_dragging = false
 	_drag_entry = {}
 	_drag_equip_slot = ""
+	_drag_from_shop = false
+	_drag_shop_entry = {}
 	_drag_item = null
 	_drag_stack = 1
 	if _drag_ghost:
@@ -558,6 +1046,8 @@ func _cancel_drag() -> void:
 	_dragging = false
 	_drag_entry = {}
 	_drag_equip_slot = ""
+	_drag_from_shop = false
+	_drag_shop_entry = {}
 	_drag_item = null
 	_drag_stack = 1
 	if _drag_ghost:
@@ -656,6 +1146,9 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 		text += "Heals %.0f HP\n" % item.heal_amount
 	if item.mana_restore > 0:
 		text += "Restores %.0f Mana\n" % item.mana_restore
+	if _in_shop_mode:
+		text += "[color=#FFD700]Sell: %d gold[/color]\n" % _get_sell_price(item)
+		text += "[color=#AAAAAA]Drag to shop or right-click to sell[/color]"
 	_tooltip_label.text = text
 	# Fit tooltip height to content
 	_tooltip_label.size.y = 200

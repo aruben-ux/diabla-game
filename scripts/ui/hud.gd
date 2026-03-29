@@ -41,11 +41,18 @@ var _dialog_close_btn: Button
 var _dialog_lines: Array = []
 var _dialog_index: int = 0
 
+# Party panel (built in code, left side)
+var _party_container: VBoxContainer
+var _party_entries: Dictionary = {}  # peer_id -> Dictionary of controls
+const DUNGEON_X_THRESHOLD := 250.0
+const FLOOR_SPACING := 200.0
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
 	_build_target_panel()
 	_build_dialog_panel()
+	_build_party_panel()
 	_style_potion_panel(health_potion_panel, Color(0.8, 0.15, 0.15, 0.7))
 	_style_potion_panel(mana_potion_panel, Color(0.15, 0.3, 0.8, 0.7))
 	EventBus.npc_dialog_opened.connect(_on_npc_dialog_opened)
@@ -217,6 +224,214 @@ func _on_dialog_close() -> void:
 	EventBus.npc_dialog_closed.emit()
 
 
+func _build_party_panel() -> void:
+	_party_container = VBoxContainer.new()
+	_party_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_party_container.offset_left = 10
+	_party_container.offset_top = 10
+	_party_container.offset_right = 200
+	_party_container.add_theme_constant_override("separation", 6)
+	_party_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_party_container)
+
+
+func _update_party_panel() -> void:
+	if not _party_container:
+		return
+
+	var players := get_tree().get_nodes_in_group("players")
+	var seen_ids: Array[int] = []
+
+	for p in players:
+		if not is_instance_valid(p) or p == tracked_player:
+			continue
+		var peer_id := p.get_multiplayer_authority()
+		seen_ids.append(peer_id)
+
+		if peer_id not in _party_entries:
+			_create_party_entry(peer_id, p)
+
+		var entry: Dictionary = _party_entries[peer_id]
+		if not is_instance_valid(entry.get("panel")):
+			_party_entries.erase(peer_id)
+			continue
+
+		var p_name: String = p.get("player_name") if p.get("player_name") else "Player"
+		var stats: PlayerStats = p.stats if p.get("stats") else null
+
+		entry["name_label"].text = p_name
+		if stats:
+			entry["hp_bar"].max_value = stats.max_health
+			entry["hp_bar"].value = stats.health
+			entry["hp_label"].text = "%d/%d" % [int(stats.health), int(stats.max_health)]
+			entry["mp_bar"].max_value = stats.max_mana
+			entry["mp_bar"].value = stats.mana
+			entry["mp_label"].text = "%d/%d" % [int(stats.mana), int(stats.max_mana)]
+			entry["level_label"].text = "Lv %d" % stats.level
+
+		# Derive location from world position
+		var loc_text := "Town"
+		if p.global_position.x > DUNGEON_X_THRESHOLD:
+			var dz: float = p.global_position.z
+			var floor_num := int(round(dz / FLOOR_SPACING)) + 1
+			if floor_num < 1:
+				floor_num = 1
+			loc_text = "Floor %d" % floor_num
+		entry["loc_label"].text = loc_text
+
+	# Remove entries for players who left
+	var to_remove: Array[int] = []
+	for pid in _party_entries:
+		if pid not in seen_ids:
+			to_remove.append(pid)
+	for pid in to_remove:
+		var entry: Dictionary = _party_entries[pid]
+		if is_instance_valid(entry.get("panel")):
+			entry["panel"].queue_free()
+		_party_entries.erase(pid)
+
+
+func _create_party_entry(peer_id: int, player_node: Node) -> void:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(185, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.07, 0.1, 0.8)
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.4, 0.35, 0.3, 0.5)
+	panel.add_theme_stylebox_override("panel", style)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 6)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Portrait (colored square with class initial)
+	var portrait := PanelContainer.new()
+	portrait.custom_minimum_size = Vector2(36, 36)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var portrait_style := StyleBoxFlat.new()
+	portrait_style.bg_color = Color(0.25, 0.2, 0.35, 0.9)
+	portrait_style.corner_radius_top_left = 4
+	portrait_style.corner_radius_top_right = 4
+	portrait_style.corner_radius_bottom_left = 4
+	portrait_style.corner_radius_bottom_right = 4
+	portrait_style.border_width_left = 1
+	portrait_style.border_width_right = 1
+	portrait_style.border_width_top = 1
+	portrait_style.border_width_bottom = 1
+	portrait_style.border_color = Color(0.5, 0.4, 0.3, 0.6)
+	portrait.add_theme_stylebox_override("panel", portrait_style)
+	var portrait_label := Label.new()
+	portrait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	portrait_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	portrait_label.add_theme_font_size_override("font_size", 18)
+	portrait_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var p_name: String = player_node.get("player_name") if player_node.get("player_name") else "P"
+	portrait_label.text = p_name.left(1).to_upper()
+	portrait.add_child(portrait_label)
+	hbox.add_child(portrait)
+
+	# Info column
+	var info_vbox := VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 1)
+	info_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# Name + level row
+	var name_row := HBoxContainer.new()
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_label := Label.new()
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.text = p_name
+	name_row.add_child(name_label)
+
+	var level_label := Label.new()
+	level_label.add_theme_font_size_override("font_size", 11)
+	level_label.modulate = Color(0.7, 0.7, 0.7)
+	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	level_label.text = "Lv 1"
+	name_row.add_child(level_label)
+	info_vbox.add_child(name_row)
+
+	# HP bar
+	var hp_row := HBoxContainer.new()
+	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hp_bar := ProgressBar.new()
+	hp_bar.custom_minimum_size = Vector2(80, 10)
+	hp_bar.show_percentage = false
+	hp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hp_style := StyleBoxFlat.new()
+	hp_style.bg_color = Color(0.7, 0.15, 0.15, 0.9)
+	hp_bar.add_theme_stylebox_override("fill", hp_style)
+	hp_row.add_child(hp_bar)
+	var hp_label := Label.new()
+	hp_label.add_theme_font_size_override("font_size", 10)
+	hp_label.custom_minimum_size = Vector2(55, 0)
+	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_row.add_child(hp_label)
+	info_vbox.add_child(hp_row)
+
+	# MP bar
+	var mp_row := HBoxContainer.new()
+	mp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mp_bar := ProgressBar.new()
+	mp_bar.custom_minimum_size = Vector2(80, 10)
+	mp_bar.show_percentage = false
+	mp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mp_style := StyleBoxFlat.new()
+	mp_style.bg_color = Color(0.15, 0.25, 0.7, 0.9)
+	mp_bar.add_theme_stylebox_override("fill", mp_style)
+	mp_row.add_child(mp_bar)
+	var mp_label := Label.new()
+	mp_label.add_theme_font_size_override("font_size", 10)
+	mp_label.custom_minimum_size = Vector2(55, 0)
+	mp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	mp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mp_row.add_child(mp_label)
+	info_vbox.add_child(mp_row)
+
+	# Location
+	var loc_label := Label.new()
+	loc_label.add_theme_font_size_override("font_size", 10)
+	loc_label.modulate = Color(0.6, 0.7, 0.6)
+	loc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	loc_label.text = "Town"
+	info_vbox.add_child(loc_label)
+
+	hbox.add_child(info_vbox)
+	panel.add_child(hbox)
+	_party_container.add_child(panel)
+
+	_party_entries[peer_id] = {
+		"panel": panel,
+		"portrait_label": portrait_label,
+		"name_label": name_label,
+		"level_label": level_label,
+		"hp_bar": hp_bar,
+		"hp_label": hp_label,
+		"mp_bar": mp_bar,
+		"mp_label": mp_label,
+		"loc_label": loc_label,
+	}
+
+
 func _style_potion_panel(panel: Panel, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -289,6 +504,7 @@ func _process(delta: float) -> void:
 
 	# Update target info
 	_update_target_display()
+	_update_party_panel()
 
 
 func _update_target_display() -> void:

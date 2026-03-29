@@ -1618,10 +1618,25 @@ const _NPC_DEFS: Array[Dictionary] = [
 		"id": "blacksmith",
 		"name": "Gorm Ironhand",
 		"building": "Blacksmith",
+		"vendor_type": "weapons",
 		"dialog": [
 			"*clang* *clang* — Oh! Didn't see you there.",
 			"Need something forged? I work with the finest ore in the region.",
 			"Bring me materials and I'll craft you something worth swinging."
+		],
+		"shop": [
+			{"id": "iron_sword", "name": "Iron Sword", "price": 100, "description": "+8 Damage", "type": "equipment",
+				"item_type": 0, "bonus_damage": 8.0, "grid_w": 1, "grid_h": 3},
+			{"id": "steel_axe", "name": "Steel Axe", "price": 200, "description": "+15 Damage", "type": "equipment",
+				"item_type": 0, "bonus_damage": 15.0, "grid_w": 1, "grid_h": 3},
+			{"id": "iron_helm", "name": "Iron Helm", "price": 75, "description": "+5 Defense, +15 HP", "type": "equipment",
+				"item_type": 1, "bonus_defense": 5.0, "bonus_health": 15.0, "grid_w": 2, "grid_h": 2},
+			{"id": "chainmail", "name": "Chainmail", "price": 150, "description": "+8 Defense, +25 HP", "type": "equipment",
+				"item_type": 2, "bonus_defense": 8.0, "bonus_health": 25.0, "grid_w": 2, "grid_h": 3},
+			{"id": "iron_boots", "name": "Iron Boots", "price": 60, "description": "+3 Defense, +10 HP", "type": "equipment",
+				"item_type": 3, "bonus_defense": 3.0, "bonus_health": 10.0, "grid_w": 2, "grid_h": 2},
+			{"id": "iron_shield", "name": "Iron Shield", "price": 120, "description": "+10 Defense", "type": "equipment",
+				"item_type": 6, "bonus_defense": 10.0, "grid_w": 2, "grid_h": 2},
 		],
 		"appearance": {
 			"body_color": "#6B5040",
@@ -1670,10 +1685,21 @@ const _NPC_DEFS: Array[Dictionary] = [
 		"id": "jeweler",
 		"name": "Vessa Glintstone",
 		"building": "Jeweler",
+		"vendor_type": "jewelry",
 		"dialog": [
 			"Gems and trinkets, rings and amulets!",
 			"Each piece tells a story, don't you think?",
 			"Perhaps one day I'll have enchanted wares for the right price."
+		],
+		"shop": [
+			{"id": "copper_ring", "name": "Copper Ring", "price": 80, "description": "+3 Strength", "type": "equipment",
+				"item_type": 4, "bonus_strength": 3, "grid_w": 1, "grid_h": 1},
+			{"id": "silver_ring", "name": "Silver Ring", "price": 150, "description": "+5 Intelligence, +10 MP", "type": "equipment",
+				"item_type": 4, "bonus_intelligence": 5, "bonus_mana": 10.0, "grid_w": 1, "grid_h": 1},
+			{"id": "jade_amulet", "name": "Jade Amulet", "price": 120, "description": "+20 HP, +10 MP", "type": "equipment",
+				"item_type": 5, "bonus_health": 20.0, "bonus_mana": 10.0, "grid_w": 1, "grid_h": 1},
+			{"id": "ruby_amulet", "name": "Ruby Amulet", "price": 200, "description": "+5 Damage, +4 Strength", "type": "equipment",
+				"item_type": 5, "bonus_damage": 5.0, "bonus_strength": 4, "grid_w": 1, "grid_h": 1},
 		],
 		"appearance": {
 			"body_color": "#5A4A6A",

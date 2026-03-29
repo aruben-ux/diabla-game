@@ -7,6 +7,8 @@ var display_name: String = "Villager"
 var interact_hint: String = "Click to talk"
 var dialog_lines: Array = ["..."]
 var npc_id: String = ""
+var vendor_stock: Array = []  # Array of item dicts — if non-empty, NPC is a vendor
+var vendor_type: String = ""  # "potions", "weapons", "armor", "jewelry", "general"
 
 # Visual
 var _model: Node3D
@@ -16,8 +18,10 @@ var _name_label: Label3D
 func setup(data: Dictionary) -> void:
 	npc_id = data.get("id", "")
 	display_name = data.get("name", "Villager")
-	interact_hint = "Click to talk"
 	dialog_lines = data.get("dialog", ["..."])
+	vendor_stock = data.get("shop", [])
+	vendor_type = data.get("vendor_type", "")
+	interact_hint = "Click to shop" if vendor_stock.size() > 0 else "Click to talk"
 
 	name = "NPC_%s" % npc_id
 	collision_layer = 128 | 1  # layer 8 (interactable) + layer 1 (physical)
@@ -53,7 +57,10 @@ func setup(data: Dictionary) -> void:
 func interact(player: Node) -> void:
 	if not player:
 		return
-	EventBus.npc_dialog_opened.emit(display_name, dialog_lines)
+	if vendor_stock.size() > 0:
+		EventBus.shop_opened.emit(display_name, vendor_stock, vendor_type)
+	else:
+		EventBus.npc_dialog_opened.emit(display_name, dialog_lines)
 
 
 func _build_model(appearance: Dictionary) -> void:
