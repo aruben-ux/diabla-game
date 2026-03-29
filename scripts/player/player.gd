@@ -228,6 +228,9 @@ func _load_from_dict(data: Dictionary) -> void:
 	var quest_arr: Array = data.get("quest_data", [])
 	if quest_arr.size() > 0 and is_multiplayer_authority():
 		QuestManager.load_from_array(quest_arr)
+
+
+func _update_mouse_target() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if not camera:
 		current_target = null
