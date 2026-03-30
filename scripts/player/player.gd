@@ -1083,6 +1083,20 @@ func _process_movement(delta: float) -> void:
 
 	_play_animation("run")
 	move_and_slide()
+	_push_colliding_enemies()
+
+
+const PUSH_FORCE := 3.0  # How fast players push enemies (units/sec)
+
+func _push_colliding_enemies() -> void:
+	## After move_and_slide, gently push any enemy we collided with.
+	for i in get_slide_collision_count():
+		var col := get_slide_collision(i)
+		var collider := col.get_collider()
+		if collider is Enemy and collider.state != Enemy.State.DEAD:
+			var push_dir := (collider.global_position - global_position).normalized()
+			push_dir.y = 0.0
+			collider.global_position += push_dir * PUSH_FORCE * get_physics_process_delta_time()
 
 
 var _current_anim: String = ""
