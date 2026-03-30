@@ -412,7 +412,7 @@ func _physics_process_server_auth(delta: float) -> void:
 		# Client: interpolate toward server state
 		if is_multiplayer_authority():
 			# Also send continuous move intent while dragging
-			if _left_mouse_held and not is_attacking and not _pending_interact:
+			if _left_mouse_held and not is_attacking and not _pending_interact and not _tp_casting:
 				var hit_pos := _raycast_ground()
 				if hit_pos != Vector3.INF:
 					_server_move_intent.rpc_id(1, hit_pos)
@@ -528,6 +528,8 @@ func _server_move_intent(target: Vector3) -> void:
 		return
 	if stats.health <= 0.0:
 		return
+	if _tp_casting:
+		return  # Block movement while casting town portal
 	move_target = target
 	is_moving = true
 	is_attacking = false
@@ -1236,6 +1238,10 @@ func _start_town_portal_cast() -> void:
 	_tp_cast_timer = TP_CAST_TIME
 	is_moving = false
 	is_attacking = false
+	_left_mouse_held = false
+	move_target = global_position
+	if _is_server_auth:
+		_server_tp_cast_start.rpc_id(1)
 	EventBus.show_floating_text.emit(global_position + Vector3(0, 2.5, 0), "Casting Town Portal...", Color(0.3, 0.5, 1.0))
 
 
@@ -1243,6 +1249,8 @@ func _cancel_town_portal_cast() -> void:
 	if _tp_casting:
 		_tp_casting = false
 		_tp_cast_timer = 0.0
+		if _is_server_auth:
+			_server_tp_cast_cancel.rpc_id(1)
 
 
 func _tick_town_portal_cast(delta: float) -> void:
@@ -1273,6 +1281,31 @@ func _server_town_portal_intent() -> void:
 	if sender != get_multiplayer_authority():
 		return
 	var main_game := _get_main_game()
+	if main_game and main_game.has_method("open_town_portal"):
+		main_game.open_town_portal(sender, global_position)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_tp_cast_start() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	_tp_casting = true
+	is_moving = false
+	is_attacking = false
+	move_target = global_position
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_tp_cast_cancel() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	_tp_casting = false
 	if main_game and main_game.has_method("open_town_portal"):
 		main_game.open_town_portal(sender, global_position)
 

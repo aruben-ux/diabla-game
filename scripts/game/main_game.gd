@@ -729,24 +729,26 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	# Destroy any old portals for this owner first
 	_destroy_portal_local(owner_id)
 
-	# Dungeon-side portal
+	# Dungeon-side portal (shows town through viewport)
 	var dungeon_portal := Node3D.new()
 	dungeon_portal.set_script(_town_portal_script)
 	dungeon_portal.owner_peer_id = owner_id
 	dungeon_portal.source_floor = floor_num
 	dungeon_portal.source_position = dungeon_pos
 	dungeon_portal.is_town_side = false
+	dungeon_portal.destination_pos = town_pos
 	dungeon_portal.global_position = dungeon_pos
 	dungeon_portal.name = "TownPortal_Dungeon_%d" % owner_id
 	level_container.add_child(dungeon_portal)
 
-	# Town-side portal
+	# Town-side portal (shows dungeon through viewport)
 	var town_portal := Node3D.new()
 	town_portal.set_script(_town_portal_script)
 	town_portal.owner_peer_id = owner_id
 	town_portal.source_floor = floor_num
 	town_portal.source_position = dungeon_pos
 	town_portal.is_town_side = true
+	town_portal.destination_pos = dungeon_pos
 	town_portal.global_position = town_pos
 	town_portal.name = "TownPortal_Town_%d" % owner_id
 	level_container.add_child(town_portal)
