@@ -83,6 +83,8 @@ func _physics_process(delta: float) -> void:
 func _state_idle(_delta: float) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
+	if model.has_method("set_walking"):
+		model.set_walking(false)
 
 	# Look for nearest player in aggro range
 	target = _find_nearest_player()
@@ -126,6 +128,8 @@ func _state_chase(delta: float) -> void:
 	var direction := to_target.normalized()
 	velocity.x = direction.x * move_speed
 	velocity.z = direction.z * move_speed
+	if model.has_method("set_walking"):
+		model.set_walking(true)
 
 	# Face target
 	var target_rot := atan2(direction.x, direction.z)
@@ -146,6 +150,8 @@ func _state_attack(delta: float) -> void:
 
 	velocity.x = 0.0
 	velocity.z = 0.0
+	if model.has_method("set_walking"):
+		model.set_walking(false)
 
 	attack_timer += delta
 	if attack_timer >= attack_cooldown:
@@ -165,6 +171,8 @@ func _state_attack(delta: float) -> void:
 func _state_hit(delta: float) -> void:
 	velocity.x = 0.0
 	velocity.z = 0.0
+	if model.has_method("set_walking"):
+		model.set_walking(false)
 	hit_flash_timer -= delta
 	if hit_flash_timer <= 0.0:
 		if health <= 0.0:
@@ -258,6 +266,32 @@ func _build_model() -> void:
 			model.build_enemy_mage()
 		EnemyType.BRUTE:
 			model.build_enemy_brute()
+		EnemyType.SKELETON:
+			model.build_enemy_skeleton()
+		EnemyType.SPIDER:
+			model.build_enemy_spider()
+		EnemyType.GHOST:
+			model.build_enemy_ghost()
+		EnemyType.ARCHER:
+			model.build_enemy_archer()
+		EnemyType.SHAMAN:
+			model.build_enemy_shaman()
+		EnemyType.GOLEM:
+			model.build_enemy_golem()
+		EnemyType.SCARAB:
+			model.build_enemy_scarab()
+		EnemyType.WRAITH:
+			model.build_enemy_wraith()
+		EnemyType.NECROMANCER:
+			model.build_enemy_necromancer()
+		EnemyType.DEMON:
+			model.build_enemy_demon()
+		EnemyType.BOSS_GOLEM:
+			model.build_enemy_boss_golem()
+		EnemyType.BOSS_DEMON:
+			model.build_enemy_boss_demon()
+		EnemyType.BOSS_DRAGON:
+			model.build_enemy_boss_dragon()
 
 
 func _apply_floor_scaling() -> void:
@@ -312,6 +346,8 @@ func apply_remote_state(pos: Vector3, rot_y: float, st: int) -> void:
 	_remote_pos = pos
 	_remote_rot_y = rot_y
 	state = st as State
+	if model.has_method("set_walking"):
+		model.set_walking(state == State.CHASE)
 	if not _remote_initialized:
 		_remote_initialized = true
 		position = pos

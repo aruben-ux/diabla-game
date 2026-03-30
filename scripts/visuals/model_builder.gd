@@ -59,8 +59,7 @@ func build_class_model(appearance: Dictionary) -> void:
 	scale = Vector3.ONE * size_mult
 
 	# Store rest rotations for animation
-	_right_arm_rest_x = right_arm_pivot.rotation.x if right_arm_pivot else 0.3
-	_left_arm_rest_x = left_arm_pivot.rotation.x if left_arm_pivot else 0.3
+	_store_rest_rotations()
 
 
 func set_walking(walking: bool) -> void:
@@ -310,6 +309,12 @@ func build_from_data(visual_data: Dictionary) -> void:
 		add_child(pivot)
 		if pivot.name == "RightArmPivot":
 			right_arm_pivot = pivot
+		elif pivot.name == "LeftArmPivot":
+			left_arm_pivot = pivot
+		elif pivot.name == "RightLegPivot":
+			right_leg_pivot = pivot
+		elif pivot.name == "LeftLegPivot":
+			left_leg_pivot = pivot
 		for child_data: Dictionary in pivot_data.get("parts", []):
 			var cname: String = child_data.get("name", "Part")
 			var cmesh := _create_mesh(child_data.get("mesh", "box"))
@@ -321,6 +326,7 @@ func build_from_data(visual_data: Dictionary) -> void:
 				pivot.add_child(_create_emissive_part(cname, cmesh, cpos, cscl, ccol))
 			else:
 				pivot.add_child(_create_part(cname, cmesh, cpos, cscl, ccol))
+	_store_rest_rotations()
 
 
 static func _create_mesh(mesh_type: String) -> Mesh:
@@ -339,10 +345,28 @@ func build_enemy_grunt() -> void:
 	var body_color := Color(0.55, 0.2, 0.15)
 	var skin_color := Color(0.45, 0.55, 0.35)
 
-	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.15, 0.25, 0), Vector3(0.13, 0.25, 0.13), skin_color)
-	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.15, 0.25, 0), Vector3(0.13, 0.25, 0.13), skin_color)
+	# Leg pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.15, 0.5, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.13, 0.25, 0.13), skin_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.15, 0.5, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.13, 0.25, 0.13), skin_color))
+
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.7, 0), Vector3(0.5, 0.4, 0.35), body_color)
-	_add_part("LeftArm", CylinderMesh.new(), Vector3(-0.35, 0.55, 0), Vector3(0.1, 0.25, 0.1), skin_color)
+
+	# Left arm pivot
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.35, 0.85, 0)
+	left_arm_pivot.rotation.x = 0.3
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.1, 0.25, 0.1), skin_color))
 
 	# Right arm pivot — holds arm + club
 	right_arm_pivot = Node3D.new()
@@ -354,9 +378,9 @@ func build_enemy_grunt() -> void:
 	right_arm_pivot.add_child(_create_part("Club", CylinderMesh.new(), Vector3(0.02, -0.55, 0), Vector3(0.08, 0.35, 0.08), Color(0.4, 0.3, 0.15)))
 
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.05, 0), Vector3(0.2, 0.2, 0.2), skin_color)
-	# Angry eyes
 	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.08, 0.16), Vector3(0.04, 0.04, 0.04), Color(1.0, 0.3, 0.1))
 	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.08, 0.16), Vector3(0.04, 0.04, 0.04), Color(1.0, 0.3, 0.1))
+	_store_rest_rotations()
 
 
 func build_enemy_mage() -> void:
@@ -365,9 +389,29 @@ func build_enemy_mage() -> void:
 	var robe_color := Color(0.3, 0.1, 0.4)
 	var skin_color := Color(0.5, 0.45, 0.55)
 
+	# Hidden leg pivots inside robe
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.1, 0.35, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLegHidden", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.1, 0.35, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLegHidden", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe_color))
+
 	_add_part("Robe", CylinderMesh.new(), Vector3(0, 0.5, 0), Vector3(0.3, 0.5, 0.3), robe_color)
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.9, 0), Vector3(0.35, 0.3, 0.25), robe_color)
-	_add_part("LeftArm", CylinderMesh.new(), Vector3(-0.25, 0.75, 0), Vector3(0.07, 0.22, 0.07), skin_color)
+
+	# Left arm pivot
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.25, 1.0, 0)
+	left_arm_pivot.rotation.x = 0.2
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.07, 0.22, 0.07), skin_color))
 
 	# Right arm pivot — holds arm + staff + orb
 	right_arm_pivot = Node3D.new()
@@ -380,12 +424,11 @@ func build_enemy_mage() -> void:
 	right_arm_pivot.add_child(_create_emissive_part("StaffOrb", SphereMesh.new(), Vector3(0.02, 0.3, 0), Vector3(0.1, 0.1, 0.1), Color(0.6, 0.2, 1.0)))
 
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.25, 0), Vector3(0.18, 0.18, 0.18), skin_color)
-	# Pointy hat
 	_add_part("Hat", CylinderMesh.new(), Vector3(0, 1.5, 0), Vector3(0.15, 0.2, 0.15), robe_color)
 	_add_part("HatBrim", CylinderMesh.new(), Vector3(0, 1.32, 0), Vector3(0.25, 0.02, 0.25), robe_color)
-	# Glowing eyes
 	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.05, 1.28, 0.14), Vector3(0.035, 0.035, 0.035), Color(0.6, 0.2, 1.0))
 	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.05, 1.28, 0.14), Vector3(0.035, 0.035, 0.035), Color(0.6, 0.2, 1.0))
+	_store_rest_rotations()
 
 
 func build_enemy_brute() -> void:
@@ -394,10 +437,28 @@ func build_enemy_brute() -> void:
 	var body_color := Color(0.55, 0.3, 0.2)
 	var skin_color := Color(0.5, 0.35, 0.3)
 
-	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.2, 0.35, 0), Vector3(0.16, 0.35, 0.16), skin_color)
-	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.2, 0.35, 0), Vector3(0.16, 0.35, 0.16), skin_color)
+	# Leg pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.2, 0.7, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.35, 0), Vector3(0.16, 0.35, 0.16), skin_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.2, 0.7, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.35, 0), Vector3(0.16, 0.35, 0.16), skin_color))
+
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.95, 0), Vector3(0.65, 0.55, 0.4), body_color)
-	_add_part("LeftArm", CylinderMesh.new(), Vector3(-0.45, 0.75, 0), Vector3(0.14, 0.35, 0.14), skin_color)
+
+	# Left arm pivot
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.45, 1.15, 0)
+	left_arm_pivot.rotation.x = 0.35
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.32, 0), Vector3(0.14, 0.35, 0.14), skin_color))
 
 	# Right arm pivot — holds arm + hammer
 	right_arm_pivot = Node3D.new()
@@ -410,12 +471,638 @@ func build_enemy_brute() -> void:
 	right_arm_pivot.add_child(_create_part("HammerHead", BoxMesh.new(), Vector3(0.02, -0.95, 0), Vector3(0.25, 0.18, 0.18), Color(0.5, 0.5, 0.55)))
 
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.35, 0), Vector3(0.25, 0.22, 0.25), skin_color)
-	# Horns
 	_add_part("LeftHorn", CylinderMesh.new(), Vector3(-0.18, 1.55, 0), Vector3(0.05, 0.15, 0.05), Color(0.8, 0.75, 0.6))
 	_add_part("RightHorn", CylinderMesh.new(), Vector3(0.18, 1.55, 0), Vector3(0.05, 0.15, 0.05), Color(0.8, 0.75, 0.6))
-	# Glowing eyes
 	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.08, 1.38, 0.2), Vector3(0.05, 0.05, 0.05), Color(1.0, 0.5, 0.1))
 	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.08, 1.38, 0.2), Vector3(0.05, 0.05, 0.05), Color(1.0, 0.5, 0.1))
+	_store_rest_rotations()
+
+
+func _store_rest_rotations() -> void:
+	_right_arm_rest_x = right_arm_pivot.rotation.x if right_arm_pivot else 0.3
+	_left_arm_rest_x = left_arm_pivot.rotation.x if left_arm_pivot else 0.3
+
+
+# ---------- SKELETON ----------
+func build_enemy_skeleton() -> void:
+	_clear()
+	var bone := Color(0.9, 0.88, 0.8)
+	var dark := Color(0.2, 0.18, 0.15)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.12, 0.5, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.07, 0.28, 0.07), bone))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.12, 0.5, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.07, 0.28, 0.07), bone))
+
+	# Ribcage
+	_add_part("Ribcage", BoxMesh.new(), Vector3(0, 0.75, 0), Vector3(0.35, 0.35, 0.2), bone)
+	_add_part("Spine", CylinderMesh.new(), Vector3(0, 0.55, 0), Vector3(0.05, 0.15, 0.05), bone)
+	_add_part("Pelvis", BoxMesh.new(), Vector3(0, 0.45, 0), Vector3(0.25, 0.08, 0.15), bone)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.25, 0.9, 0)
+	left_arm_pivot.rotation.x = 0.4
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.06, 0.24, 0.06), bone))
+	left_arm_pivot.add_child(_create_part("Shield", BoxMesh.new(), Vector3(-0.08, -0.2, 0.1), Vector3(0.04, 0.22, 0.18), dark))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.25, 0.9, 0)
+	right_arm_pivot.rotation.x = 0.3
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.06, 0.24, 0.06), bone))
+	right_arm_pivot.add_child(_create_part("Sword", BoxMesh.new(), Vector3(0.02, -0.55, 0), Vector3(0.05, 0.4, 0.03), Color(0.7, 0.7, 0.75)))
+
+	_add_part("Skull", SphereMesh.new(), Vector3(0, 1.02, 0), Vector3(0.18, 0.2, 0.18), bone)
+	_add_part("Jaw", BoxMesh.new(), Vector3(0, 0.92, 0.08), Vector3(0.12, 0.04, 0.08), bone)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.05, 1.05, 0.14), Vector3(0.035, 0.04, 0.035), Color(0.1, 1.0, 0.2))
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.05, 1.05, 0.14), Vector3(0.035, 0.04, 0.035), Color(0.1, 1.0, 0.2))
+	_store_rest_rotations()
+
+
+# ---------- SPIDER ----------
+func build_enemy_spider() -> void:
+	_clear()
+	var body_color := Color(0.25, 0.2, 0.18)
+	var leg_color := Color(0.35, 0.28, 0.22)
+
+	# Low body
+	_add_part("Abdomen", SphereMesh.new(), Vector3(0, 0.35, -0.2), Vector3(0.35, 0.25, 0.4), body_color)
+	_add_part("Thorax", SphereMesh.new(), Vector3(0, 0.35, 0.15), Vector3(0.25, 0.2, 0.25), body_color)
+	# Mandibles
+	_add_part("LeftFang", CylinderMesh.new(), Vector3(-0.08, 0.25, 0.35), Vector3(0.03, 0.1, 0.03), Color(0.6, 0.5, 0.4))
+	_add_part("RightFang", CylinderMesh.new(), Vector3(0.08, 0.25, 0.35), Vector3(0.03, 0.1, 0.03), Color(0.6, 0.5, 0.4))
+
+	# Front legs as "arm" pivots
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.2, 0.35, 0.1)
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("FrontLeftLeg", CylinderMesh.new(), Vector3(-0.2, -0.05, 0.15), Vector3(0.04, 0.25, 0.04), leg_color))
+	left_arm_pivot.add_child(_create_part("FrontLeftLeg2", CylinderMesh.new(), Vector3(-0.12, -0.05, -0.1), Vector3(0.04, 0.25, 0.04), leg_color))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.2, 0.35, 0.1)
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("FrontRightLeg", CylinderMesh.new(), Vector3(0.2, -0.05, 0.15), Vector3(0.04, 0.25, 0.04), leg_color))
+	right_arm_pivot.add_child(_create_part("FrontRightLeg2", CylinderMesh.new(), Vector3(0.12, -0.05, -0.1), Vector3(0.04, 0.25, 0.04), leg_color))
+
+	# Back legs as "leg" pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.2, 0.35, -0.15)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("BackLeftLeg", CylinderMesh.new(), Vector3(-0.2, -0.05, -0.1), Vector3(0.04, 0.25, 0.04), leg_color))
+	left_leg_pivot.add_child(_create_part("BackLeftLeg2", CylinderMesh.new(), Vector3(-0.12, -0.05, 0.12), Vector3(0.04, 0.25, 0.04), leg_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.2, 0.35, -0.15)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("BackRightLeg", CylinderMesh.new(), Vector3(0.2, -0.05, -0.1), Vector3(0.04, 0.25, 0.04), leg_color))
+	right_leg_pivot.add_child(_create_part("BackRightLeg2", CylinderMesh.new(), Vector3(0.12, -0.05, 0.12), Vector3(0.04, 0.25, 0.04), leg_color))
+
+	# Eyes cluster
+	_add_emissive_part("Eye1", SphereMesh.new(), Vector3(-0.06, 0.42, 0.3), Vector3(0.03, 0.03, 0.03), Color(1.0, 0.1, 0.1))
+	_add_emissive_part("Eye2", SphereMesh.new(), Vector3(0.06, 0.42, 0.3), Vector3(0.03, 0.03, 0.03), Color(1.0, 0.1, 0.1))
+	_add_emissive_part("Eye3", SphereMesh.new(), Vector3(-0.03, 0.45, 0.32), Vector3(0.025, 0.025, 0.025), Color(1.0, 0.1, 0.1))
+	_add_emissive_part("Eye4", SphereMesh.new(), Vector3(0.03, 0.45, 0.32), Vector3(0.025, 0.025, 0.025), Color(1.0, 0.1, 0.1))
+	_store_rest_rotations()
+
+
+# ---------- GHOST ----------
+func build_enemy_ghost() -> void:
+	_clear()
+	var ghost_color := Color(0.7, 0.75, 0.85)
+	var glow_color := Color(0.5, 0.7, 1.0)
+
+	# Wispy lower body (no legs — floats)
+	_add_part("LowerBody", CylinderMesh.new(), Vector3(0, 0.4, 0), Vector3(0.25, 0.35, 0.25), ghost_color)
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.8, 0), Vector3(0.35, 0.3, 0.2), ghost_color)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.25, 0.85, 0)
+	left_arm_pivot.rotation.x = 0.5
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.07, 0.22, 0.07), ghost_color))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.25, 0.85, 0)
+	right_arm_pivot.rotation.x = 0.5
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.07, 0.22, 0.07), ghost_color))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.1, 0), Vector3(0.2, 0.22, 0.2), ghost_color)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.13, 0.15), Vector3(0.04, 0.05, 0.04), glow_color)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.13, 0.15), Vector3(0.04, 0.05, 0.04), glow_color)
+	_add_emissive_part("Aura", SphereMesh.new(), Vector3(0, 0.7, 0), Vector3(0.5, 0.7, 0.5), Color(0.4, 0.5, 0.8, 0.15))
+	_store_rest_rotations()
+
+
+# ---------- ARCHER ----------
+func build_enemy_archer() -> void:
+	_clear()
+	var leather := Color(0.4, 0.32, 0.2)
+	var skin := Color(0.45, 0.55, 0.35)
+	var wood := Color(0.5, 0.35, 0.15)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.12, 0.5, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.1, 0.26, 0.1), leather))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.12, 0.5, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.1, 0.26, 0.1), leather))
+
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.75, 0), Vector3(0.38, 0.35, 0.25), leather)
+	_add_part("Quiver", CylinderMesh.new(), Vector3(0.12, 0.85, -0.15), Vector3(0.08, 0.25, 0.08), wood)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.28, 0.88, 0)
+	left_arm_pivot.rotation.x = 0.6
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.08, 0.24, 0.08), skin))
+	# Bow
+	left_arm_pivot.add_child(_create_part("BowTop", CylinderMesh.new(), Vector3(-0.02, -0.15, 0.12), Vector3(0.03, 0.3, 0.03), wood))
+	left_arm_pivot.add_child(_create_part("BowString", CylinderMesh.new(), Vector3(-0.02, -0.15, 0.08), Vector3(0.01, 0.28, 0.01), Color(0.8, 0.8, 0.75)))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.28, 0.88, 0)
+	right_arm_pivot.rotation.x = 0.3
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.08, 0.24, 0.08), skin))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.05, 0), Vector3(0.18, 0.18, 0.18), skin)
+	_add_part("Hood", SphereMesh.new(), Vector3(0, 1.1, -0.02), Vector3(0.2, 0.16, 0.2), leather)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.05, 1.08, 0.14), Vector3(0.03, 0.03, 0.03), Color(1.0, 0.8, 0.2))
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.05, 1.08, 0.14), Vector3(0.03, 0.03, 0.03), Color(1.0, 0.8, 0.2))
+	_store_rest_rotations()
+
+
+# ---------- SHAMAN ----------
+func build_enemy_shaman() -> void:
+	_clear()
+	var robe := Color(0.35, 0.25, 0.15)
+	var skin := Color(0.45, 0.4, 0.3)
+	var accent := Color(0.8, 0.3, 0.1)
+
+	# Hidden leg pivots inside robe
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.1, 0.35, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LL", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.1, 0.35, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RL", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe))
+
+	_add_part("Robe", CylinderMesh.new(), Vector3(0, 0.45, 0), Vector3(0.28, 0.45, 0.28), robe)
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.85, 0), Vector3(0.35, 0.3, 0.25), robe)
+	_add_part("BoneNecklace", CylinderMesh.new(), Vector3(0, 0.95, 0.1), Vector3(0.18, 0.03, 0.18), Color(0.9, 0.88, 0.8))
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.25, 0.95, 0)
+	left_arm_pivot.rotation.x = 0.3
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.07, 0.22, 0.07), skin))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.25, 0.95, 0)
+	right_arm_pivot.rotation.x = 0.2
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.07, 0.22, 0.07), skin))
+	right_arm_pivot.add_child(_create_part("TotemStaff", CylinderMesh.new(), Vector3(0.02, -0.35, 0), Vector3(0.04, 0.65, 0.04), Color(0.45, 0.3, 0.15)))
+	right_arm_pivot.add_child(_create_part("SkullTop", SphereMesh.new(), Vector3(0.02, 0.3, 0), Vector3(0.1, 0.1, 0.1), Color(0.9, 0.88, 0.8)))
+	right_arm_pivot.add_child(_create_emissive_part("SkullGlow", SphereMesh.new(), Vector3(0.02, 0.3, 0), Vector3(0.12, 0.12, 0.12), Color(0.2, 0.9, 0.3, 0.5)))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.15, 0), Vector3(0.18, 0.18, 0.18), skin)
+	# Feathered headdress
+	_add_part("Feather1", BoxMesh.new(), Vector3(-0.08, 1.38, -0.02), Vector3(0.03, 0.15, 0.02), accent)
+	_add_part("Feather2", BoxMesh.new(), Vector3(0.0, 1.4, -0.02), Vector3(0.03, 0.18, 0.02), Color(0.2, 0.7, 0.3))
+	_add_part("Feather3", BoxMesh.new(), Vector3(0.08, 1.38, -0.02), Vector3(0.03, 0.15, 0.02), accent)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.05, 1.18, 0.14), Vector3(0.03, 0.03, 0.03), Color(0.2, 1.0, 0.3))
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.05, 1.18, 0.14), Vector3(0.03, 0.03, 0.03), Color(0.2, 1.0, 0.3))
+	_store_rest_rotations()
+
+
+# ---------- GOLEM ----------
+func build_enemy_golem() -> void:
+	_clear()
+	var stone := Color(0.5, 0.48, 0.44)
+	var dark_stone := Color(0.35, 0.33, 0.3)
+	var rune := Color(0.2, 0.6, 1.0)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.2, 0.65, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", BoxMesh.new(), Vector3(0, -0.32, 0), Vector3(0.2, 0.35, 0.2), stone))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.2, 0.65, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", BoxMesh.new(), Vector3(0, -0.32, 0), Vector3(0.2, 0.35, 0.2), stone))
+
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 1.0, 0), Vector3(0.6, 0.55, 0.4), stone)
+	_add_part("Belly", BoxMesh.new(), Vector3(0, 0.7, 0), Vector3(0.45, 0.2, 0.35), dark_stone)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.42, 1.1, 0)
+	left_arm_pivot.rotation.x = 0.25
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", BoxMesh.new(), Vector3(0, -0.3, 0), Vector3(0.18, 0.35, 0.18), stone))
+	left_arm_pivot.add_child(_create_part("LeftFist", SphereMesh.new(), Vector3(0, -0.55, 0), Vector3(0.2, 0.2, 0.2), dark_stone))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.42, 1.1, 0)
+	right_arm_pivot.rotation.x = 0.25
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", BoxMesh.new(), Vector3(0, -0.3, 0), Vector3(0.18, 0.35, 0.18), stone))
+	right_arm_pivot.add_child(_create_part("RightFist", SphereMesh.new(), Vector3(0, -0.55, 0), Vector3(0.2, 0.2, 0.2), dark_stone))
+
+	_add_part("Head", BoxMesh.new(), Vector3(0, 1.4, 0), Vector3(0.3, 0.25, 0.25), stone)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.08, 1.43, 0.2), Vector3(0.05, 0.04, 0.04), rune)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.08, 1.43, 0.2), Vector3(0.05, 0.04, 0.04), rune)
+	_add_emissive_part("ChestRune", SphereMesh.new(), Vector3(0, 1.0, 0.21), Vector3(0.1, 0.1, 0.04), rune)
+	_store_rest_rotations()
+
+
+# ---------- SCARAB ----------
+func build_enemy_scarab() -> void:
+	_clear()
+	var shell := Color(0.15, 0.2, 0.25)
+	var leg_c := Color(0.3, 0.25, 0.2)
+	var eye_c := Color(1.0, 0.6, 0.0)
+
+	# Armored shell body
+	_add_part("Shell", SphereMesh.new(), Vector3(0, 0.3, 0), Vector3(0.4, 0.2, 0.5), shell)
+	_add_part("Head", SphereMesh.new(), Vector3(0, 0.3, 0.3), Vector3(0.2, 0.15, 0.15), shell)
+	_add_part("LeftMandible", BoxMesh.new(), Vector3(-0.1, 0.22, 0.42), Vector3(0.04, 0.03, 0.1), leg_c)
+	_add_part("RightMandible", BoxMesh.new(), Vector3(0.1, 0.22, 0.42), Vector3(0.04, 0.03, 0.1), leg_c)
+
+	# Front legs as arm pivots
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.22, 0.25, 0.12)
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("FL1", CylinderMesh.new(), Vector3(-0.12, -0.08, 0.05), Vector3(0.04, 0.18, 0.04), leg_c))
+	left_arm_pivot.add_child(_create_part("FL2", CylinderMesh.new(), Vector3(-0.06, -0.08, -0.1), Vector3(0.04, 0.18, 0.04), leg_c))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.22, 0.25, 0.12)
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("FR1", CylinderMesh.new(), Vector3(0.12, -0.08, 0.05), Vector3(0.04, 0.18, 0.04), leg_c))
+	right_arm_pivot.add_child(_create_part("FR2", CylinderMesh.new(), Vector3(0.06, -0.08, -0.1), Vector3(0.04, 0.18, 0.04), leg_c))
+
+	# Back legs as leg pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.22, 0.25, -0.15)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("BL1", CylinderMesh.new(), Vector3(-0.12, -0.08, -0.05), Vector3(0.04, 0.18, 0.04), leg_c))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.22, 0.25, -0.15)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("BR1", CylinderMesh.new(), Vector3(0.12, -0.08, -0.05), Vector3(0.04, 0.18, 0.04), leg_c))
+
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 0.35, 0.38), Vector3(0.025, 0.025, 0.025), eye_c)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 0.35, 0.38), Vector3(0.025, 0.025, 0.025), eye_c)
+	_store_rest_rotations()
+
+
+# ---------- WRAITH ----------
+func build_enemy_wraith() -> void:
+	_clear()
+	var cloak := Color(0.12, 0.1, 0.15)
+	var glow := Color(0.4, 0.1, 0.8)
+
+	# Floating tattered cloak body (no legs)
+	_add_part("Cloak", CylinderMesh.new(), Vector3(0, 0.5, 0), Vector3(0.3, 0.5, 0.3), cloak)
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.9, 0), Vector3(0.38, 0.32, 0.22), cloak)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.28, 0.95, 0)
+	left_arm_pivot.rotation.x = 0.4
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.06, 0.24, 0.06), cloak))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.28, 0.95, 0)
+	right_arm_pivot.rotation.x = 0.3
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.22, 0), Vector3(0.06, 0.24, 0.06), cloak))
+	# Scythe
+	right_arm_pivot.add_child(_create_part("ScytheHandle", CylinderMesh.new(), Vector3(0.02, -0.5, 0), Vector3(0.03, 0.65, 0.03), Color(0.3, 0.25, 0.2)))
+	right_arm_pivot.add_child(_create_part("ScytheBlade", BoxMesh.new(), Vector3(0.15, 0.15, 0), Vector3(0.25, 0.04, 0.06), Color(0.6, 0.6, 0.65)))
+
+	_add_part("Hood", SphereMesh.new(), Vector3(0, 1.15, -0.02), Vector3(0.22, 0.2, 0.22), cloak)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.15, 0.15), Vector3(0.04, 0.05, 0.04), glow)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.15, 0.15), Vector3(0.04, 0.05, 0.04), glow)
+	_add_emissive_part("Aura", SphereMesh.new(), Vector3(0, 0.7, 0), Vector3(0.45, 0.65, 0.45), Color(0.3, 0.05, 0.5, 0.12))
+	_store_rest_rotations()
+
+
+# ---------- NECROMANCER ----------
+func build_enemy_necromancer() -> void:
+	_clear()
+	var robe := Color(0.15, 0.1, 0.12)
+	var skin := Color(0.55, 0.5, 0.45)
+	var green_glow := Color(0.1, 0.9, 0.2)
+
+	# Hidden leg pivots inside robe
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.1, 0.35, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LL", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.1, 0.35, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RL", CylinderMesh.new(), Vector3(0, -0.15, 0), Vector3(0.01, 0.01, 0.01), robe))
+
+	_add_part("Robe", CylinderMesh.new(), Vector3(0, 0.48, 0), Vector3(0.3, 0.48, 0.3), robe)
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.9, 0), Vector3(0.38, 0.32, 0.25), robe)
+	_add_part("SkullBelt", SphereMesh.new(), Vector3(0.15, 0.7, 0.12), Vector3(0.06, 0.06, 0.06), Color(0.9, 0.88, 0.8))
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.26, 0.95, 0)
+	left_arm_pivot.rotation.x = 0.5
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.06, 0.22, 0.06), skin))
+	left_arm_pivot.add_child(_create_emissive_part("LeftHandGlow", SphereMesh.new(), Vector3(0, -0.4, 0), Vector3(0.08, 0.08, 0.08), green_glow))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.26, 0.95, 0)
+	right_arm_pivot.rotation.x = 0.2
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.2, 0), Vector3(0.06, 0.22, 0.06), skin))
+	right_arm_pivot.add_child(_create_part("SkullStaff", CylinderMesh.new(), Vector3(0.02, -0.35, 0), Vector3(0.04, 0.7, 0.04), Color(0.2, 0.15, 0.1)))
+	right_arm_pivot.add_child(_create_part("StaffSkull", SphereMesh.new(), Vector3(0.02, 0.32, 0), Vector3(0.1, 0.1, 0.1), Color(0.9, 0.88, 0.8)))
+	right_arm_pivot.add_child(_create_emissive_part("StaffGlow", SphereMesh.new(), Vector3(0.02, 0.32, 0), Vector3(0.14, 0.14, 0.14), Color(0.1, 0.8, 0.2, 0.5)))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.2, 0), Vector3(0.18, 0.18, 0.18), skin)
+	_add_part("Hood", SphereMesh.new(), Vector3(0, 1.25, -0.02), Vector3(0.22, 0.18, 0.22), robe)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.05, 1.23, 0.14), Vector3(0.035, 0.035, 0.035), green_glow)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.05, 1.23, 0.14), Vector3(0.035, 0.035, 0.035), green_glow)
+	_store_rest_rotations()
+
+
+# ---------- DEMON ----------
+func build_enemy_demon() -> void:
+	_clear()
+	var skin := Color(0.7, 0.15, 0.1)
+	var dark := Color(0.3, 0.08, 0.05)
+	var fire := Color(1.0, 0.5, 0.0)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.18, 0.55, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14), dark))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.18, 0.55, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14), dark))
+
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.85, 0), Vector3(0.5, 0.45, 0.35), skin)
+	_add_part("Abs", BoxMesh.new(), Vector3(0, 0.6, 0.05), Vector3(0.3, 0.12, 0.2), dark)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.35, 1.0, 0)
+	left_arm_pivot.rotation.x = 0.3
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.12, 0.28, 0.12), skin))
+	left_arm_pivot.add_child(_create_part("LeftClaw", BoxMesh.new(), Vector3(0, -0.5, 0.04), Vector3(0.1, 0.08, 0.06), dark))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.35, 1.0, 0)
+	right_arm_pivot.rotation.x = 0.3
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.25, 0), Vector3(0.12, 0.28, 0.12), skin))
+	right_arm_pivot.add_child(_create_part("RightClaw", BoxMesh.new(), Vector3(0, -0.5, 0.04), Vector3(0.1, 0.08, 0.06), dark))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.2, 0), Vector3(0.22, 0.2, 0.2), skin)
+	_add_part("LeftHorn", CylinderMesh.new(), Vector3(-0.14, 1.42, -0.02), Vector3(0.05, 0.18, 0.05), dark)
+	_add_part("RightHorn", CylinderMesh.new(), Vector3(0.14, 1.42, -0.02), Vector3(0.05, 0.18, 0.05), dark)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.23, 0.16), Vector3(0.04, 0.04, 0.04), fire)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.23, 0.16), Vector3(0.04, 0.04, 0.04), fire)
+	_store_rest_rotations()
+
+
+# ---------- BOSS_GOLEM ----------
+func build_enemy_boss_golem() -> void:
+	_clear()
+	var stone := Color(0.45, 0.42, 0.38)
+	var dark := Color(0.3, 0.28, 0.25)
+	var crystal := Color(0.1, 0.5, 1.0)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.3, 0.8, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", BoxMesh.new(), Vector3(0, -0.4, 0), Vector3(0.28, 0.45, 0.28), stone))
+	left_leg_pivot.add_child(_create_part("LeftKnee", SphereMesh.new(), Vector3(0, -0.2, 0.08), Vector3(0.15, 0.12, 0.12), dark))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.3, 0.8, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", BoxMesh.new(), Vector3(0, -0.4, 0), Vector3(0.28, 0.45, 0.28), stone))
+	right_leg_pivot.add_child(_create_part("RightKnee", SphereMesh.new(), Vector3(0, -0.2, 0.08), Vector3(0.15, 0.12, 0.12), dark))
+
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 1.25, 0), Vector3(0.8, 0.65, 0.55), stone)
+	_add_part("Belly", BoxMesh.new(), Vector3(0, 0.85, 0), Vector3(0.6, 0.25, 0.45), dark)
+	# Crystal core
+	_add_emissive_part("Core", SphereMesh.new(), Vector3(0, 1.25, 0.28), Vector3(0.18, 0.18, 0.1), crystal)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.55, 1.35, 0)
+	left_arm_pivot.rotation.x = 0.2
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", BoxMesh.new(), Vector3(0, -0.35, 0), Vector3(0.25, 0.4, 0.25), stone))
+	left_arm_pivot.add_child(_create_part("LeftFist", SphereMesh.new(), Vector3(0, -0.65, 0), Vector3(0.28, 0.28, 0.28), dark))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.55, 1.35, 0)
+	right_arm_pivot.rotation.x = 0.2
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", BoxMesh.new(), Vector3(0, -0.35, 0), Vector3(0.25, 0.4, 0.25), stone))
+	right_arm_pivot.add_child(_create_part("RightFist", SphereMesh.new(), Vector3(0, -0.65, 0), Vector3(0.28, 0.28, 0.28), dark))
+
+	_add_part("Head", BoxMesh.new(), Vector3(0, 1.7, 0), Vector3(0.35, 0.3, 0.3), stone)
+	_add_part("Brow", BoxMesh.new(), Vector3(0, 1.78, 0.16), Vector3(0.38, 0.06, 0.08), dark)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.1, 1.72, 0.24), Vector3(0.06, 0.05, 0.05), crystal)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.1, 1.72, 0.24), Vector3(0.06, 0.05, 0.05), crystal)
+	# Rune markings
+	_add_emissive_part("RuneL", BoxMesh.new(), Vector3(-0.3, 1.2, 0.28), Vector3(0.04, 0.2, 0.02), crystal)
+	_add_emissive_part("RuneR", BoxMesh.new(), Vector3(0.3, 1.2, 0.28), Vector3(0.04, 0.2, 0.02), crystal)
+	scale = Vector3(1.8, 1.8, 1.8)
+	_store_rest_rotations()
+
+
+# ---------- BOSS_DEMON ----------
+func build_enemy_boss_demon() -> void:
+	_clear()
+	var skin := Color(0.6, 0.08, 0.05)
+	var dark := Color(0.25, 0.05, 0.02)
+	var fire := Color(1.0, 0.4, 0.0)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.22, 0.65, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.32, 0), Vector3(0.16, 0.35, 0.16), dark))
+	left_leg_pivot.add_child(_create_part("LeftHoof", BoxMesh.new(), Vector3(0, -0.58, 0.04), Vector3(0.14, 0.08, 0.18), dark))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.22, 0.65, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.32, 0), Vector3(0.16, 0.35, 0.16), dark))
+	right_leg_pivot.add_child(_create_part("RightHoof", BoxMesh.new(), Vector3(0, -0.58, 0.04), Vector3(0.14, 0.08, 0.18), dark))
+
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 1.0, 0), Vector3(0.6, 0.5, 0.4), skin)
+	_add_part("Abs", BoxMesh.new(), Vector3(0, 0.72, 0.06), Vector3(0.38, 0.15, 0.25), dark)
+	# Wings (decorative flat planes)
+	_add_part("LeftWing", BoxMesh.new(), Vector3(-0.5, 1.3, -0.2), Vector3(0.6, 0.5, 0.04), dark)
+	_add_part("RightWing", BoxMesh.new(), Vector3(0.5, 1.3, -0.2), Vector3(0.6, 0.5, 0.04), dark)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.42, 1.15, 0)
+	left_arm_pivot.rotation.x = 0.3
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.3, 0), Vector3(0.14, 0.32, 0.14), skin))
+	left_arm_pivot.add_child(_create_part("LeftClaw", BoxMesh.new(), Vector3(0, -0.58, 0.05), Vector3(0.12, 0.1, 0.08), dark))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.42, 1.15, 0)
+	right_arm_pivot.rotation.x = 0.3
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.3, 0), Vector3(0.14, 0.32, 0.14), skin))
+	right_arm_pivot.add_child(_create_part("RightClaw", BoxMesh.new(), Vector3(0, -0.58, 0.05), Vector3(0.12, 0.1, 0.08), dark))
+	# Fiery sword
+	right_arm_pivot.add_child(_create_emissive_part("FlameBlade", BoxMesh.new(), Vector3(0.02, -0.85, 0), Vector3(0.08, 0.5, 0.04), fire))
+
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.4, 0), Vector3(0.25, 0.22, 0.22), skin)
+	_add_part("LeftHorn", CylinderMesh.new(), Vector3(-0.18, 1.65, -0.04), Vector3(0.06, 0.25, 0.06), dark)
+	_add_part("RightHorn", CylinderMesh.new(), Vector3(0.18, 1.65, -0.04), Vector3(0.06, 0.25, 0.06), dark)
+	_add_part("Crown", BoxMesh.new(), Vector3(0, 1.55, 0), Vector3(0.28, 0.04, 0.28), dark)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.07, 1.43, 0.18), Vector3(0.05, 0.05, 0.05), fire)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.07, 1.43, 0.18), Vector3(0.05, 0.05, 0.05), fire)
+	_add_emissive_part("ChestFire", SphereMesh.new(), Vector3(0, 1.0, 0.21), Vector3(0.12, 0.12, 0.06), fire)
+	scale = Vector3(2.0, 2.0, 2.0)
+	_store_rest_rotations()
+
+
+# ---------- BOSS_DRAGON ----------
+func build_enemy_boss_dragon() -> void:
+	_clear()
+	var scale_c := Color(0.2, 0.35, 0.25)
+	var belly := Color(0.55, 0.5, 0.35)
+	var fire := Color(1.0, 0.4, 0.0)
+
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.25, 0.7, 0)
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.35, 0), Vector3(0.18, 0.38, 0.18), scale_c))
+	left_leg_pivot.add_child(_create_part("LeftFoot", BoxMesh.new(), Vector3(0, -0.62, 0.06), Vector3(0.16, 0.08, 0.22), scale_c))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.25, 0.7, 0)
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.35, 0), Vector3(0.18, 0.38, 0.18), scale_c))
+	right_leg_pivot.add_child(_create_part("RightFoot", BoxMesh.new(), Vector3(0, -0.62, 0.06), Vector3(0.16, 0.08, 0.22), scale_c))
+
+	# Massive body
+	_add_part("Body", BoxMesh.new(), Vector3(0, 1.1, 0), Vector3(0.7, 0.55, 0.5), scale_c)
+	_add_part("Belly", BoxMesh.new(), Vector3(0, 0.85, 0.08), Vector3(0.5, 0.25, 0.35), belly)
+	# Tail
+	_add_part("Tail1", CylinderMesh.new(), Vector3(0, 0.8, -0.45), Vector3(0.15, 0.2, 0.15), scale_c)
+	_add_part("Tail2", CylinderMesh.new(), Vector3(0, 0.7, -0.7), Vector3(0.1, 0.18, 0.1), scale_c)
+	_add_part("TailTip", SphereMesh.new(), Vector3(0, 0.6, -0.9), Vector3(0.12, 0.08, 0.08), scale_c)
+	# Wings
+	_add_part("LeftWing", BoxMesh.new(), Vector3(-0.6, 1.4, -0.15), Vector3(0.7, 0.45, 0.04), scale_c)
+	_add_part("RightWing", BoxMesh.new(), Vector3(0.6, 1.4, -0.15), Vector3(0.7, 0.45, 0.04), scale_c)
+
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.45, 1.2, 0)
+	left_arm_pivot.rotation.x = 0.35
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14), scale_c))
+	left_arm_pivot.add_child(_create_part("LeftClaw", BoxMesh.new(), Vector3(0, -0.52, 0.05), Vector3(0.12, 0.08, 0.1), scale_c))
+
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.45, 1.2, 0)
+	right_arm_pivot.rotation.x = 0.35
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14), scale_c))
+	right_arm_pivot.add_child(_create_part("RightClaw", BoxMesh.new(), Vector3(0, -0.52, 0.05), Vector3(0.12, 0.08, 0.1), scale_c))
+
+	# Long neck + head
+	_add_part("Neck", CylinderMesh.new(), Vector3(0, 1.5, 0.2), Vector3(0.15, 0.25, 0.15), scale_c)
+	_add_part("Head", BoxMesh.new(), Vector3(0, 1.7, 0.35), Vector3(0.25, 0.2, 0.35), scale_c)
+	_add_part("Snout", BoxMesh.new(), Vector3(0, 1.65, 0.6), Vector3(0.18, 0.12, 0.2), scale_c)
+	_add_part("Jaw", BoxMesh.new(), Vector3(0, 1.6, 0.55), Vector3(0.16, 0.06, 0.18), belly)
+	# Horns
+	_add_part("LeftHorn", CylinderMesh.new(), Vector3(-0.12, 1.88, 0.25), Vector3(0.04, 0.15, 0.04), belly)
+	_add_part("RightHorn", CylinderMesh.new(), Vector3(0.12, 1.88, 0.25), Vector3(0.04, 0.15, 0.04), belly)
+	# Spines down back
+	_add_part("Spine1", BoxMesh.new(), Vector3(0, 1.42, -0.22), Vector3(0.04, 0.12, 0.04), belly)
+	_add_part("Spine2", BoxMesh.new(), Vector3(0, 1.3, -0.3), Vector3(0.04, 0.1, 0.04), belly)
+	_add_part("Spine3", BoxMesh.new(), Vector3(0, 1.15, -0.38), Vector3(0.04, 0.08, 0.04), belly)
+	# Eyes
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.08, 1.75, 0.52), Vector3(0.05, 0.05, 0.05), fire)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.08, 1.75, 0.52), Vector3(0.05, 0.05, 0.05), fire)
+	_add_emissive_part("MouthGlow", SphereMesh.new(), Vector3(0, 1.62, 0.65), Vector3(0.08, 0.06, 0.06), fire)
+	scale = Vector3(2.2, 2.2, 2.2)
+	_store_rest_rotations()
 
 
 func _add_part(part_name: String, mesh: Mesh, pos: Vector3, scale_vec: Vector3, color: Color) -> void:
