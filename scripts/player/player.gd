@@ -1093,10 +1093,11 @@ func _push_colliding_enemies() -> void:
 	for i in get_slide_collision_count():
 		var col := get_slide_collision(i)
 		var collider := col.get_collider()
-		if collider is Enemy and collider.state != Enemy.State.DEAD:
-			var push_dir := (collider.global_position - global_position).normalized()
+		if collider is Enemy and (collider as Enemy).state != Enemy.State.DEAD:
+			var enemy: Enemy = collider as Enemy
+			var push_dir: Vector3 = (enemy.global_position - global_position).normalized()
 			push_dir.y = 0.0
-			collider.global_position += push_dir * PUSH_FORCE * get_physics_process_delta_time()
+			enemy.global_position += push_dir * PUSH_FORCE * get_physics_process_delta_time()
 
 
 var _current_anim: String = ""
