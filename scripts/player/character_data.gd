@@ -48,6 +48,10 @@ var equipment: Dictionary = {}
 # Quest progress
 var quest_data: Array = []
 
+# Skill tree
+var skill_points: int = 0
+var allocated_skill_points: Dictionary = {}
+
 # Visual appearance customization
 var appearance: Dictionary = {}
 
@@ -147,6 +151,8 @@ func to_dict() -> Dictionary:
 		"inventory_items": inventory_items,
 		"equipment": equipment,
 		"quest_data": quest_data,
+		"skill_points": skill_points,
+		"allocated_skill_points": allocated_skill_points,
 		"appearance": appearance,
 		"created_at": created_at,
 		"last_played": last_played,
@@ -179,6 +185,8 @@ static func from_dict(d: Dictionary) -> CharacterData:
 	data.inventory_items = d.get("inventory_items", [])
 	data.equipment = d.get("equipment", {})
 	data.quest_data = d.get("quest_data", [])
+	data.skill_points = d.get("skill_points", 0)
+	data.allocated_skill_points = d.get("allocated_skill_points", {})
 	data.appearance = d.get("appearance", {})
 	data.created_at = d.get("created_at", "")
 	data.last_played = d.get("last_played", "")

@@ -644,6 +644,8 @@ func _sync_grant_xp(amount: float) -> void:
 			"LEVEL UP!",
 			Color.YELLOW
 		)
+		if skill_manager:
+			skill_manager.add_skill_point()
 
 
 @rpc("any_peer", "call_local", "reliable")

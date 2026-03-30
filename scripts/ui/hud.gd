@@ -66,6 +66,10 @@ var _quest_dialog_panel: PanelContainer
 var _quest_dialog_vbox: VBoxContainer
 var _quest_dialog_npc_id: String = ""
 
+# Skill tree UI
+var _skill_tree_ui: SkillTreeUI
+var _skill_btn: Button
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
@@ -82,6 +86,7 @@ func _ready() -> void:
 	EventBus.npc_dialog_closed.connect(_on_npc_dialog_closed)
 	EventBus.quest_updated.connect(_refresh_quest_panel)
 	EventBus.quest_dialog_requested.connect(_on_quest_dialog_requested)
+	_build_skill_tree_ui()
 
 
 func _build_target_panel() -> void:
@@ -474,10 +479,8 @@ func set_player(player: Node) -> void:
 	death_overlay.visible = false
 	if player and player.skill_manager:
 		player.skill_manager.cooldown_updated.connect(_on_cooldown_updated)
-		for i in 4:
-			var skill: SkillData = player.skill_manager.skills[i]
-			if skill and skill_slots[i]:
-				skill_slots[i].get_node("Label").text = skill.display_name.left(4)
+		player.skill_manager.skill_tree_changed.connect(_refresh_skill_slots)
+		_refresh_skill_slots()
 
 
 func _process(delta: float) -> void:
@@ -762,7 +765,7 @@ func _build_action_buttons() -> void:
 	btn_container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	btn_container.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	btn_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	btn_container.offset_left = -270
+	btn_container.offset_left = -350
 	btn_container.offset_top = -52
 	btn_container.offset_right = -16
 	btn_container.offset_bottom = -16
@@ -772,6 +775,9 @@ func _build_action_buttons() -> void:
 
 	_character_btn = _create_action_button("Character\n(C)", btn_container)
 	_character_btn.pressed.connect(_toggle_character_panel)
+
+	_skill_btn = _create_action_button("Skills\n(K)", btn_container)
+	_skill_btn.pressed.connect(_toggle_skill_tree)
 
 	_inventory_btn = _create_action_button("Inventory\n(I)", btn_container)
 	_inventory_btn.pressed.connect(_on_inventory_btn_pressed)
@@ -821,6 +827,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	if event.is_action_pressed("toggle_quests"):
 		_toggle_quest_panel()
+		get_viewport().set_input_as_handled()
+	if event is InputEventKey and event.pressed and event.keycode == KEY_K:
+		_toggle_skill_tree()
 		get_viewport().set_input_as_handled()
 
 
@@ -1131,3 +1140,32 @@ func _sync_quests() -> void:
 	if tracked_player and is_instance_valid(tracked_player):
 		if tracked_player.has_method("sync_quests_to_server"):
 			tracked_player.sync_quests_to_server()
+
+
+## ─── SKILL TREE ───
+
+func _build_skill_tree_ui() -> void:
+	_skill_tree_ui = SkillTreeUI.new()
+	_skill_tree_ui.z_index = 30
+	add_child(_skill_tree_ui)
+
+
+func _toggle_skill_tree() -> void:
+	if not _skill_tree_ui:
+		return
+	if _skill_tree_ui.visible:
+		_skill_tree_ui.close()
+	else:
+		if tracked_player and tracked_player.skill_manager:
+			_skill_tree_ui.open(tracked_player.skill_manager)
+
+
+func _refresh_skill_slots() -> void:
+	if not tracked_player or not tracked_player.skill_manager:
+		return
+	for i in 4:
+		var skill: SkillData = tracked_player.skill_manager.skills[i]
+		if skill and i < skill_slots.size() and skill_slots[i]:
+			skill_slots[i].get_node("Label").text = skill.display_name.left(4)
+		elif i < skill_slots.size() and skill_slots[i]:
+			skill_slots[i].get_node("Label").text = "—"
