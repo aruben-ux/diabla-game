@@ -106,14 +106,14 @@ func get_mana_potion() -> ItemData:
 	return item
 
 
-func generate_enemy_drops(enemy_level: int = 1) -> Array[ItemData]:
+func generate_enemy_drops(enemy_level: int = 1, drop_multiplier: float = 1.0) -> Array[ItemData]:
 	_load_game_data()
 	var lc: Dictionary = _game_data.get("loot_config", {})
 	var drops: Array[ItemData] = []
 
-	var hp_chance: float = lc.get("health_potion_drop_chance", 0.4)
-	var mp_chance: float = lc.get("mana_potion_drop_chance", 0.2)
-	var eq_chance: float = lc.get("equipment_drop_chance", 0.3)
+	var hp_chance: float = lc.get("health_potion_drop_chance", 0.4) * drop_multiplier
+	var mp_chance: float = lc.get("mana_potion_drop_chance", 0.2) * drop_multiplier
+	var eq_chance: float = lc.get("equipment_drop_chance", 0.3) * drop_multiplier
 
 	if randf() < hp_chance:
 		drops.append(get_health_potion())

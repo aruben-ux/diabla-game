@@ -403,7 +403,7 @@ func _drop_loot() -> void:
 	_spawn_gold_drop.rpc(gold_name, gold_amount, global_position + Vector3(randf_range(-0.5, 0.5), 0, randf_range(-0.5, 0.5)))
 
 	# Drop items
-	var drops := ItemDatabase.generate_enemy_drops(1)
+	var drops := ItemDatabase.generate_enemy_drops(1, 0.25)
 	for i in drops.size():
 		var offset := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
 		var drop_pos := global_position + offset
