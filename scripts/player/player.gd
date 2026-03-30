@@ -1256,6 +1256,13 @@ func _cancel_town_portal_cast() -> void:
 func _tick_town_portal_cast(delta: float) -> void:
 	if not _tp_casting:
 		return
+	# Safety: if cast timer somehow goes very negative, force cancel
+	if _tp_cast_timer < -2.0:
+		_tp_casting = false
+		_tp_cast_timer = 0.0
+		if _is_server_auth:
+			_server_tp_cast_cancel.rpc_id(1)
+		return
 	_tp_cast_timer -= delta
 	if _tp_cast_timer <= 0.0:
 		_tp_casting = false
@@ -1273,6 +1280,15 @@ func _finish_town_portal_cast() -> void:
 			main_game.open_town_portal(get_multiplayer_authority(), global_position)
 
 
+func reset_movement_locks() -> void:
+	## Safety reset: clear all states that can block movement.
+	## Called on teleport / scene transitions.
+	_tp_casting = false
+	_tp_cast_timer = 0.0
+	is_attacking = false
+	_left_mouse_held = false
+
+
 @rpc("any_peer", "call_remote", "reliable")
 func _server_town_portal_intent() -> void:
 	if not multiplayer.is_server():
@@ -1280,6 +1296,8 @@ func _server_town_portal_intent() -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != get_multiplayer_authority():
 		return
+	# Clear cast lock on server so movement is unblocked
+	_tp_casting = false
 	var main_game := _get_main_game()
 	if main_game and main_game.has_method("open_town_portal"):
 		main_game.open_town_portal(sender, global_position)

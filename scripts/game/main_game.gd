@@ -441,8 +441,10 @@ func _teleport_player_local(peer_id: int, dest: Vector3) -> void:
 	player_node.global_position = dest
 	player_node.move_target = dest
 	player_node.is_moving = false
+	# Reset all movement-blocking states on every teleport
+	if player_node.has_method("reset_movement_locks"):
+		player_node.reset_movement_locks()
 	if player_node.is_multiplayer_authority():
-		player_node._left_mouse_held = false
 		_snap_camera()
 
 
