@@ -164,14 +164,10 @@ func _remove_floor_instance(floor_num: int) -> void:
 		_pending_floor_teleports.erase(floor_num)
 
 
-func _maybe_cleanup_floor(floor_num: int) -> void:
-	## Remove a floor instance if no players remain on it (server only).
-	if floor_num <= 0:
-		return
-	for peer_id in _player_floors:
-		if _player_floors[peer_id] == floor_num:
-			return  # Someone still there
-	_sync_remove_floor.rpc(floor_num)
+func _maybe_cleanup_floor(_floor_num: int) -> void:
+	## Floors persist for the whole session so cleared rooms stay cleared.
+	## No-op: floor instances are kept alive even when empty.
+	pass
 
 
 # --- Level ready callbacks ---
