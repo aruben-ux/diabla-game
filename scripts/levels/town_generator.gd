@@ -147,7 +147,7 @@ func _place_buildings() -> void:
 		# E — General Goods
 		{"rect": Rect2i(31, 16, 6, 5), "label": "General Store", "height": 4.5},
 		# SW — Residence
-		{"rect": Rect2i(3, 30, 5, 5), "label": "Residence", "height": 4.0},
+		{"rect": Rect2i(3, 30, 5, 5), "label": "Residence", "height": 4.0, "door_face": "east"},
 		# SE — Blacksmith / Armory
 		{"rect": Rect2i(31, 30, 6, 5), "label": "Blacksmith", "height": 4.5, "door_face": "west"},
 		# Inner ring — small buildings near plaza
