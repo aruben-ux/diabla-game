@@ -758,7 +758,7 @@ func _build_single_building(rect: Rect2i, idx: int, h: float, label: String, doo
 
 		if door_face == "east":
 			sign_label.position = Vector3(bx2 + 0.15, h * 0.7, (bz1 + bz2) / 2.0)
-			sign_label.rotation.y = -PI / 2.0
+			sign_label.rotation.y = PI / 2.0
 			var board_mesh := BoxMesh.new()
 			board_mesh.size = Vector3(0.06, 0.5, board_w)
 			sign_board.mesh = board_mesh
