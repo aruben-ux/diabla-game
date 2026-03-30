@@ -372,7 +372,7 @@ func _on_node_hover(node_id: String, btn: Button) -> void:
 	var requires: Array = node.get("requires", [])
 	if requires.size() > 0:
 		var req_names: Array = []
-		for req_id in requires:
+		for req_id: String in requires:
 			var req_node: Dictionary = _node_data.get(req_id, {})
 			req_names.append(req_node.get("name", req_id))
 		_tooltip_effects.text += "\nRequires: %s" % ", ".join(req_names)
