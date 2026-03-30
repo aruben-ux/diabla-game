@@ -93,10 +93,10 @@ func _ready() -> void:
 
 	# Build the class-specific model from appearance data
 	var appearance: Dictionary = {}
-	# 1) Try full custom appearance from local save
-	if CharacterManager.active_character and CharacterManager.active_character.appearance.size() > 0:
+	# 1) Try full custom appearance from local save (only for our own player node)
+	if is_multiplayer_authority() and CharacterManager.active_character and CharacterManager.active_character.appearance.size() > 0:
 		appearance = CharacterManager.active_character.appearance
-	# 2) Try online_players dict
+	# 2) Try online_players dict (server or client loading any player)
 	if appearance.is_empty() and _is_server_auth:
 		var pid := get_multiplayer_authority()
 		if pid in GameManager.online_players:
@@ -104,7 +104,7 @@ func _ready() -> void:
 	# 3) Fallback: build default appearance from known character class
 	if appearance.is_empty():
 		var cls_id: int = 0
-		if CharacterManager.active_character:
+		if is_multiplayer_authority() and CharacterManager.active_character:
 			cls_id = CharacterManager.active_character.character_class as int
 		elif _is_server_auth:
 			var pid2 := get_multiplayer_authority()
@@ -113,6 +113,12 @@ func _ready() -> void:
 		appearance = _default_appearance_for_class(cls_id)
 	if model.has_method("build_class_model"):
 		model.build_class_model(appearance)
+
+	# For remote players on a client, load name from online_players
+	if _is_server_auth and not multiplayer.is_server() and not is_multiplayer_authority():
+		var pid3 := get_multiplayer_authority()
+		if pid3 in GameManager.online_players:
+			player_name = GameManager.online_players[pid3].get("character_name", player_name)
 
 	# Name label above head (hidden for local player)
 	_setup_name_label()

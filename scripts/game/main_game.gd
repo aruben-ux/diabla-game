@@ -680,7 +680,11 @@ func open_town_portal(peer_id: int, dungeon_pos: Vector3) -> void:
 
 	# Broadcast to all peers to spawn the portal visuals
 	var town_pos: Vector3 = town_level.spawn_position + Vector3(3.0, 0.0, 3.0) if town_level else _town_spawn + Vector3(3.0, 0.0, 3.0)
-	_sync_spawn_portal.rpc(peer_id, dungeon_pos, town_pos, floor_num)
+	var owner_name: String = "Player"
+	var p_node := player_container.get_node_or_null(str(peer_id))
+	if p_node and "player_name" in p_node:
+		owner_name = p_node.player_name
+	_sync_spawn_portal.rpc(peer_id, dungeon_pos, town_pos, floor_num, owner_name)
 
 
 func use_town_portal(peer_id: int, portal_node: Node3D) -> void:
@@ -726,7 +730,7 @@ func _clear_portal(peer_id: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, floor_num: int) -> void:
+func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, floor_num: int, p_owner_name: String = "Player") -> void:
 	## All peers: instantiate dungeon-side and town-side portals.
 	# Destroy any old portals for this owner first
 	_destroy_portal_local(owner_id)
@@ -739,6 +743,7 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	dungeon_portal.source_position = dungeon_pos
 	dungeon_portal.is_town_side = false
 	dungeon_portal.destination_pos = town_pos
+	dungeon_portal.owner_name = p_owner_name
 	dungeon_portal.name = "TownPortal_Dungeon_%d" % owner_id
 	level_container.add_child(dungeon_portal)
 	dungeon_portal.global_position = dungeon_pos
@@ -751,6 +756,7 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	town_portal.source_position = dungeon_pos
 	town_portal.is_town_side = true
 	town_portal.destination_pos = dungeon_pos
+	town_portal.owner_name = p_owner_name
 	town_portal.name = "TownPortal_Town_%d" % owner_id
 	level_container.add_child(town_portal)
 	town_portal.global_position = town_pos

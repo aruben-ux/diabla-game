@@ -10,6 +10,7 @@ var source_floor: int = 0
 var source_position := Vector3.ZERO
 var is_town_side := false
 var destination_pos := Vector3.ZERO  # Where the other end is (world-space)
+var owner_name: String = "Player"
 
 var _area: Area3D
 var _time := 0.0
@@ -19,15 +20,16 @@ var _portal_surface: MeshInstance3D
 var _frame_ring: Node3D
 var _ground_light: OmniLight3D
 var _sparks: Array[MeshInstance3D] = []
+var _label: Label3D
 
 const PORTAL_WIDTH := 1.4
 const PORTAL_HEIGHT := 2.6
 const FRAME_SEGMENTS := 32
 const FRAME_THICKNESS := 0.08
 const SPARK_COUNT := 16
-const BLUE := Color(0.15, 0.35, 1.0)
-const LIGHT_BLUE := Color(0.4, 0.65, 1.0)
-const WHITE_BLUE := Color(0.7, 0.85, 1.0)
+const BLUE := Color(0.3, 0.5, 0.85)
+const LIGHT_BLUE := Color(0.55, 0.75, 1.0)
+const WHITE_BLUE := Color(0.75, 0.88, 1.0)
 
 ## Visibility layer for portal meshes — layers 1+2 so always visible to the main
 ## camera, but the SubViewport camera (cull_mask=1) won't render them.
@@ -42,6 +44,7 @@ func _ready() -> void:
 	_build_ground_light()
 	_build_sparks()
 	_build_collision()
+	_build_label()
 
 
 # ── SubViewport + Camera that looks at the destination ──
@@ -213,7 +216,7 @@ func _build_ground_glow() -> void:
 	glow.name = "GroundGlow"
 
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.1, 0.2, 0.8, 0.4)
+	mat.albedo_color = Color(0.2, 0.35, 0.7, 0.4)
 	mat.emission_enabled = true
 	mat.emission = BLUE
 	mat.emission_energy_multiplier = 2.0
@@ -279,6 +282,24 @@ func _build_collision() -> void:
 	_area.add_child(col)
 
 	_area.body_entered.connect(_on_body_entered)
+
+
+func _build_label() -> void:
+	_label = Label3D.new()
+	var floor_text := "Floor %d" % source_floor if source_floor > 0 else "Town"
+	_label.text = "%s\n%s" % [owner_name, floor_text]
+	_label.font_size = 48
+	_label.pixel_size = 0.005
+	_label.position.y = PORTAL_HEIGHT + 0.4
+	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.no_depth_test = true
+	_label.modulate = Color(1, 1, 1, 0.9)
+	_label.outline_size = 8
+	_label.outline_modulate = Color(0, 0, 0, 0.8)
+	_label.layers = PORTAL_VIS_LAYER
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_label.name = "PortalLabel"
+	add_child(_label)
 
 
 func _on_body_entered(body: Node3D) -> void:
