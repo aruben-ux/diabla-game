@@ -63,12 +63,11 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		if _options_panel.visible:
-			_show_main()
-		elif _debug_center.visible:
+		if _options_panel.visible or _debug_center.visible:
 			_show_main()
 		else:
-			_close()
+			# Let main_game handle closing via its toggle
+			return
 		get_viewport().set_input_as_handled()
 		return
 	# Consume any remaining unhandled input so clicks don't reach the game world
@@ -421,6 +420,16 @@ func _build_debug_panel() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	var btn_floor_down := _make_debug_button("Go Floor Down")
+	btn_floor_down.pressed.connect(_on_debug_floor_down)
+	vbox.add_child(btn_floor_down)
+
+	var btn_floor_up := _make_debug_button("Go Floor Up")
+	btn_floor_up.pressed.connect(_on_debug_floor_up)
+	vbox.add_child(btn_floor_up)
+
+	vbox.add_child(HSeparator.new())
+
 	var btn_back := _make_button("Back")
 	btn_back.pressed.connect(_show_main)
 	vbox.add_child(btn_back)
@@ -505,3 +514,19 @@ func _on_debug_level_up() -> void:
 		var needed: float = player.stats.experience_to_next_level - player.stats.experience
 		if needed > 0:
 			player.grant_xp(needed + 1.0)
+
+
+func _on_debug_floor_down() -> void:
+	var main_game := get_tree().current_scene
+	if not main_game or not main_game.has_method("debug_send_floor_down"):
+		return
+	main_game.debug_send_floor_down()
+	_close()
+
+
+func _on_debug_floor_up() -> void:
+	var main_game := get_tree().current_scene
+	if not main_game or not main_game.has_method("debug_send_floor_up"):
+		return
+	main_game.debug_send_floor_up()
+	_close()

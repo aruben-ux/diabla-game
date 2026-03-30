@@ -318,6 +318,37 @@ func _send_player_to_floor(peer_id: int, floor_num: int, arrive_at: String = "sp
 		_maybe_cleanup_floor(old_floor)
 
 
+# --- Debug helpers (called from esc_menu debug panel) ---
+
+func debug_send_floor_down() -> void:
+	_debug_change_floor.rpc_id(1, 1)
+
+func debug_send_floor_up() -> void:
+	_debug_change_floor.rpc_id(1, -1)
+
+@rpc("any_peer", "call_local", "reliable")
+func _debug_change_floor(direction: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var cur_floor: int = _player_floors.get(peer_id, 0)
+	var new_floor: int = cur_floor + direction
+	if new_floor < 0:
+		return
+	if new_floor == 0:
+		# Return to town
+		var old_floor := cur_floor
+		_player_floors[peer_id] = 0
+		_player_locations[peer_id] = ActiveLevel.TOWN
+		var stairs_dest: Vector3 = town_level.stairs_position if town_level else _town_spawn
+		var offset := Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+		_sync_player_to_town.rpc(peer_id, stairs_dest + offset)
+		_maybe_cleanup_floor(old_floor)
+	else:
+		var arrive := "up" if direction > 0 else "down"
+		_send_player_to_floor(peer_id, new_floor, arrive)
+
+
 # --- Synced RPCs (run on all peers) ---
 
 @rpc("any_peer", "call_remote", "reliable")
