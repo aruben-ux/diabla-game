@@ -29,6 +29,10 @@ const BLUE := Color(0.15, 0.35, 1.0)
 const LIGHT_BLUE := Color(0.4, 0.65, 1.0)
 const WHITE_BLUE := Color(0.7, 0.85, 1.0)
 
+## Visibility layer for portal meshes — layer 2 so the SubViewport camera
+## (which only sees layer 1) won't render the portal itself.
+const PORTAL_VIS_LAYER := 2
+
 
 func _ready() -> void:
 	_build_subviewport()
@@ -53,6 +57,7 @@ func _build_subviewport() -> void:
 
 	_cam = Camera3D.new()
 	_cam.fov = 70.0
+	_cam.cull_mask = 1  # Only render layer 1 — excludes portal meshes on layer 2
 	_cam.name = "PortalCam"
 	_viewport.add_child(_cam)
 	_position_camera()
@@ -107,13 +112,14 @@ func _build_portal_surface() -> void:
 	_portal_surface = MeshInstance3D.new()
 	_portal_surface.mesh = mesh
 	_portal_surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_portal_surface.layers = PORTAL_VIS_LAYER
 	_portal_surface.name = "PortalSurface"
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _viewport.get_texture()
 	mat.emission_enabled = true
-	mat.emission = BLUE * 0.5
-	mat.emission_energy_multiplier = 0.8
+	mat.emission = LIGHT_BLUE
+	mat.emission_energy_multiplier = 2.5
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_portal_surface.material_override = mat
 	add_child(_portal_surface)
@@ -122,13 +128,14 @@ func _build_portal_surface() -> void:
 	var back := MeshInstance3D.new()
 	back.mesh = mesh
 	back.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	back.layers = PORTAL_VIS_LAYER
 	back.scale.z = -1.0
 	back.name = "PortalSurfaceBack"
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_texture = _viewport.get_texture()
 	back_mat.emission_enabled = true
-	back_mat.emission = BLUE * 0.5
-	back_mat.emission_energy_multiplier = 0.8
+	back_mat.emission = LIGHT_BLUE
+	back_mat.emission_energy_multiplier = 2.5
 	back_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	back.material_override = back_mat
 	add_child(back)
@@ -165,6 +172,7 @@ func _build_frame() -> void:
 		bead.mesh = sphere
 		bead.position = Vector3(x, y, 0)
 		bead.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		bead.layers = PORTAL_VIS_LAYER
 
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = LIGHT_BLUE
@@ -190,6 +198,7 @@ func _build_ground_glow() -> void:
 	glow.mesh = disc
 	glow.position.y = 0.02
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.layers = PORTAL_VIS_LAYER
 	glow.name = "GroundGlow"
 
 	var mat := StandardMaterial3D.new()
@@ -228,6 +237,7 @@ func _build_sparks() -> void:
 		sphere.rings = 3
 		spark.mesh = sphere
 		spark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		spark.layers = PORTAL_VIS_LAYER
 		spark.name = "Spark_%d" % i
 
 		var mat := StandardMaterial3D.new()
@@ -276,6 +286,15 @@ func _on_body_entered(body: Node3D) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+
+	# Billboard: rotate portal to face the main camera
+	var camera := get_viewport().get_camera_3d()
+	if camera:
+		var cam_pos := camera.global_position
+		var my_pos := global_position
+		var dir := Vector3(cam_pos.x - my_pos.x, 0.0, cam_pos.z - my_pos.z).normalized()
+		if dir.length_squared() > 0.001:
+			rotation.y = atan2(dir.x, dir.z)
 
 	# Pulse portal surface
 	if _portal_surface:

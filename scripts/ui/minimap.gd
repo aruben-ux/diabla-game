@@ -27,6 +27,10 @@ var other_player_color := Color(0.2, 1.0, 0.4, 0.9)
 var bg_color := Color(0.05, 0.05, 0.08, 0.7)
 var fog_color := Color(0.0, 0.0, 0.0, 1.0)
 
+## Camera rotation angle in XZ plane. The isometric camera sits at (+X, +Y, +Z)
+## so its ground-projected forward is toward (-X, -Z) = 225° = -45° for minimap.
+const MAP_ROTATION := -PI / 4.0
+
 var _map_texture: ImageTexture
 var _fog_texture: ImageTexture
 var _fog_image: Image
@@ -148,19 +152,32 @@ func _draw() -> void:
 	var center := map_size / 2.0
 	var view_tiles := map_size / MAP_SCALE
 
+	# Draw map & fog rotated around center to match camera orientation
+	var half_diag := view_tiles.length() * 0.5 + 2.0  # Slightly oversized to fill corners
 	var src_rect := Rect2(
-		player_gx - view_tiles.x / 2.0,
-		player_gy - view_tiles.y / 2.0,
-		view_tiles.x,
-		view_tiles.y
+		player_gx - half_diag,
+		player_gy - half_diag,
+		half_diag * 2.0,
+		half_diag * 2.0
 	)
-	var dst_rect := Rect2(Vector2.ZERO, map_size)
+	var oversized := half_diag * 2.0 * MAP_SCALE
+	var dst_rect := Rect2(
+		center.x - oversized * 0.5,
+		center.y - oversized * 0.5,
+		oversized,
+		oversized
+	)
 
-	draw_texture_rect_region(_map_texture, dst_rect, src_rect)
-
-	# Draw fog overlay
+	draw_set_transform(center, MAP_ROTATION, Vector2.ONE)
+	var offset_dst := Rect2(dst_rect.position - center, dst_rect.size)
+	draw_texture_rect_region(_map_texture, offset_dst, src_rect)
 	if _fog_texture and not _is_town:
-		draw_texture_rect_region(_fog_texture, dst_rect, src_rect)
+		draw_texture_rect_region(_fog_texture, offset_dst, src_rect)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# Helper to convert world grid pos to rotated screen pos
+	var cos_r := cos(MAP_ROTATION)
+	var sin_r := sin(MAP_ROTATION)
 
 	# Draw enemy dots (only if revealed)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
@@ -173,27 +190,29 @@ func _draw() -> void:
 		var ey: float = (enemy_node.global_position.z - world_offset.z) / tile_size
 		if not _is_revealed(int(ex), int(ey)):
 			continue
-		var screen_x: float = (ex - (player_gx - view_tiles.x / 2.0)) * MAP_SCALE
-		var screen_y: float = (ey - (player_gy - view_tiles.y / 2.0)) * MAP_SCALE
-		if screen_x >= 0 and screen_x <= map_size.x and screen_y >= 0 and screen_y <= map_size.y:
-			draw_circle(Vector2(screen_x, screen_y), 2.0, enemy_color)
+		var dx: float = (ex - player_gx) * MAP_SCALE
+		var dy: float = (ey - player_gy) * MAP_SCALE
+		var rx: float = dx * cos_r - dy * sin_r + center.x
+		var ry: float = dx * sin_r + dy * cos_r + center.y
+		if rx >= 0 and rx <= map_size.x and ry >= 0 and ry <= map_size.y:
+			draw_circle(Vector2(rx, ry), 2.0, enemy_color)
 
 	# Draw stair markers (pulsing, only if revealed)
 	var pulse := 0.7 + sin(Time.get_ticks_msec() * 0.005) * 0.3
-	var origin_x := player_gx - view_tiles.x / 2.0
-	var origin_y := player_gy - view_tiles.y / 2.0
 	for stair in _stairs_positions:
 		var spos: Vector2 = stair["pos"]
 		if not _is_revealed(int(spos.x), int(spos.y)):
 			continue
-		var sx: float = (spos.x - origin_x) * MAP_SCALE
-		var sy: float = (spos.y - origin_y) * MAP_SCALE
-		if sx >= -4 and sx <= map_size.x + 4 and sy >= -4 and sy <= map_size.y + 4:
+		var sdx: float = (spos.x - player_gx) * MAP_SCALE
+		var sdy: float = (spos.y - player_gy) * MAP_SCALE
+		var srx: float = sdx * cos_r - sdy * sin_r + center.x
+		var sry: float = sdx * sin_r + sdy * cos_r + center.y
+		if srx >= -4 and srx <= map_size.x + 4 and sry >= -4 and sry <= map_size.y + 4:
 			var color: Color = stairs_up_color if stair["is_up"] else stairs_down_color
 			color.a = pulse
-			draw_circle(Vector2(sx, sy), 4.0, color)
+			draw_circle(Vector2(srx, sry), 4.0, color)
 
-	# Draw player dot (on top)
+	# Draw player dot (on top, always centered)
 	draw_circle(center, 3.0, player_color)
 
 	# Draw other players
@@ -203,12 +222,12 @@ func _draw() -> void:
 		var pn := p as Node3D
 		if not pn:
 			continue
-		var px: float = (pn.global_position.x - world_offset.x) / tile_size
-		var py: float = (pn.global_position.z - world_offset.z) / tile_size
-		var scr_x: float = (px - (player_gx - view_tiles.x / 2.0)) * MAP_SCALE
-		var scr_y: float = (py - (player_gy - view_tiles.y / 2.0)) * MAP_SCALE
-		if scr_x >= 0 and scr_x <= map_size.x and scr_y >= 0 and scr_y <= map_size.y:
-			draw_circle(Vector2(scr_x, scr_y), 3.0, other_player_color)
+		var pdx: float = ((pn.global_position.x - world_offset.x) / tile_size - player_gx) * MAP_SCALE
+		var pdy: float = ((pn.global_position.z - world_offset.z) / tile_size - player_gy) * MAP_SCALE
+		var prx: float = pdx * cos_r - pdy * sin_r + center.x
+		var pry: float = pdx * sin_r + pdy * cos_r + center.y
+		if prx >= 0 and prx <= map_size.x and pry >= 0 and pry <= map_size.y:
+			draw_circle(Vector2(prx, pry), 3.0, other_player_color)
 
 	# Border
 	draw_rect(Rect2(Vector2.ZERO, map_size), Color(0.5, 0.5, 0.5, 0.5), false, 1.0)
