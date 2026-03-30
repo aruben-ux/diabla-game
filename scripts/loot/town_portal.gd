@@ -312,7 +312,7 @@ func _process(delta: float) -> void:
 		var z := sin(angle) * 0.15  # Slight depth wobble
 		spark.position = Vector3(x, height_offset + 0.1, z)
 		# Fade sparks near top and bottom
-		var fade := 1.0 - abs(height_offset / PORTAL_HEIGHT - 0.5) * 2.0
+		var fade: float = 1.0 - absf(height_offset / PORTAL_HEIGHT - 0.5) * 2.0
 		fade = clampf(fade, 0.1, 1.0)
 		if spark.material_override:
 			spark.material_override.albedo_color.a = fade * 0.8
