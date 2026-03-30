@@ -44,6 +44,11 @@ var _pending_interact: Node3D = null
 const INTERACT_RANGE := 4.0
 var debug_invincible: bool = false
 
+## Town Portal casting
+var _tp_casting: bool = false
+var _tp_cast_timer: float = 0.0
+const TP_CAST_TIME := 3.0
+
 ## Shared outline overlay material
 static var _outline_material: ShaderMaterial
 
@@ -361,12 +366,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			_use_health_potion()
 		elif event.keycode == KEY_E:
 			_use_mana_potion()
+		elif event.keycode == KEY_T:
+			_start_town_portal_cast()
 
 
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		_update_mouse_target()
 		_check_pending_interact()
+		_tick_town_portal_cast(delta)
 		if _is_server_auth:
 			_process_grid_sync(delta)
 	if _is_server_auth:
@@ -457,6 +465,7 @@ func _physics_process_lan(delta: float) -> void:
 
 
 func _handle_move_click() -> void:
+	_cancel_town_portal_cast()
 	var hit_pos := _raycast_ground()
 	if hit_pos != Vector3.INF:
 		is_attacking = false
@@ -467,6 +476,7 @@ func _handle_move_click() -> void:
 
 
 func _handle_attack_click() -> void:
+	_cancel_town_portal_cast()
 	if attack_timer > 0.0:
 		return
 
@@ -1213,3 +1223,64 @@ func _apply_remote_position(pos: Vector3, rot_y: float) -> void:
 	_remote_pos = pos
 	_remote_rot_y = rot_y
 	_remote_initialized = true
+
+
+# --- Town Portal ---
+
+func _start_town_portal_cast() -> void:
+	if stats.health <= 0:
+		return
+	if _tp_casting:
+		return  # Already casting
+	_tp_casting = true
+	_tp_cast_timer = TP_CAST_TIME
+	is_moving = false
+	is_attacking = false
+	EventBus.show_floating_text.emit(global_position + Vector3(0, 2.5, 0), "Casting Town Portal...", Color(0.3, 0.5, 1.0))
+
+
+func _cancel_town_portal_cast() -> void:
+	if _tp_casting:
+		_tp_casting = false
+		_tp_cast_timer = 0.0
+
+
+func _tick_town_portal_cast(delta: float) -> void:
+	if not _tp_casting:
+		return
+	_tp_cast_timer -= delta
+	if _tp_cast_timer <= 0.0:
+		_tp_casting = false
+		_tp_cast_timer = 0.0
+		_finish_town_portal_cast()
+
+
+func _finish_town_portal_cast() -> void:
+	if _is_server_auth:
+		_server_town_portal_intent.rpc_id(1)
+	else:
+		# LAN mode: open portal locally
+		var main_game := _get_main_game()
+		if main_game and main_game.has_method("open_town_portal"):
+			main_game.open_town_portal(get_multiplayer_authority(), global_position)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_town_portal_intent() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != get_multiplayer_authority():
+		return
+	var main_game := _get_main_game()
+	if main_game and main_game.has_method("open_town_portal"):
+		main_game.open_town_portal(sender, global_position)
+
+
+func _get_main_game() -> Node:
+	var node := get_parent()
+	while node:
+		if node.has_method("open_town_portal"):
+			return node
+		node = node.get_parent()
+	return null

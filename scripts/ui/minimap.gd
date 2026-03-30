@@ -217,3 +217,25 @@ func _draw() -> void:
 func _process(_delta: float) -> void:
 	_reveal_around_player()
 	queue_redraw()
+
+
+func get_revealed_data() -> PackedByteArray:
+	## Serialize the revealed grid into a compact byte array for caching.
+	var data := PackedByteArray()
+	data.resize(grid_width * grid_height)
+	for x in grid_width:
+		for y in grid_height:
+			data[x * grid_height + y] = 1 if _revealed[x][y] else 0
+	return data
+
+
+func restore_revealed_data(data: PackedByteArray) -> void:
+	## Restore a cached revealed grid. Must be called after setup().
+	if data.size() != grid_width * grid_height:
+		return
+	for x in grid_width:
+		for y in grid_height:
+			if data[x * grid_height + y] == 1:
+				_revealed[x][y] = true
+				_fog_image.set_pixel(x, y, Color(0, 0, 0, 0))
+	_fog_texture.update(_fog_image)

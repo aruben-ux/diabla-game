@@ -52,6 +52,12 @@ var _world_env: WorldEnvironment
 var _town_environment: Environment
 var _dungeon_environment: Environment
 
+## Minimap fog cache: floor_number -> PackedByteArray (revealed tiles)
+var _fog_cache: Dictionary = {}
+
+## Town Portals: owner_peer_id -> { "dungeon": Node3D, "town": Node3D, "floor": int }
+var _active_portals: Dictionary = {}
+var _town_portal_script: GDScript = preload("res://scripts/loot/town_portal.gd")
 
 var _auto_save_timer: float = 0.0
 const AUTO_SAVE_INTERVAL := 60.0
@@ -389,6 +395,7 @@ func _sync_remove_floor(floor_num: int) -> void:
 func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> void:
 	var is_local := peer_id == multiplayer.get_unique_id()
 	if is_local:
+		_save_fog_for_current_floor()
 		_fade_out()
 
 	_player_locations[peer_id] = ActiveLevel.DUNGEON
@@ -400,6 +407,7 @@ func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> voi
 		if town_level and town_level.sun:
 			town_level.sun.visible = false
 		_update_minimap_for_dungeon(floor_num)
+		_restore_fog_for_floor(floor_num)
 		_snap_camera()
 		_fade_in()
 
@@ -408,6 +416,7 @@ func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> voi
 func _sync_player_to_town(peer_id: int, dest: Vector3) -> void:
 	var is_local := peer_id == multiplayer.get_unique_id()
 	if is_local:
+		_save_fog_for_current_floor()
 		_fade_out()
 
 	_player_locations[peer_id] = ActiveLevel.TOWN
@@ -503,6 +512,25 @@ func _update_minimap_for_dungeon(floor_num: int) -> void:
 		dl.get_tile_size(),
 		dl.global_position
 	)
+
+
+func _save_fog_for_current_floor() -> void:
+	## Cache the local player's revealed minimap tiles for the current floor.
+	if not minimap:
+		return
+	var my_id := multiplayer.get_unique_id()
+	var cur_floor: int = _player_floors.get(my_id, 0)
+	if cur_floor <= 0:
+		return  # Town is always fully revealed
+	_fog_cache[cur_floor] = minimap.get_revealed_data()
+
+
+func _restore_fog_for_floor(floor_num: int) -> void:
+	## Restore cached fog data after minimap.setup() rebuilt the fog grid.
+	if not minimap:
+		return
+	if floor_num in _fog_cache:
+		minimap.restore_revealed_data(_fog_cache[floor_num])
 
 
 func _get_local_player() -> Node:
@@ -632,3 +660,117 @@ func _on_show_floating_text(world_pos: Vector3, text: String, color: Color) -> v
 	$CanvasLayer.add_child(ft)
 	ft.global_position = screen_pos
 	ft.setup(text, color)
+
+
+# --- Town Portal system ---
+
+func open_town_portal(peer_id: int, dungeon_pos: Vector3) -> void:
+	## Server-side: create a portal pair (dungeon + town).
+	## Called by player.gd when a player finishes casting.
+	if not multiplayer.is_server():
+		return
+	var floor_num: int = _player_floors.get(peer_id, 0)
+	if floor_num <= 0:
+		return  # Can't open portal in town
+
+	# Clear any existing portal for this player
+	_clear_portal(peer_id)
+
+	# Broadcast to all peers to spawn the portal visuals
+	var town_pos: Vector3 = town_level.spawn_position + Vector3(3.0, 0.0, 3.0) if town_level else _town_spawn + Vector3(3.0, 0.0, 3.0)
+	_sync_spawn_portal.rpc(peer_id, dungeon_pos, town_pos, floor_num)
+
+
+func use_town_portal(peer_id: int, portal_node: Node3D) -> void:
+	## Server-side: a player stepped into a portal.
+	if not multiplayer.is_server():
+		return
+
+	var owner_id: int = portal_node.owner_peer_id
+	if owner_id not in _active_portals:
+		return
+
+	var portal_data: Dictionary = _active_portals[owner_id]
+	var floor_num: int = portal_data["floor"]
+
+	if portal_node.is_town_side:
+		# Player is in town, send them to the dungeon portal position
+		_send_player_to_floor(peer_id, floor_num, "up")
+		# Override destination to the exact portal pos
+		var dungeon_portal: Node3D = portal_data.get("dungeon")
+		if dungeon_portal and is_instance_valid(dungeon_portal):
+			var dest: Vector3 = dungeon_portal.global_position + Vector3(0, 0, 1.5)
+			_sync_player_to_dungeon.rpc(peer_id, dest, floor_num)
+		# If the creator enters their own town portal, destroy both portals
+		if peer_id == owner_id:
+			_sync_destroy_portal.rpc(owner_id)
+	else:
+		# Player is in dungeon, send them to town
+		var old_floor: int = _player_floors.get(peer_id, 0)
+		_player_locations[peer_id] = ActiveLevel.TOWN
+		_player_floors[peer_id] = 0
+		var town_portal: Node3D = portal_data.get("town")
+		var dest: Vector3 = _town_spawn
+		if town_portal and is_instance_valid(town_portal):
+			dest = town_portal.global_position + Vector3(0, 0, 1.5)
+		_sync_player_to_town.rpc(peer_id, dest)
+		if old_floor > 0:
+			_maybe_cleanup_floor(old_floor)
+
+
+func _clear_portal(peer_id: int) -> void:
+	if peer_id in _active_portals:
+		_sync_destroy_portal.rpc(peer_id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, floor_num: int) -> void:
+	## All peers: instantiate dungeon-side and town-side portals.
+	# Destroy any old portals for this owner first
+	_destroy_portal_local(owner_id)
+
+	# Dungeon-side portal
+	var dungeon_portal := Node3D.new()
+	dungeon_portal.set_script(_town_portal_script)
+	dungeon_portal.owner_peer_id = owner_id
+	dungeon_portal.source_floor = floor_num
+	dungeon_portal.source_position = dungeon_pos
+	dungeon_portal.is_town_side = false
+	dungeon_portal.global_position = dungeon_pos
+	dungeon_portal.name = "TownPortal_Dungeon_%d" % owner_id
+	level_container.add_child(dungeon_portal)
+
+	# Town-side portal
+	var town_portal := Node3D.new()
+	town_portal.set_script(_town_portal_script)
+	town_portal.owner_peer_id = owner_id
+	town_portal.source_floor = floor_num
+	town_portal.source_position = dungeon_pos
+	town_portal.is_town_side = true
+	town_portal.global_position = town_pos
+	town_portal.name = "TownPortal_Town_%d" % owner_id
+	level_container.add_child(town_portal)
+
+	_active_portals[owner_id] = {
+		"dungeon": dungeon_portal,
+		"town": town_portal,
+		"floor": floor_num
+	}
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_destroy_portal(owner_id: int) -> void:
+	_destroy_portal_local(owner_id)
+
+
+func _destroy_portal_local(owner_id: int) -> void:
+	if owner_id not in _active_portals:
+		return
+	var portal_data: Dictionary = _active_portals[owner_id]
+	var dungeon_portal: Node3D = portal_data.get("dungeon")
+	var town_portal: Node3D = portal_data.get("town")
+	if dungeon_portal and is_instance_valid(dungeon_portal):
+		dungeon_portal.queue_free()
+	if town_portal and is_instance_valid(town_portal):
+		town_portal.queue_free()
+	_active_portals.erase(owner_id)

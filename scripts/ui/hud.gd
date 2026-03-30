@@ -70,6 +70,11 @@ var _quest_dialog_npc_id: String = ""
 var _skill_tree_ui: SkillTreeUI
 var _skill_btn: Button
 
+# Cast bar
+var _cast_bar_panel: PanelContainer
+var _cast_bar_progress: ProgressBar
+var _cast_bar_label: Label
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
@@ -87,6 +92,7 @@ func _ready() -> void:
 	EventBus.quest_updated.connect(_refresh_quest_panel)
 	EventBus.quest_dialog_requested.connect(_on_quest_dialog_requested)
 	_build_skill_tree_ui()
+	_build_cast_bar()
 
 
 func _build_target_panel() -> void:
@@ -462,6 +468,81 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	}
 
 
+func _build_cast_bar() -> void:
+	_cast_bar_panel = PanelContainer.new()
+	_cast_bar_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_cast_bar_panel.offset_left = -120
+	_cast_bar_panel.offset_right = 120
+	_cast_bar_panel.offset_top = 60
+	_cast_bar_panel.offset_bottom = 100
+	_cast_bar_panel.visible = false
+	_cast_bar_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.05, 0.1, 0.85)
+	sb.border_color = Color(0.3, 0.5, 1.0, 0.8)
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	_cast_bar_panel.add_theme_stylebox_override("panel", sb)
+	add_child(_cast_bar_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cast_bar_panel.add_child(vbox)
+
+	_cast_bar_label = Label.new()
+	_cast_bar_label.text = "Town Portal"
+	_cast_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cast_bar_label.add_theme_font_size_override("font_size", 12)
+	_cast_bar_label.add_theme_color_override("font_color", Color(0.5, 0.7, 1.0))
+	_cast_bar_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(_cast_bar_label)
+
+	_cast_bar_progress = ProgressBar.new()
+	_cast_bar_progress.min_value = 0.0
+	_cast_bar_progress.max_value = 1.0
+	_cast_bar_progress.value = 0.0
+	_cast_bar_progress.custom_minimum_size = Vector2(220, 14)
+	_cast_bar_progress.show_percentage = false
+	_cast_bar_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var fill_sb := StyleBoxFlat.new()
+	fill_sb.bg_color = Color(0.2, 0.4, 1.0, 0.9)
+	fill_sb.corner_radius_top_left = 3
+	fill_sb.corner_radius_top_right = 3
+	fill_sb.corner_radius_bottom_left = 3
+	fill_sb.corner_radius_bottom_right = 3
+	_cast_bar_progress.add_theme_stylebox_override("fill", fill_sb)
+
+	var bg_sb := StyleBoxFlat.new()
+	bg_sb.bg_color = Color(0.1, 0.1, 0.15, 0.8)
+	bg_sb.corner_radius_top_left = 3
+	bg_sb.corner_radius_top_right = 3
+	bg_sb.corner_radius_bottom_left = 3
+	bg_sb.corner_radius_bottom_right = 3
+	_cast_bar_progress.add_theme_stylebox_override("background", bg_sb)
+
+	vbox.add_child(_cast_bar_progress)
+
+
+func _update_cast_bar() -> void:
+	if not tracked_player or not is_instance_valid(tracked_player):
+		_cast_bar_panel.visible = false
+		return
+	if tracked_player._tp_casting:
+		_cast_bar_panel.visible = true
+		var elapsed: float = tracked_player.TP_CAST_TIME - tracked_player._tp_cast_timer
+		_cast_bar_progress.value = elapsed / tracked_player.TP_CAST_TIME
+	else:
+		_cast_bar_panel.visible = false
+
+
 func _style_potion_panel(panel: Panel, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -534,6 +615,7 @@ func _process(delta: float) -> void:
 	_update_target_display()
 	_update_party_panel()
 	_update_character_panel()
+	_update_cast_bar()
 
 
 func _update_target_display() -> void:

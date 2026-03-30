@@ -1005,11 +1005,8 @@ func _show_shop_item_tooltip(shop_entry: Dictionary) -> void:
 	if not _tooltip:
 		return
 	_tooltip.visible = true
-	var text := "[b]%s[/b]\n" % item.display_name
-	text += "[color=#%s]%s[/color]\n" % [
-		ItemData.get_rarity_color(item.rarity).to_html(false),
-		ItemData.Rarity.keys()[item.rarity]
-	]
+	var name_col := ItemData.get_rarity_color(item.rarity).to_html(false)
+	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, item.display_name]
 	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
 	text += "[color=#FFD700]Price: %d gold[/color]\n" % shop_entry["price"]
 	if item.bonus_damage > 0:
@@ -1144,11 +1141,8 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 	if not _tooltip:
 		return
 	_tooltip.visible = true
-	var text := "[b]%s[/b]\n" % item.display_name
-	text += "[color=#%s]%s[/color]\n" % [
-		ItemData.get_rarity_color(item.rarity).to_html(false),
-		ItemData.Rarity.keys()[item.rarity]
-	]
+	var name_col := ItemData.get_rarity_color(item.rarity).to_html(false)
+	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, item.display_name]
 	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
 	if item.bonus_damage > 0:
 		text += "+%.0f Damage\n" % item.bonus_damage
