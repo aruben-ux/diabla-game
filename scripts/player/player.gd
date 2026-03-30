@@ -86,8 +86,18 @@ func _ready() -> void:
 		inventory.inventory_changed.connect(_on_inventory_changed_sync)
 		inventory.potions_changed.connect(_on_potions_changed_sync)
 
-	# Build the multi-mesh player model
-	if model.has_method("build_player_model"):
+	# Build the class-specific model from appearance data
+	var appearance: Dictionary = {}
+	if CharacterManager.active_character and CharacterManager.active_character.appearance.size() > 0:
+		appearance = CharacterManager.active_character.appearance
+	elif _is_server_auth:
+		# Online: try to pull appearance from online_players dict
+		var pid := get_multiplayer_authority()
+		if pid in GameManager.online_players:
+			appearance = GameManager.online_players[pid].get("appearance", {})
+	if appearance.size() > 0 and model.has_method("build_class_model"):
+		model.build_class_model(appearance)
+	elif model.has_method("build_player_model"):
 		model.build_player_model()
 
 	# Name label above head (hidden for local player)

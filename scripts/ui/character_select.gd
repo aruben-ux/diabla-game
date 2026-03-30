@@ -5,10 +5,7 @@ extends Control
 ## In online mode: fetches characters from server via OnlineManager.
 
 @onready var slot_list: VBoxContainer = $CharacterList/ScrollContainer/SlotList
-@onready var name_input: LineEdit = $CreatePanel/CreateVBox/NameInput
-@onready var class_option: OptionButton = $CreatePanel/CreateVBox/ClassOption
-@onready var class_desc: RichTextLabel = $CreatePanel/CreateVBox/ClassDesc
-@onready var create_button: Button = $CreatePanel/CreateVBox/CreateButton
+@onready var create_button: Button = $BottomBar/CreateButton
 @onready var play_button: Button = $BottomBar/PlayButton
 @onready var delete_button: Button = $BottomBar/DeleteButton
 @onready var back_button: Button = $BottomBar/BackButton
@@ -17,15 +14,6 @@ var _selected_index: int = -1
 ## In offline mode: Array[CharacterData]. In online mode: Array[Dictionary].
 var _characters: Array = []
 var _is_online: bool = false
-
-const CLASS_DESCRIPTIONS := {
-	CharacterData.CharacterClass.WARRIOR:
-		"[b]Warrior[/b]\nHigh strength & vitality.\nExcels in melee combat with heavy armor.",
-	CharacterData.CharacterClass.MAGE:
-		"[b]Mage[/b]\nHigh intelligence & mana.\nDeals devastating spell damage from range.",
-	CharacterData.CharacterClass.ROGUE:
-		"[b]Rogue[/b]\nHigh dexterity & speed.\nFast attacks and nimble movement.",
-}
 
 const CLASS_COLORS := {
 	CharacterData.CharacterClass.WARRIOR: Color(0.9, 0.35, 0.25),
@@ -39,12 +27,6 @@ const CLASS_NAMES := ["Warrior", "Mage", "Rogue"]
 func _ready() -> void:
 	_is_online = GameManager.is_online_mode
 
-	class_option.clear()
-	class_option.add_item("Warrior", CharacterData.CharacterClass.WARRIOR)
-	class_option.add_item("Mage", CharacterData.CharacterClass.MAGE)
-	class_option.add_item("Rogue", CharacterData.CharacterClass.ROGUE)
-
-	class_option.item_selected.connect(_on_class_selected)
 	create_button.pressed.connect(_on_create_pressed)
 	play_button.pressed.connect(_on_play_pressed)
 	delete_button.pressed.connect(_on_delete_pressed)
@@ -55,7 +37,6 @@ func _ready() -> void:
 		OnlineManager.character_created.connect(_on_server_character_created)
 		OnlineManager.character_deleted.connect(_on_server_character_deleted)
 
-	_on_class_selected(0)
 	_refresh_character_list()
 
 
@@ -154,32 +135,11 @@ func _on_slot_pressed(index: int) -> void:
 			child.modulate = Color(0.7, 0.7, 0.7) if i != index else Color.WHITE
 
 
-func _on_class_selected(idx: int) -> void:
-	var cls: CharacterData.CharacterClass = class_option.get_item_id(idx) as CharacterData.CharacterClass
-	class_desc.text = CLASS_DESCRIPTIONS.get(cls, "")
-
-
 func _on_create_pressed() -> void:
-	var char_name := name_input.text.strip_edges()
-	if char_name.is_empty():
-		char_name = "Hero"
-
-	var cls_idx := class_option.selected
-	var cls: CharacterData.CharacterClass = class_option.get_item_id(cls_idx) as CharacterData.CharacterClass
-
-	if _is_online:
-		OnlineManager.create_character(char_name, cls as int)
-	else:
-		var slot := CharacterManager.get_next_free_slot()
-		var data := CharacterData.create_new(char_name, cls)
-		data.save_slot = slot
-		CharacterManager.save_character(data)
-		name_input.text = ""
-		_refresh_character_list()
+	get_tree().change_scene_to_file("res://scenes/ui/character_creator.tscn")
 
 
-func _on_server_character_created(data: Dictionary) -> void:
-	name_input.text = ""
+func _on_server_character_created(_data: Dictionary) -> void:
 	_refresh_character_list()
 
 

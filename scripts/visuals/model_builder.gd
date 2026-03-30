@@ -11,52 +11,182 @@ func _ready() -> void:
 
 
 func build_player_model() -> void:
+	# Default fallback — builds warrior with default colors
+	build_class_model({
+		"character_class": 0,
+		"armor_color": [0.35, 0.55, 0.9],
+		"accent_color": [0.2, 0.45, 0.85],
+		"body_scale": [1.0, 1.0, 1.0],
+		"size_mult": 1.0,
+	})
+
+
+func build_class_model(appearance: Dictionary) -> void:
 	_clear()
+	var cls: int = appearance.get("character_class", 0)
+	var ac: Array = appearance.get("armor_color", [0.35, 0.55, 0.9])
+	var armor_color := Color(ac[0], ac[1], ac[2])
+	var xc: Array = appearance.get("accent_color", [0.2, 0.45, 0.85])
+	var accent_color := Color(xc[0], xc[1], xc[2])
+	var bs: Array = appearance.get("body_scale", [1.0, 1.0, 1.0])
+	var body_scale := Vector3(bs[0], bs[1], bs[2])
+	var size_mult: float = appearance.get("size_mult", 1.0)
 
-	var body_color := Color(0.2, 0.45, 0.85)
+	match cls:
+		0: _build_warrior(armor_color, accent_color, body_scale, size_mult)
+		1: _build_mage(armor_color, accent_color, body_scale, size_mult)
+		2: _build_rogue(armor_color, accent_color, body_scale, size_mult)
+		_: _build_warrior(armor_color, accent_color, body_scale, size_mult)
+
+	# Apply overall size
+	scale = Vector3.ONE * size_mult
+
+
+func _build_warrior(armor_color: Color, accent_color: Color, body_shape: Vector3, _sm: float) -> void:
 	var skin_color := Color(0.85, 0.7, 0.6)
-	var armor_color := Color(0.35, 0.55, 0.9)
 	var boot_color := Color(0.3, 0.25, 0.2)
+	var metal_color := Color(0.7, 0.7, 0.75)
 
-	# Legs
-	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.15, 0.3, 0), Vector3(0.12, 0.3, 0.12), boot_color)
-	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.15, 0.3, 0), Vector3(0.12, 0.3, 0.12), boot_color)
+	# Legs — thick boots
+	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.18, 0.3, 0) * body_shape, Vector3(0.14, 0.3, 0.14) * body_shape, boot_color)
+	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.18, 0.3, 0) * body_shape, Vector3(0.14, 0.3, 0.14) * body_shape, boot_color)
 
-	# Torso
-	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.85, 0), Vector3(0.5, 0.5, 0.3), armor_color)
+	# Torso — heavy chestplate
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.85, 0) * body_shape, Vector3(0.55, 0.5, 0.35) * body_shape, armor_color)
+	# Belt
+	_add_part("Belt", BoxMesh.new(), Vector3(0, 0.62, 0) * body_shape, Vector3(0.52, 0.06, 0.32) * body_shape, boot_color)
 
-	# Shoulder pads
-	_add_part("LeftShoulder", SphereMesh.new(), Vector3(-0.35, 1.1, 0), Vector3(0.2, 0.15, 0.2), armor_color)
-	_add_part("RightShoulder", SphereMesh.new(), Vector3(0.35, 1.1, 0), Vector3(0.2, 0.15, 0.2), armor_color)
+	# Shoulder pads — big, armored
+	_add_part("LeftShoulder", SphereMesh.new(), Vector3(-0.38, 1.12, 0) * body_shape, Vector3(0.24, 0.18, 0.24) * body_shape, accent_color)
+	_add_part("RightShoulder", SphereMesh.new(), Vector3(0.38, 1.12, 0) * body_shape, Vector3(0.24, 0.18, 0.24) * body_shape, accent_color)
 
-	# Right arm pivot (shoulder) — holds arm + sword
+	# Right arm pivot — sword arm
 	right_arm_pivot = Node3D.new()
 	right_arm_pivot.name = "RightArmPivot"
-	right_arm_pivot.position = Vector3(0.35, 1.05, 0)
+	right_arm_pivot.position = Vector3(0.38, 1.05, 0) * body_shape
 	right_arm_pivot.rotation.x = 0.3
 	add_child(right_arm_pivot)
-	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.08, 0.25, 0.08), skin_color))
-	right_arm_pivot.add_child(_create_part("Sword", BoxMesh.new(), Vector3(0.02, -0.68, 0), Vector3(0.06, 0.55, 0.04), Color(0.8, 0.8, 0.85)))
-	right_arm_pivot.add_child(_create_part("SwordGuard", BoxMesh.new(), Vector3(0.02, -0.43, 0), Vector3(0.18, 0.04, 0.06), Color(0.6, 0.5, 0.2)))
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.25, 0.1) * body_shape, skin_color))
+	right_arm_pivot.add_child(_create_part("Sword", BoxMesh.new(), Vector3(0.02, -0.72, 0), Vector3(0.07, 0.6, 0.04), metal_color))
+	right_arm_pivot.add_child(_create_part("SwordGuard", BoxMesh.new(), Vector3(0.02, -0.43, 0), Vector3(0.2, 0.05, 0.07), accent_color))
+	right_arm_pivot.add_child(_create_part("SwordGrip", CylinderMesh.new(), Vector3(0.02, -0.36, 0), Vector3(0.04, 0.12, 0.04), boot_color))
 
-	# Left arm pivot — holds arm + shield
+	# Left arm pivot — shield arm
 	var left_pivot := Node3D.new()
 	left_pivot.name = "LeftArmPivot"
-	left_pivot.position = Vector3(-0.35, 1.05, 0)
+	left_pivot.position = Vector3(-0.38, 1.05, 0) * body_shape
 	left_pivot.rotation.x = 0.4
 	add_child(left_pivot)
-	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.08, 0.25, 0.08), skin_color))
-	left_pivot.add_child(_create_part("Shield", BoxMesh.new(), Vector3(-0.1, -0.22, 0.12), Vector3(0.04, 0.35, 0.3), armor_color))
+	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.25, 0.1) * body_shape, skin_color))
+	left_pivot.add_child(_create_part("Shield", BoxMesh.new(), Vector3(-0.1, -0.22, 0.14), Vector3(0.05, 0.38, 0.32), armor_color))
+	left_pivot.add_child(_create_part("ShieldBoss", SphereMesh.new(), Vector3(-0.1, -0.22, 0.3), Vector3(0.1, 0.1, 0.06), accent_color))
 
 	# Head
-	_add_part("Head", SphereMesh.new(), Vector3(0, 1.35, 0), Vector3(0.22, 0.22, 0.22), skin_color)
-
-	# Helmet
-	_add_part("Helmet", SphereMesh.new(), Vector3(0, 1.42, 0), Vector3(0.26, 0.18, 0.26), body_color)
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.35, 0) * body_shape, Vector3(0.22, 0.22, 0.22), skin_color)
+	# Helmet — full helm
+	_add_part("Helmet", SphereMesh.new(), Vector3(0, 1.42, 0) * body_shape, Vector3(0.27, 0.2, 0.27), armor_color)
+	# Helmet crest
+	_add_part("Crest", BoxMesh.new(), Vector3(0, 1.56, 0) * body_shape, Vector3(0.04, 0.1, 0.2), accent_color)
 
 	# Eyes (emissive)
-	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.07, 1.38, 0.18), Vector3(0.04, 0.04, 0.04), Color(0.8, 0.9, 1.0))
-	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.07, 1.38, 0.18), Vector3(0.04, 0.04, 0.04), Color(0.8, 0.9, 1.0))
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.07, 1.38, 0.19) * body_shape, Vector3(0.04, 0.04, 0.04), accent_color.lightened(0.5))
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.07, 1.38, 0.19) * body_shape, Vector3(0.04, 0.04, 0.04), accent_color.lightened(0.5))
+
+
+func _build_mage(armor_color: Color, accent_color: Color, body_shape: Vector3, _sm: float) -> void:
+	var skin_color := Color(0.8, 0.72, 0.65)
+
+	# Robe skirt — flared cylinder
+	_add_part("Robe", CylinderMesh.new(), Vector3(0, 0.4, 0) * body_shape, Vector3(0.3, 0.4, 0.3) * body_shape, armor_color)
+
+	# Torso — elegant robe
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.88, 0) * body_shape, Vector3(0.38, 0.38, 0.25) * body_shape, armor_color)
+	# Sash
+	_add_part("Sash", BoxMesh.new(), Vector3(0, 0.7, 0.05) * body_shape, Vector3(0.35, 0.04, 0.22) * body_shape, accent_color)
+
+	# Shoulder mantle — softer shape
+	_add_part("LeftShoulder", SphereMesh.new(), Vector3(-0.28, 1.08, 0) * body_shape, Vector3(0.16, 0.12, 0.16) * body_shape, accent_color)
+	_add_part("RightShoulder", SphereMesh.new(), Vector3(0.28, 1.08, 0) * body_shape, Vector3(0.16, 0.12, 0.16) * body_shape, accent_color)
+
+	# Right arm pivot — staff hand
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.28, 1.0, 0) * body_shape
+	right_arm_pivot.rotation.x = 0.2
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.24, 0), Vector3(0.07, 0.22, 0.07) * body_shape, skin_color))
+	right_arm_pivot.add_child(_create_part("Staff", CylinderMesh.new(), Vector3(0.02, -0.3, 0), Vector3(0.04, 0.8, 0.04), Color(0.5, 0.35, 0.2)))
+	right_arm_pivot.add_child(_create_emissive_part("StaffOrb", SphereMesh.new(), Vector3(0.02, 0.45, 0), Vector3(0.12, 0.12, 0.12), accent_color))
+
+	# Left arm
+	var left_pivot := Node3D.new()
+	left_pivot.name = "LeftArmPivot"
+	left_pivot.position = Vector3(-0.28, 1.0, 0) * body_shape
+	left_pivot.rotation.x = 0.15
+	add_child(left_pivot)
+	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.24, 0), Vector3(0.07, 0.22, 0.07) * body_shape, skin_color))
+	# Book / tome in off-hand
+	left_pivot.add_child(_create_part("Tome", BoxMesh.new(), Vector3(-0.06, -0.35, 0.08), Vector3(0.12, 0.16, 0.04), accent_color.darkened(0.3)))
+
+	# Head
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.3, 0) * body_shape, Vector3(0.2, 0.2, 0.2), skin_color)
+	# Wizard hat — tall cone
+	_add_part("HatBrim", CylinderMesh.new(), Vector3(0, 1.36, 0) * body_shape, Vector3(0.28, 0.025, 0.28), armor_color)
+	_add_part("HatCone", CylinderMesh.new(), Vector3(0, 1.58, 0) * body_shape, Vector3(0.15, 0.22, 0.15), armor_color)
+	_add_part("HatTip", SphereMesh.new(), Vector3(0, 1.78, 0) * body_shape, Vector3(0.06, 0.06, 0.06), accent_color)
+
+	# Eyes (emissive, arcane glow)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.33, 0.16) * body_shape, Vector3(0.035, 0.035, 0.035), accent_color)
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.33, 0.16) * body_shape, Vector3(0.035, 0.035, 0.035), accent_color)
+
+
+func _build_rogue(armor_color: Color, accent_color: Color, body_shape: Vector3, _sm: float) -> void:
+	var skin_color := Color(0.8, 0.68, 0.58)
+	var leather_color := armor_color.lightened(0.1)
+
+	# Legs — slim, with wrapped boots
+	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.13, 0.3, 0) * body_shape, Vector3(0.1, 0.3, 0.1) * body_shape, leather_color)
+	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.13, 0.3, 0) * body_shape, Vector3(0.1, 0.3, 0.1) * body_shape, leather_color)
+
+	# Torso — light leather vest
+	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.82, 0) * body_shape, Vector3(0.4, 0.42, 0.25) * body_shape, armor_color)
+	# Bandolier
+	_add_part("Bandolier", BoxMesh.new(), Vector3(0.0, 0.85, 0.1) * body_shape, Vector3(0.08, 0.4, 0.05) * body_shape, accent_color)
+
+	# Shoulders — small leather pads
+	_add_part("LeftShoulder", SphereMesh.new(), Vector3(-0.28, 1.06, 0) * body_shape, Vector3(0.14, 0.1, 0.14) * body_shape, armor_color)
+	_add_part("RightShoulder", SphereMesh.new(), Vector3(0.28, 1.06, 0) * body_shape, Vector3(0.14, 0.1, 0.14) * body_shape, armor_color)
+
+	# Right arm pivot — main-hand dagger
+	right_arm_pivot = Node3D.new()
+	right_arm_pivot.name = "RightArmPivot"
+	right_arm_pivot.position = Vector3(0.3, 1.0, 0) * body_shape
+	right_arm_pivot.rotation.x = 0.25
+	add_child(right_arm_pivot)
+	right_arm_pivot.add_child(_create_part("RightArm", CylinderMesh.new(), Vector3(0, -0.26, 0), Vector3(0.07, 0.23, 0.07) * body_shape, skin_color))
+	right_arm_pivot.add_child(_create_part("Dagger1", BoxMesh.new(), Vector3(0.02, -0.52, 0), Vector3(0.04, 0.3, 0.03), Color(0.75, 0.75, 0.8)))
+	right_arm_pivot.add_child(_create_part("Dagger1Guard", BoxMesh.new(), Vector3(0.02, -0.37, 0), Vector3(0.1, 0.03, 0.05), accent_color))
+
+	# Left arm pivot — off-hand dagger
+	var left_pivot := Node3D.new()
+	left_pivot.name = "LeftArmPivot"
+	left_pivot.position = Vector3(-0.3, 1.0, 0) * body_shape
+	left_pivot.rotation.x = 0.25
+	add_child(left_pivot)
+	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.26, 0), Vector3(0.07, 0.23, 0.07) * body_shape, skin_color))
+	left_pivot.add_child(_create_part("Dagger2", BoxMesh.new(), Vector3(-0.02, -0.50, 0), Vector3(0.04, 0.28, 0.03), Color(0.75, 0.75, 0.8)))
+	left_pivot.add_child(_create_part("Dagger2Guard", BoxMesh.new(), Vector3(-0.02, -0.36, 0), Vector3(0.1, 0.03, 0.05), accent_color))
+
+	# Head
+	_add_part("Head", SphereMesh.new(), Vector3(0, 1.3, 0) * body_shape, Vector3(0.2, 0.2, 0.2), skin_color)
+	# Hood
+	_add_part("Hood", SphereMesh.new(), Vector3(0, 1.38, -0.02) * body_shape, Vector3(0.24, 0.2, 0.24), armor_color)
+	# Mask/scarf
+	_add_part("Mask", BoxMesh.new(), Vector3(0, 1.26, 0.12) * body_shape, Vector3(0.18, 0.06, 0.06), accent_color)
+
+	# Eyes (emissive, sharp)
+	_add_emissive_part("LeftEye", SphereMesh.new(), Vector3(-0.06, 1.33, 0.17) * body_shape, Vector3(0.03, 0.03, 0.03), Color(0.9, 0.95, 0.8))
+	_add_emissive_part("RightEye", SphereMesh.new(), Vector3(0.06, 1.33, 0.17) * body_shape, Vector3(0.03, 0.03, 0.03), Color(0.9, 0.95, 0.8))
 
 
 func build_from_data(visual_data: Dictionary) -> void:

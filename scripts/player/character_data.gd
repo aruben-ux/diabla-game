@@ -48,6 +48,9 @@ var equipment: Dictionary = {}
 # Quest progress
 var quest_data: Array = []
 
+# Visual appearance customization
+var appearance: Dictionary = {}
+
 # Metadata
 var created_at: String = ""
 var last_played: String = ""
@@ -144,6 +147,7 @@ func to_dict() -> Dictionary:
 		"inventory_items": inventory_items,
 		"equipment": equipment,
 		"quest_data": quest_data,
+		"appearance": appearance,
 		"created_at": created_at,
 		"last_played": last_played,
 		"save_slot": save_slot,
@@ -175,6 +179,7 @@ static func from_dict(d: Dictionary) -> CharacterData:
 	data.inventory_items = d.get("inventory_items", [])
 	data.equipment = d.get("equipment", {})
 	data.quest_data = d.get("quest_data", [])
+	data.appearance = d.get("appearance", {})
 	data.created_at = d.get("created_at", "")
 	data.last_played = d.get("last_played", "")
 	data.save_slot = d.get("save_slot", 0)

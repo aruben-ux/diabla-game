@@ -36,9 +36,9 @@ vertical_alignment = 1
 
 [node name="CharacterList" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchor_left = 0.05
+anchor_left = 0.1
 anchor_top = 0.12
-anchor_right = 0.55
+anchor_right = 0.9
 anchor_bottom = 0.85
 grow_horizontal = 2
 grow_vertical = 2
@@ -53,51 +53,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="CreatePanel" type="PanelContainer" parent="."]
-layout_mode = 1
-anchor_left = 0.58
-anchor_top = 0.12
-anchor_right = 0.95
-anchor_bottom = 0.85
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="CreateVBox" type="VBoxContainer" parent="CreatePanel"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="CreateTitle" type="Label" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-text = "Create New Character"
-horizontal_alignment = 1
-
-[node name="NameLabel" type="Label" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-text = "Name:"
-
-[node name="NameInput" type="LineEdit" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-placeholder_text = "Enter character name"
-max_length = 20
-
-[node name="ClassLabel" type="Label" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-text = "Class:"
-
-[node name="ClassOption" type="OptionButton" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-
-[node name="ClassDesc" type="RichTextLabel" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 100)
-bbcode_enabled = true
-text = ""
-fit_content = true
-
-[node name="CreateButton" type="Button" parent="CreatePanel/CreateVBox"]
-layout_mode = 2
-text = "Create Character"
-
 [node name="BottomBar" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchor_top = 0.88
@@ -107,6 +62,11 @@ grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
 theme_override_constants/separation = 20
+
+[node name="CreateButton" type="Button" parent="BottomBar"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Create Character"
 
 [node name="PlayButton" type="Button" parent="BottomBar"]
 custom_minimum_size = Vector2(180, 0)
