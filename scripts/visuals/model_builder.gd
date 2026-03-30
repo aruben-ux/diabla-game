@@ -94,20 +94,33 @@ func _process(delta: float) -> void:
 
 		# Slight body bob
 		position.y = abs(sin(t * 2.0)) * BODY_BOB
+		# Reset idle lean
+		rotation.x = lerp(rotation.x, 0.0, 8.0 * delta)
+		rotation.z = lerp(rotation.z, 0.0, 8.0 * delta)
 	else:
-		# Idle: gentle breathing sway
+		# Idle: gentle breathing sway + subtle limb motion
 		var idle_t := _anim_time * IDLE_SPEED
 		position.y = sin(idle_t) * IDLE_BOB
 
-		# Gently return limbs to rest
+		# Very slow, subtle arm sway (like breathing / shifting weight)
+		var arm_drift := sin(idle_t * 0.7) * 0.06
+		var arm_drift2 := sin(idle_t * 0.7 + 1.2) * 0.06
 		if right_arm_pivot:
-			right_arm_pivot.rotation.x = lerp(right_arm_pivot.rotation.x, _right_arm_rest_x, 5.0 * delta)
+			right_arm_pivot.rotation.x = lerp(right_arm_pivot.rotation.x, _right_arm_rest_x + arm_drift, 3.0 * delta)
+			right_arm_pivot.rotation.z = lerp(right_arm_pivot.rotation.z, sin(idle_t * 0.5) * 0.03, 3.0 * delta)
 		if left_arm_pivot:
-			left_arm_pivot.rotation.x = lerp(left_arm_pivot.rotation.x, _left_arm_rest_x, 5.0 * delta)
+			left_arm_pivot.rotation.x = lerp(left_arm_pivot.rotation.x, _left_arm_rest_x + arm_drift2, 3.0 * delta)
+			left_arm_pivot.rotation.z = lerp(left_arm_pivot.rotation.z, sin(idle_t * 0.5 + PI) * 0.03, 3.0 * delta)
+
+		# Subtle weight-shift on legs
 		if right_leg_pivot:
-			right_leg_pivot.rotation.x = lerp(right_leg_pivot.rotation.x, 0.0, 5.0 * delta)
+			right_leg_pivot.rotation.x = lerp(right_leg_pivot.rotation.x, sin(idle_t * 0.4) * 0.025, 3.0 * delta)
 		if left_leg_pivot:
-			left_leg_pivot.rotation.x = lerp(left_leg_pivot.rotation.x, 0.0, 5.0 * delta)
+			left_leg_pivot.rotation.x = lerp(left_leg_pivot.rotation.x, sin(idle_t * 0.4 + PI) * 0.025, 3.0 * delta)
+
+		# Gentle torso lean / breathing
+		rotation.x = lerp(rotation.x, sin(idle_t * 0.6) * 0.015, 3.0 * delta)
+		rotation.z = lerp(rotation.z, sin(idle_t * 0.35) * 0.01, 3.0 * delta)
 
 
 func _build_warrior(armor_color: Color, accent_color: Color, body_shape: Vector3, _sm: float) -> void:
