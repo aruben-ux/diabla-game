@@ -29,9 +29,9 @@ const BLUE := Color(0.15, 0.35, 1.0)
 const LIGHT_BLUE := Color(0.4, 0.65, 1.0)
 const WHITE_BLUE := Color(0.7, 0.85, 1.0)
 
-## Visibility layer for portal meshes — layer 2 so the SubViewport camera
-## (which only sees layer 1) won't render the portal itself.
-const PORTAL_VIS_LAYER := 2
+## Visibility layer for portal meshes — layers 1+2 so always visible to the main
+## camera, but the SubViewport camera (cull_mask=1) won't render them.
+const PORTAL_VIS_LAYER := 3  # 1 | 2
 
 
 func _ready() -> void:
@@ -55,9 +55,20 @@ func _build_subviewport() -> void:
 	_viewport.name = "PortalViewport"
 	add_child(_viewport)
 
+	# Bright environment so the preview is easy to read
+	var env := Environment.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.9, 0.9, 1.0)
+	env.ambient_light_energy = 1.5
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.4, 0.5, 0.65)
+	var world_env := WorldEnvironment.new()
+	world_env.environment = env
+	_viewport.add_child(world_env)
+
 	_cam = Camera3D.new()
 	_cam.fov = 70.0
-	_cam.cull_mask = 1  # Only render layer 1 — excludes portal meshes on layer 2
+	_cam.cull_mask = 1  # Only render layer 1 — excludes portal meshes
 	_cam.name = "PortalCam"
 	_viewport.add_child(_cam)
 	_position_camera()
@@ -118,8 +129,8 @@ func _build_portal_surface() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _viewport.get_texture()
 	mat.emission_enabled = true
-	mat.emission = LIGHT_BLUE
-	mat.emission_energy_multiplier = 2.5
+	mat.emission = BLUE
+	mat.emission_energy_multiplier = 1.2
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_portal_surface.material_override = mat
 	add_child(_portal_surface)
@@ -134,8 +145,8 @@ func _build_portal_surface() -> void:
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_texture = _viewport.get_texture()
 	back_mat.emission_enabled = true
-	back_mat.emission = LIGHT_BLUE
-	back_mat.emission_energy_multiplier = 2.5
+	back_mat.emission = BLUE
+	back_mat.emission_energy_multiplier = 1.2
 	back_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	back.material_override = back_mat
 	add_child(back)

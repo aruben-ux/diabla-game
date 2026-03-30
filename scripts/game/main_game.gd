@@ -739,9 +739,9 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	dungeon_portal.source_position = dungeon_pos
 	dungeon_portal.is_town_side = false
 	dungeon_portal.destination_pos = town_pos
-	dungeon_portal.global_position = dungeon_pos
 	dungeon_portal.name = "TownPortal_Dungeon_%d" % owner_id
 	level_container.add_child(dungeon_portal)
+	dungeon_portal.global_position = dungeon_pos
 
 	# Town-side portal (shows dungeon through viewport)
 	var town_portal := Node3D.new()
@@ -751,9 +751,9 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	town_portal.source_position = dungeon_pos
 	town_portal.is_town_side = true
 	town_portal.destination_pos = dungeon_pos
-	town_portal.global_position = town_pos
 	town_portal.name = "TownPortal_Town_%d" % owner_id
 	level_container.add_child(town_portal)
+	town_portal.global_position = town_pos
 
 	_active_portals[owner_id] = {
 		"dungeon": dungeon_portal,
