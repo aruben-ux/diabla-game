@@ -1010,6 +1010,7 @@ func _show_shop_item_tooltip(shop_entry: Dictionary) -> void:
 		ItemData.get_rarity_color(item.rarity).to_html(false),
 		ItemData.Rarity.keys()[item.rarity]
 	]
+	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
 	text += "[color=#FFD700]Price: %d gold[/color]\n" % shop_entry["price"]
 	if item.bonus_damage > 0:
 		text += "+%.0f Damage\n" % item.bonus_damage
@@ -1148,7 +1149,7 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 		ItemData.get_rarity_color(item.rarity).to_html(false),
 		ItemData.Rarity.keys()[item.rarity]
 	]
-	text += "Size: %dx%d\n" % [item.grid_w, item.grid_h]
+	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
 	if item.bonus_damage > 0:
 		text += "+%.0f Damage\n" % item.bonus_damage
 	if item.bonus_defense > 0:
@@ -1188,6 +1189,19 @@ func _hide_tooltip() -> void:
 	_tooltip_from_equip = false
 	if _tooltip:
 		_tooltip.visible = false
+
+
+static func _slot_name_for_type(t: ItemData.ItemType) -> String:
+	match t:
+		ItemData.ItemType.WEAPON: return "Weapon"
+		ItemData.ItemType.HELMET: return "Helmet"
+		ItemData.ItemType.CHEST: return "Chest Armor"
+		ItemData.ItemType.BOOTS: return "Boots"
+		ItemData.ItemType.RING: return "Ring"
+		ItemData.ItemType.AMULET: return "Amulet"
+		ItemData.ItemType.SHIELD: return "Shield"
+		ItemData.ItemType.POTION: return "Consumable"
+		_: return "Misc"
 
 
 func _on_gold_changed(_amount: int) -> void:
