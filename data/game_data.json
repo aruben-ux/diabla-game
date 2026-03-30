@@ -4376,24 +4376,12 @@
         "max_enemies": 12,
         "spawn_interval": 5.0,
         "spawn_radius": 15.0,
-        "dungeon_max_per_room": 10,
         "dungeon_respawn_interval": 15.0,
-        "dungeon_room_density_divisor": 12,
-        "type_weights": {
-            "GRUNT": 0.18,
-            "MAGE": 0.1,
-            "BRUTE": 0.08,
-            "SKELETON": 0.15,
-            "SPIDER": 0.12,
-            "GHOST": 0.06,
-            "ARCHER": 0.08,
-            "SHAMAN": 0.04,
-            "GOLEM": 0.03,
-            "SCARAB": 0.1,
-            "WRAITH": 0.03,
-            "NECROMANCER": 0.02,
-            "DEMON": 0.01
-        }
+        "cluster_base_points": 3,
+        "cluster_points_per_floor": 1.0,
+        "min_clusters_per_room": 1,
+        "max_clusters_per_room": 4,
+        "cluster_area_divisor": 25
     },
     "world": {
         "tile_size": 3.0,
