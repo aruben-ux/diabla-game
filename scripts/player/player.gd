@@ -1306,8 +1306,6 @@ func _server_tp_cast_cancel() -> void:
 	if sender != get_multiplayer_authority():
 		return
 	_tp_casting = false
-	if main_game and main_game.has_method("open_town_portal"):
-		main_game.open_town_portal(sender, global_position)
 
 
 func _get_main_game() -> Node:
