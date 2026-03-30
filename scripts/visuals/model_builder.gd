@@ -1,10 +1,27 @@
 extends Node3D
 
 ## Builds a humanoid figure from primitives at runtime with toon shading.
-## Call build() after adding to tree.
+## Supports procedural walk/idle animation via limb pivots.
 
 var toon_shader: Shader
 var right_arm_pivot: Node3D
+var left_arm_pivot: Node3D
+var right_leg_pivot: Node3D
+var left_leg_pivot: Node3D
+
+# --- Procedural animation state ---
+var _is_walking: bool = false
+var _anim_time: float = 0.0
+const WALK_SPEED := 8.0       # Oscillation speed
+const ARM_SWING := 0.5        # Arm rotation amplitude (radians)
+const LEG_SWING := 0.6        # Leg rotation amplitude
+const BODY_BOB := 0.03        # Vertical bounce
+const IDLE_SPEED := 1.5       # Idle breathing speed
+const IDLE_BOB := 0.008       # Idle sway amplitude
+
+# Rest rotations (stored after build)
+var _right_arm_rest_x: float = 0.0
+var _left_arm_rest_x: float = 0.0
 
 func _ready() -> void:
 	toon_shader = preload("res://assets/shaders/toon.gdshader")
@@ -41,15 +58,72 @@ func build_class_model(appearance: Dictionary) -> void:
 	# Apply overall size
 	scale = Vector3.ONE * size_mult
 
+	# Store rest rotations for animation
+	_right_arm_rest_x = right_arm_pivot.rotation.x if right_arm_pivot else 0.3
+	_left_arm_rest_x = left_arm_pivot.rotation.x if left_arm_pivot else 0.3
+
+
+func set_walking(walking: bool) -> void:
+	_is_walking = walking
+	if not walking:
+		_anim_time = 0.0
+
+
+func _process(delta: float) -> void:
+	_anim_time += delta
+
+	if _is_walking:
+		var t := _anim_time * WALK_SPEED
+		var s := sin(t)
+		var c := cos(t)
+
+		# Legs swing opposite to each other
+		if right_leg_pivot:
+			right_leg_pivot.rotation.x = s * LEG_SWING
+		if left_leg_pivot:
+			left_leg_pivot.rotation.x = -s * LEG_SWING
+
+		# Arms swing opposite to legs (natural gait)
+		if right_arm_pivot:
+			right_arm_pivot.rotation.x = _right_arm_rest_x + (-s * ARM_SWING)
+		if left_arm_pivot:
+			left_arm_pivot.rotation.x = _left_arm_rest_x + (s * ARM_SWING)
+
+		# Slight body bob
+		position.y = abs(sin(t * 2.0)) * BODY_BOB
+	else:
+		# Idle: gentle breathing sway
+		var t := _anim_time * IDLE_SPEED
+		position.y = sin(t) * IDLE_BOB
+
+		# Gently return limbs to rest
+		if right_arm_pivot:
+			right_arm_pivot.rotation.x = lerp(right_arm_pivot.rotation.x, _right_arm_rest_x, 5.0 * delta)
+		if left_arm_pivot:
+			left_arm_pivot.rotation.x = lerp(left_arm_pivot.rotation.x, _left_arm_rest_x, 5.0 * delta)
+		if right_leg_pivot:
+			right_leg_pivot.rotation.x = lerp(right_leg_pivot.rotation.x, 0.0, 5.0 * delta)
+		if left_leg_pivot:
+			left_leg_pivot.rotation.x = lerp(left_leg_pivot.rotation.x, 0.0, 5.0 * delta)
+
 
 func _build_warrior(armor_color: Color, accent_color: Color, body_shape: Vector3, _sm: float) -> void:
 	var skin_color := Color(0.85, 0.7, 0.6)
 	var boot_color := Color(0.3, 0.25, 0.2)
 	var metal_color := Color(0.7, 0.7, 0.75)
 
-	# Legs — thick boots
-	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.18, 0.3, 0) * body_shape, Vector3(0.14, 0.3, 0.14) * body_shape, boot_color)
-	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.18, 0.3, 0) * body_shape, Vector3(0.14, 0.3, 0.14) * body_shape, boot_color)
+	# Legs — thick boots on pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.18, 0.58, 0) * body_shape
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14) * body_shape, boot_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.18, 0.58, 0) * body_shape
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.14, 0.3, 0.14) * body_shape, boot_color))
 
 	# Torso — heavy chestplate
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.85, 0) * body_shape, Vector3(0.55, 0.5, 0.35) * body_shape, armor_color)
@@ -72,14 +146,14 @@ func _build_warrior(armor_color: Color, accent_color: Color, body_shape: Vector3
 	right_arm_pivot.add_child(_create_part("SwordGrip", CylinderMesh.new(), Vector3(0.02, -0.36, 0), Vector3(0.04, 0.12, 0.04), boot_color))
 
 	# Left arm pivot — shield arm
-	var left_pivot := Node3D.new()
-	left_pivot.name = "LeftArmPivot"
-	left_pivot.position = Vector3(-0.38, 1.05, 0) * body_shape
-	left_pivot.rotation.x = 0.4
-	add_child(left_pivot)
-	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.25, 0.1) * body_shape, skin_color))
-	left_pivot.add_child(_create_part("Shield", BoxMesh.new(), Vector3(-0.1, -0.22, 0.14), Vector3(0.05, 0.38, 0.32), armor_color))
-	left_pivot.add_child(_create_part("ShieldBoss", SphereMesh.new(), Vector3(-0.1, -0.22, 0.3), Vector3(0.1, 0.1, 0.06), accent_color))
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.38, 1.05, 0) * body_shape
+	left_arm_pivot.rotation.x = 0.4
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.25, 0.1) * body_shape, skin_color))
+	left_arm_pivot.add_child(_create_part("Shield", BoxMesh.new(), Vector3(-0.1, -0.22, 0.14), Vector3(0.05, 0.38, 0.32), armor_color))
+	left_arm_pivot.add_child(_create_part("ShieldBoss", SphereMesh.new(), Vector3(-0.1, -0.22, 0.3), Vector3(0.1, 0.1, 0.06), accent_color))
 
 	# Head
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.35, 0) * body_shape, Vector3(0.22, 0.22, 0.22), skin_color)
@@ -98,6 +172,17 @@ func _build_mage(armor_color: Color, accent_color: Color, body_shape: Vector3, _
 
 	# Robe skirt — flared cylinder
 	_add_part("Robe", CylinderMesh.new(), Vector3(0, 0.4, 0) * body_shape, Vector3(0.3, 0.4, 0.3) * body_shape, armor_color)
+
+	# Hidden leg pivots inside robe (for animation)
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.1, 0.55, 0) * body_shape
+	add_child(left_leg_pivot)
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.1, 0.55, 0) * body_shape
+	add_child(right_leg_pivot)
 
 	# Torso — elegant robe
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.88, 0) * body_shape, Vector3(0.38, 0.38, 0.25) * body_shape, armor_color)
@@ -119,14 +204,14 @@ func _build_mage(armor_color: Color, accent_color: Color, body_shape: Vector3, _
 	right_arm_pivot.add_child(_create_emissive_part("StaffOrb", SphereMesh.new(), Vector3(0.02, 0.45, 0), Vector3(0.12, 0.12, 0.12), accent_color))
 
 	# Left arm
-	var left_pivot := Node3D.new()
-	left_pivot.name = "LeftArmPivot"
-	left_pivot.position = Vector3(-0.28, 1.0, 0) * body_shape
-	left_pivot.rotation.x = 0.15
-	add_child(left_pivot)
-	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.24, 0), Vector3(0.07, 0.22, 0.07) * body_shape, skin_color))
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.28, 1.0, 0) * body_shape
+	left_arm_pivot.rotation.x = 0.15
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.24, 0), Vector3(0.07, 0.22, 0.07) * body_shape, skin_color))
 	# Book / tome in off-hand
-	left_pivot.add_child(_create_part("Tome", BoxMesh.new(), Vector3(-0.06, -0.35, 0.08), Vector3(0.12, 0.16, 0.04), accent_color.darkened(0.3)))
+	left_arm_pivot.add_child(_create_part("Tome", BoxMesh.new(), Vector3(-0.06, -0.35, 0.08), Vector3(0.12, 0.16, 0.04), accent_color.darkened(0.3)))
 
 	# Head
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.3, 0) * body_shape, Vector3(0.2, 0.2, 0.2), skin_color)
@@ -144,9 +229,18 @@ func _build_rogue(armor_color: Color, accent_color: Color, body_shape: Vector3, 
 	var skin_color := Color(0.8, 0.68, 0.58)
 	var leather_color := armor_color.lightened(0.1)
 
-	# Legs — slim, with wrapped boots
-	_add_part("LeftLeg", CylinderMesh.new(), Vector3(-0.13, 0.3, 0) * body_shape, Vector3(0.1, 0.3, 0.1) * body_shape, leather_color)
-	_add_part("RightLeg", CylinderMesh.new(), Vector3(0.13, 0.3, 0) * body_shape, Vector3(0.1, 0.3, 0.1) * body_shape, leather_color)
+	# Legs — slim, with wrapped boots on pivots
+	left_leg_pivot = Node3D.new()
+	left_leg_pivot.name = "LeftLegPivot"
+	left_leg_pivot.position = Vector3(-0.13, 0.58, 0) * body_shape
+	add_child(left_leg_pivot)
+	left_leg_pivot.add_child(_create_part("LeftLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.3, 0.1) * body_shape, leather_color))
+
+	right_leg_pivot = Node3D.new()
+	right_leg_pivot.name = "RightLegPivot"
+	right_leg_pivot.position = Vector3(0.13, 0.58, 0) * body_shape
+	add_child(right_leg_pivot)
+	right_leg_pivot.add_child(_create_part("RightLeg", CylinderMesh.new(), Vector3(0, -0.28, 0), Vector3(0.1, 0.3, 0.1) * body_shape, leather_color))
 
 	# Torso — light leather vest
 	_add_part("Torso", BoxMesh.new(), Vector3(0, 0.82, 0) * body_shape, Vector3(0.4, 0.42, 0.25) * body_shape, armor_color)
@@ -168,14 +262,14 @@ func _build_rogue(armor_color: Color, accent_color: Color, body_shape: Vector3, 
 	right_arm_pivot.add_child(_create_part("Dagger1Guard", BoxMesh.new(), Vector3(0.02, -0.37, 0), Vector3(0.1, 0.03, 0.05), accent_color))
 
 	# Left arm pivot — off-hand dagger
-	var left_pivot := Node3D.new()
-	left_pivot.name = "LeftArmPivot"
-	left_pivot.position = Vector3(-0.3, 1.0, 0) * body_shape
-	left_pivot.rotation.x = 0.25
-	add_child(left_pivot)
-	left_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.26, 0), Vector3(0.07, 0.23, 0.07) * body_shape, skin_color))
-	left_pivot.add_child(_create_part("Dagger2", BoxMesh.new(), Vector3(-0.02, -0.50, 0), Vector3(0.04, 0.28, 0.03), Color(0.75, 0.75, 0.8)))
-	left_pivot.add_child(_create_part("Dagger2Guard", BoxMesh.new(), Vector3(-0.02, -0.36, 0), Vector3(0.1, 0.03, 0.05), accent_color))
+	left_arm_pivot = Node3D.new()
+	left_arm_pivot.name = "LeftArmPivot"
+	left_arm_pivot.position = Vector3(-0.3, 1.0, 0) * body_shape
+	left_arm_pivot.rotation.x = 0.25
+	add_child(left_arm_pivot)
+	left_arm_pivot.add_child(_create_part("LeftArm", CylinderMesh.new(), Vector3(0, -0.26, 0), Vector3(0.07, 0.23, 0.07) * body_shape, skin_color))
+	left_arm_pivot.add_child(_create_part("Dagger2", BoxMesh.new(), Vector3(-0.02, -0.50, 0), Vector3(0.04, 0.28, 0.03), Color(0.75, 0.75, 0.8)))
+	left_arm_pivot.add_child(_create_part("Dagger2Guard", BoxMesh.new(), Vector3(-0.02, -0.36, 0), Vector3(0.1, 0.03, 0.05), accent_color))
 
 	# Head
 	_add_part("Head", SphereMesh.new(), Vector3(0, 1.3, 0) * body_shape, Vector3(0.2, 0.2, 0.2), skin_color)
@@ -395,6 +489,11 @@ func _create_emissive_part(part_name: String, mesh: Mesh, pos: Vector3, scale_ve
 
 func _clear() -> void:
 	right_arm_pivot = null
+	left_arm_pivot = null
+	right_leg_pivot = null
+	left_leg_pivot = null
+	_is_walking = false
+	_anim_time = 0.0
 	for child in get_children():
 		child.queue_free()
 

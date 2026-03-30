@@ -103,9 +103,15 @@ func _ready() -> void:
 	# Name label above head (hidden for local player)
 	_setup_name_label()
 
-	# Server broadcasts player name to all clients after loading
+	# Server broadcasts player name and appearance to all clients after loading
 	if _is_server_auth and multiplayer.is_server() and player_name != "Player":
 		_sync_player_name.rpc(player_name)
+		if appearance.size() > 0:
+			_sync_appearance.rpc(appearance)
+	elif not _is_server_auth and is_multiplayer_authority():
+		# LAN: broadcast our appearance to peers
+		if appearance.size() > 0:
+			_sync_appearance.rpc(appearance)
 
 
 func _load_from_character_data(data: CharacterData) -> void:
@@ -193,6 +199,12 @@ func _sync_player_name(p_name: String) -> void:
 	player_name = p_name
 	if _name_label:
 		_name_label.text = p_name
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _sync_appearance(p_appearance: Dictionary) -> void:
+	if model and model.has_method("build_class_model") and p_appearance.size() > 0:
+		model.build_class_model(p_appearance)
 
 
 func _load_from_dict(data: Dictionary) -> void:
@@ -1067,11 +1079,14 @@ func _process_movement(delta: float) -> void:
 var _current_anim: String = ""
 
 func _play_animation(anim_name: String) -> void:
-	if not anim_player:
+	if _current_anim == anim_name:
 		return
-	if _current_anim != anim_name and anim_player.has_animation(anim_name):
+	_current_anim = anim_name
+	var walking := anim_name == "run"
+	if model and model.has_method("set_walking"):
+		model.set_walking(walking)
+	if anim_player and anim_player.has_animation(anim_name):
 		anim_player.play(anim_name)
-		_current_anim = anim_name
 
 
 func _on_skill_used(slot: int, skill: SkillData) -> void:
