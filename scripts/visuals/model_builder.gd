@@ -70,12 +70,15 @@ func set_walking(walking: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	# Only animate if this model has limb pivots (player models)
+	if not right_arm_pivot and not left_leg_pivot:
+		return
+
 	_anim_time += delta
 
 	if _is_walking:
 		var t := _anim_time * WALK_SPEED
 		var s := sin(t)
-		var c := cos(t)
 
 		# Legs swing opposite to each other
 		if right_leg_pivot:
@@ -93,8 +96,8 @@ func _process(delta: float) -> void:
 		position.y = abs(sin(t * 2.0)) * BODY_BOB
 	else:
 		# Idle: gentle breathing sway
-		var t := _anim_time * IDLE_SPEED
-		position.y = sin(t) * IDLE_BOB
+		var idle_t := _anim_time * IDLE_SPEED
+		position.y = sin(idle_t) * IDLE_BOB
 
 		# Gently return limbs to rest
 		if right_arm_pivot:

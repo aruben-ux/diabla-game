@@ -88,17 +88,26 @@ func _ready() -> void:
 
 	# Build the class-specific model from appearance data
 	var appearance: Dictionary = {}
+	# 1) Try full custom appearance from local save
 	if CharacterManager.active_character and CharacterManager.active_character.appearance.size() > 0:
 		appearance = CharacterManager.active_character.appearance
-	elif _is_server_auth:
-		# Online: try to pull appearance from online_players dict
+	# 2) Try online_players dict
+	if appearance.is_empty() and _is_server_auth:
 		var pid := get_multiplayer_authority()
 		if pid in GameManager.online_players:
 			appearance = GameManager.online_players[pid].get("appearance", {})
-	if appearance.size() > 0 and model.has_method("build_class_model"):
+	# 3) Fallback: build default appearance from known character class
+	if appearance.is_empty():
+		var cls_id: int = 0
+		if CharacterManager.active_character:
+			cls_id = CharacterManager.active_character.character_class as int
+		elif _is_server_auth:
+			var pid2 := get_multiplayer_authority()
+			if pid2 in GameManager.online_players:
+				cls_id = int(GameManager.online_players[pid2].get("character_class", 0))
+		appearance = _default_appearance_for_class(cls_id)
+	if model.has_method("build_class_model"):
 		model.build_class_model(appearance)
-	elif model.has_method("build_player_model"):
-		model.build_player_model()
 
 	# Name label above head (hidden for local player)
 	_setup_name_label()
@@ -106,12 +115,10 @@ func _ready() -> void:
 	# Server broadcasts player name and appearance to all clients after loading
 	if _is_server_auth and multiplayer.is_server() and player_name != "Player":
 		_sync_player_name.rpc(player_name)
-		if appearance.size() > 0:
-			_sync_appearance.rpc(appearance)
+		_sync_appearance.rpc(appearance)
 	elif not _is_server_auth and is_multiplayer_authority():
 		# LAN: broadcast our appearance to peers
-		if appearance.size() > 0:
-			_sync_appearance.rpc(appearance)
+		_sync_appearance.rpc(appearance)
 
 
 func _load_from_character_data(data: CharacterData) -> void:
@@ -1087,6 +1094,32 @@ func _play_animation(anim_name: String) -> void:
 		model.set_walking(walking)
 	if anim_player and anim_player.has_animation(anim_name):
 		anim_player.play(anim_name)
+
+
+static func _default_appearance_for_class(cls_id: int) -> Dictionary:
+	## Build a default appearance dict for a class when no customization is saved.
+	match cls_id:
+		1: return {
+			"character_class": 1,
+			"armor_color": [0.25, 0.1, 0.5],
+			"accent_color": [0.6, 0.2, 1.0],
+			"body_scale": [1.0, 1.0, 1.0],
+			"size_mult": 1.0,
+		}
+		2: return {
+			"character_class": 2,
+			"armor_color": [0.15, 0.15, 0.2],
+			"accent_color": [0.3, 0.3, 0.4],
+			"body_scale": [1.0, 1.0, 1.0],
+			"size_mult": 1.0,
+		}
+		_: return {
+			"character_class": 0,
+			"armor_color": [0.7, 0.15, 0.1],
+			"accent_color": [0.9, 0.35, 0.15],
+			"body_scale": [1.0, 1.0, 1.0],
+			"size_mult": 1.0,
+		}
 
 
 func _on_skill_used(slot: int, skill: SkillData) -> void:
