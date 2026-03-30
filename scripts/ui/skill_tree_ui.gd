@@ -33,6 +33,12 @@ func open(sm: SkillManager) -> void:
 	skill_manager = sm
 	if skill_manager and not skill_manager.skill_tree_changed.is_connected(_refresh):
 		skill_manager.skill_tree_changed.connect(_refresh)
+	# Center the panel in the viewport
+	var vp_size := get_viewport_rect().size
+	var panel_w := 880.0
+	var panel_h := 620.0
+	_panel.position = Vector2((vp_size.x - panel_w) * 0.5, (vp_size.y - panel_h) * 0.5)
+	_panel.size = Vector2(panel_w, panel_h)
 	_refresh()
 	visible = true
 
@@ -56,11 +62,6 @@ func _build_ui() -> void:
 	add_child(bg)
 
 	_panel = Panel.new()
-	_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.offset_left = -440
-	_panel.offset_right = 440
-	_panel.offset_top = -310
-	_panel.offset_bottom = 310
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var sb := StyleBoxFlat.new()
