@@ -144,10 +144,12 @@ const AVOIDANCE_STRENGTH := 1.5  # How strongly to steer away
 func _compute_avoidance_steering(desired_dir: Vector3) -> Vector3:
 	## Compute a steering vector to avoid nearby enemies.
 	var steer := Vector3.ZERO
-	for other in get_tree().get_nodes_in_group("enemies"):
-		if other == self or not is_instance_valid(other) or other.state == State.DEAD:
+	for other: Node3D in get_tree().get_nodes_in_group("enemies"):
+		if other == self or not is_instance_valid(other):
 			continue
-		var to_other := other.global_position - global_position
+		if other is Enemy and (other as Enemy).state == State.DEAD:
+			continue
+		var to_other: Vector3 = other.global_position - global_position
 		to_other.y = 0.0
 		var dist := to_other.length()
 		if dist < 0.01 or dist > AVOIDANCE_RADIUS:
