@@ -213,6 +213,7 @@ async def validate_game_token(
             "mana_potions": char.mana_potions or 0,
             "inventory_items": char.inventory_items or [],
             "equipment": char.equipment or {},
+            "appearance": char.appearance or {},
             "play_time_seconds": char.play_time_seconds,
         },
     )

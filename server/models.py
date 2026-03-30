@@ -62,6 +62,7 @@ class Character(Base):
     mana_potions = Column(Integer, default=0)
     inventory_items = Column(JSONB, default=list)
     equipment = Column(JSONB, default=dict)
+    appearance = Column(JSONB, default=dict)
     play_time_seconds = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_played = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

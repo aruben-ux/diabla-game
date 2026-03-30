@@ -365,7 +365,7 @@ func _on_create_pressed() -> void:
 	var appearance := _get_appearance()
 
 	if _is_online:
-		OnlineManager.create_character(char_name, _selected_class as int)
+		OnlineManager.create_character(char_name, _selected_class as int, appearance)
 	else:
 		var slot := CharacterManager.get_next_free_slot()
 		var data := CharacterData.create_new(char_name, _selected_class)

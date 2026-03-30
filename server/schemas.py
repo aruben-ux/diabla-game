@@ -30,6 +30,7 @@ class TokenResponse(BaseModel):
 class CharacterCreate(BaseModel):
     character_name: str = Field(min_length=1, max_length=32)
     character_class: int = Field(ge=0, le=2)  # 0=WARRIOR, 1=MAGE, 2=ROGUE
+    appearance: dict = Field(default_factory=dict)
 
 
 class CharacterResponse(BaseModel):
@@ -56,6 +57,7 @@ class CharacterResponse(BaseModel):
     mana_potions: int
     inventory_items: list
     equipment: dict
+    appearance: dict
     play_time_seconds: float
     created_at: str
     last_played: str
@@ -84,6 +86,7 @@ class CharacterUpdate(BaseModel):
     mana_potions: int | None = None
     inventory_items: list | None = None
     equipment: dict | None = None
+    appearance: dict | None = None
     play_time_seconds: float | None = None
 
 

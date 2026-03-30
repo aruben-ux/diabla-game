@@ -139,8 +139,8 @@ func fetch_characters() -> void:
 				characters_loaded.emit([]))
 
 
-func create_character(char_name: String, char_class: int) -> void:
-	var body := JSON.stringify({"character_name": char_name, "character_class": char_class})
+func create_character(char_name: String, char_class: int, appearance: Dictionary = {}) -> void:
+	var body := JSON.stringify({"character_name": char_name, "character_class": char_class, "appearance": appearance})
 	_make_request(lobby_url + "/characters/", _auth_json_headers(), HTTPClient.METHOD_POST, body,
 		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
