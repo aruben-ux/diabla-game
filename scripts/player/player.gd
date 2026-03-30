@@ -1086,7 +1086,7 @@ func _process_movement(delta: float) -> void:
 	_push_colliding_enemies()
 
 
-const PUSH_FORCE := 3.0  # How fast players push enemies (units/sec)
+const PUSH_FORCE := 1.5  # How fast players push enemies (units/sec)
 
 func _push_colliding_enemies() -> void:
 	## After move_and_slide, gently push any enemy we collided with.
