@@ -52,6 +52,21 @@ func _ready() -> void:
 	_create_materials()
 
 
+func _process(delta: float) -> void:
+	for flame in get_tree().get_nodes_in_group("torch_flames"):
+		var t: float = flame.get_meta("flame_time") + delta * 5.0
+		flame.set_meta("flame_time", t)
+		# Flicker: scale oscillation
+		var flicker := 0.85 + sin(t * 1.3) * 0.1 + sin(t * 3.7) * 0.05
+		var core: MeshInstance3D = flame.get_node("FlameCore")
+		var outer: MeshInstance3D = flame.get_node("FlameOuter")
+		core.scale = Vector3(0.08, 0.18 * flicker, 0.08)
+		outer.scale = Vector3(0.14, 0.25 * flicker, 0.14)
+		# Sway
+		core.position = Vector3(sin(t * 2.1) * 0.015, sin(t * 2.5) * 0.02, cos(t * 1.7) * 0.015)
+		outer.position = Vector3(sin(t * 2.1 + 0.3) * 0.01, sin(t * 2.5 + 0.5) * 0.015, cos(t * 1.7 + 0.3) * 0.01)
+
+
 static var _world_cfg: Dictionary = {}
 static var _world_loaded := false
 
@@ -1529,42 +1544,91 @@ func _place_path_lanterns() -> void:
 				continue
 
 			placed_positions.append(pos2)
-			var world_pos := Vector3(x * TILE_SIZE, 0, y * TILE_SIZE)
 
-			# Lantern post
-			var post := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.04
-			cyl.bottom_radius = 0.05
-			cyl.height = 2.5
-			post.mesh = cyl
-			post.position = world_pos + Vector3(0, 1.25, 0)
-			var iron_mat := StandardMaterial3D.new()
-			iron_mat.albedo_color = Color(0.2, 0.2, 0.22)
-			post.material_override = iron_mat
-			add_child(post)
+	# Keep only ~20% of placed positions
+	placed_positions.shuffle()
+	var keep_count := maxi(1, int(placed_positions.size() * 0.2))
+	placed_positions.resize(keep_count)
 
-			# Lantern body
-			var lantern := MeshInstance3D.new()
-			lantern.mesh = BoxMesh.new()
-			lantern.position = world_pos + Vector3(0, 2.6, 0)
-			lantern.scale = Vector3(0.2, 0.25, 0.2)
-			var lantern_mat := StandardMaterial3D.new()
-			lantern_mat.albedo_color = Color(1.0, 0.85, 0.5)
-			lantern_mat.emission_enabled = true
-			lantern_mat.emission = Color(1.0, 0.8, 0.4)
-			lantern_mat.emission_energy_multiplier = 1.5
-			lantern.material_override = lantern_mat
-			add_child(lantern)
+	for pos2 in placed_positions:
+		var world_pos := Vector3(pos2.x * TILE_SIZE, 0, pos2.y * TILE_SIZE)
 
-			# Light
-			var light := OmniLight3D.new()
-			light.position = world_pos + Vector3(0, 2.7, 0)
-			light.omni_range = 6.0
-			light.light_energy = 0.7
-			light.light_color = Color(1.0, 0.85, 0.6)
-			light.shadow_enabled = false
-			add_child(light)
+		# Lantern post
+		var post := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.04
+		cyl.bottom_radius = 0.05
+		cyl.height = 2.5
+		post.mesh = cyl
+		post.position = world_pos + Vector3(0, 1.25, 0)
+		var iron_mat := StandardMaterial3D.new()
+		iron_mat.albedo_color = Color(0.2, 0.2, 0.22)
+		post.material_override = iron_mat
+		add_child(post)
+
+		# Lantern body
+		var lantern := MeshInstance3D.new()
+		lantern.mesh = BoxMesh.new()
+		lantern.position = world_pos + Vector3(0, 2.6, 0)
+		lantern.scale = Vector3(0.2, 0.25, 0.2)
+		var lantern_mat := StandardMaterial3D.new()
+		lantern_mat.albedo_color = Color(1.0, 0.85, 0.5)
+		lantern_mat.emission_enabled = true
+		lantern_mat.emission = Color(1.0, 0.8, 0.4)
+		lantern_mat.emission_energy_multiplier = 1.5
+		lantern.material_override = lantern_mat
+		add_child(lantern)
+
+		# Animated flame
+		_build_torch_flame(world_pos + Vector3(0, 2.85, 0))
+
+		# Light
+		var light := OmniLight3D.new()
+		light.position = world_pos + Vector3(0, 2.7, 0)
+		light.omni_range = 6.0
+		light.light_energy = 0.7
+		light.light_color = Color(1.0, 0.85, 0.6)
+		light.shadow_enabled = false
+		add_child(light)
+
+
+func _build_torch_flame(pos: Vector3) -> void:
+	# Flame container that animates in _process
+	var flame_root := Node3D.new()
+	flame_root.name = "TorchFlame"
+	flame_root.position = pos
+	flame_root.set_meta("flame_time", randf() * TAU)  # random phase offset
+	add_child(flame_root)
+
+	# Core flame (bright inner)
+	var core := MeshInstance3D.new()
+	core.name = "FlameCore"
+	core.mesh = SphereMesh.new()
+	core.scale = Vector3(0.08, 0.18, 0.08)
+	var core_mat := StandardMaterial3D.new()
+	core_mat.albedo_color = Color(1.0, 0.95, 0.6, 0.9)
+	core_mat.emission_enabled = true
+	core_mat.emission = Color(1.0, 0.9, 0.4)
+	core_mat.emission_energy_multiplier = 3.0
+	core_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	core.material_override = core_mat
+	flame_root.add_child(core)
+
+	# Outer flame (softer glow)
+	var outer := MeshInstance3D.new()
+	outer.name = "FlameOuter"
+	outer.mesh = SphereMesh.new()
+	outer.scale = Vector3(0.14, 0.25, 0.14)
+	var outer_mat := StandardMaterial3D.new()
+	outer_mat.albedo_color = Color(1.0, 0.5, 0.1, 0.4)
+	outer_mat.emission_enabled = true
+	outer_mat.emission = Color(1.0, 0.4, 0.05)
+	outer_mat.emission_energy_multiplier = 2.0
+	outer_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	outer.material_override = outer_mat
+	flame_root.add_child(outer)
+
+	flame_root.add_to_group("torch_flames")
 
 
 func _add_box_collision(body: StaticBody3D, pos: Vector3, size: Vector3) -> void:
