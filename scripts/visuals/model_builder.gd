@@ -85,11 +85,12 @@ func _process(delta: float) -> void:
 		if left_leg_pivot:
 			left_leg_pivot.rotation.x = -s * LEG_SWING
 
-		# Arms swing opposite to legs (natural gait)
+		# Arms swing opposite to legs, biased forward
+		var arm_fwd := 0.3
 		if right_arm_pivot:
-			right_arm_pivot.rotation.x = _right_arm_rest_x + (-s * ARM_SWING)
+			right_arm_pivot.rotation.x = _right_arm_rest_x - arm_fwd + (-s * ARM_SWING)
 		if left_arm_pivot:
-			left_arm_pivot.rotation.x = _left_arm_rest_x + (s * ARM_SWING)
+			left_arm_pivot.rotation.x = _left_arm_rest_x - arm_fwd + (s * ARM_SWING)
 
 		# Slight body bob
 		position.y = abs(sin(t * 2.0)) * BODY_BOB
