@@ -124,16 +124,39 @@ func _state_chase(delta: float) -> void:
 		velocity.z = 0.0
 		return
 
-	# Move toward target
-	var direction := to_target.normalized()
-	velocity.x = direction.x * move_speed
-	velocity.z = direction.z * move_speed
+	# Move toward target with local avoidance of other enemies
+	var desired_dir := to_target.normalized()
+	var steer := _compute_avoidance_steering(desired_dir)
+	var final_dir := (desired_dir + steer).normalized()
+	velocity.x = final_dir.x * move_speed
+	velocity.z = final_dir.z * move_speed
 	if model.has_method("set_walking"):
 		model.set_walking(true)
 
-	# Face target
-	var target_rot := atan2(direction.x, direction.z)
+	# Face movement direction
+	var target_rot := atan2(final_dir.x, final_dir.z)
 	model.rotation.y = lerp_angle(model.rotation.y, target_rot, 10.0 * delta)
+
+
+const AVOIDANCE_RADIUS := 2.0  # How close before steering kicks in
+const AVOIDANCE_STRENGTH := 1.5  # How strongly to steer away
+
+func _compute_avoidance_steering(desired_dir: Vector3) -> Vector3:
+	## Compute a steering vector to avoid nearby enemies.
+	var steer := Vector3.ZERO
+	for other in get_tree().get_nodes_in_group("enemies"):
+		if other == self or not is_instance_valid(other) or other.state == State.DEAD:
+			continue
+		var to_other := other.global_position - global_position
+		to_other.y = 0.0
+		var dist := to_other.length()
+		if dist < 0.01 or dist > AVOIDANCE_RADIUS:
+			continue
+		# Push away from the other enemy, stronger when closer
+		var away := -to_other.normalized()
+		var strength := (AVOIDANCE_RADIUS - dist) / AVOIDANCE_RADIUS * AVOIDANCE_STRENGTH
+		steer += away * strength
+	return steer
 
 
 func _state_attack(delta: float) -> void:
