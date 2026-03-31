@@ -11,8 +11,12 @@ var source_position := Vector3.ZERO
 var is_town_side := false
 var destination_pos := Vector3.ZERO  # Where the other end is (world-space)
 var owner_name: String = "Player"
+var portal_color := Color(0.3, 0.5, 0.85)
 
-var _area: Area3D
+## Interactable interface
+var display_name: String = "Town Portal"
+var interact_hint: String = "Click to enter portal"
+
 var _time := 0.0
 var _viewport: SubViewport
 var _cam: Camera3D
@@ -27,16 +31,22 @@ const PORTAL_HEIGHT := 2.6
 const FRAME_SEGMENTS := 32
 const FRAME_THICKNESS := 0.08
 const SPARK_COUNT := 16
-const BLUE := Color(0.3, 0.5, 0.85)
-const LIGHT_BLUE := Color(0.55, 0.75, 1.0)
-const WHITE_BLUE := Color(0.75, 0.88, 1.0)
 
 ## Visibility layer for portal meshes — layers 1+2 so always visible to the main
 ## camera, but the SubViewport camera (cull_mask=1) won't render them.
 const PORTAL_VIS_LAYER := 3  # 1 | 2
 
+## Derived colors computed from portal_color in _ready
+var _base_color: Color
+var _light_color: Color
+var _white_color: Color
+
 
 func _ready() -> void:
+	_base_color = portal_color
+	_light_color = portal_color.lightened(0.35)
+	_white_color = portal_color.lightened(0.6)
+	add_to_group("interactables")
 	_build_subviewport()
 	_build_portal_surface()
 	_build_frame()
@@ -57,17 +67,6 @@ func _build_subviewport() -> void:
 	_viewport.msaa_3d = Viewport.MSAA_DISABLED
 	_viewport.name = "PortalViewport"
 	add_child(_viewport)
-
-	# Bright environment so the preview is easy to read
-	var env := Environment.new()
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.9, 0.9, 1.0)
-	env.ambient_light_energy = 1.5
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.4, 0.5, 0.65)
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	_viewport.add_child(world_env)
 
 	_cam = Camera3D.new()
 	_cam.fov = 70.0
@@ -132,7 +131,7 @@ func _build_portal_surface() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _viewport.get_texture()
 	mat.emission_enabled = true
-	mat.emission = BLUE
+	mat.emission = _base_color
 	mat.emission_energy_multiplier = 1.2
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_portal_surface.material_override = mat
@@ -148,7 +147,7 @@ func _build_portal_surface() -> void:
 	var back_mat := StandardMaterial3D.new()
 	back_mat.albedo_texture = _viewport.get_texture()
 	back_mat.emission_enabled = true
-	back_mat.emission = BLUE
+	back_mat.emission = _base_color
 	back_mat.emission_energy_multiplier = 1.2
 	back_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	back.material_override = back_mat
@@ -189,9 +188,9 @@ func _build_frame() -> void:
 		bead.layers = PORTAL_VIS_LAYER
 
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = LIGHT_BLUE
+		mat.albedo_color = _light_color
 		mat.emission_enabled = true
-		mat.emission = LIGHT_BLUE
+		mat.emission = _light_color
 		mat.emission_energy_multiplier = 3.0
 		mat.metallic = 0.8
 		mat.roughness = 0.2
@@ -216,9 +215,9 @@ func _build_ground_glow() -> void:
 	glow.name = "GroundGlow"
 
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.2, 0.35, 0.7, 0.4)
+	mat.albedo_color = Color(_base_color.r, _base_color.g, _base_color.b, 0.4)
 	mat.emission_enabled = true
-	mat.emission = BLUE
+	mat.emission = _base_color
 	mat.emission_energy_multiplier = 2.0
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glow.material_override = mat
@@ -229,7 +228,7 @@ func _build_ground_glow() -> void:
 
 func _build_ground_light() -> void:
 	_ground_light = OmniLight3D.new()
-	_ground_light.light_color = LIGHT_BLUE
+	_ground_light.light_color = _light_color
 	_ground_light.light_energy = 2.0
 	_ground_light.omni_range = 5.0
 	_ground_light.omni_attenuation = 1.5
@@ -255,9 +254,9 @@ func _build_sparks() -> void:
 		spark.name = "Spark_%d" % i
 
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = WHITE_BLUE
+		mat.albedo_color = _white_color
 		mat.emission_enabled = true
-		mat.emission = WHITE_BLUE
+		mat.emission = _white_color
 		mat.emission_energy_multiplier = 5.0
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		spark.material_override = mat
@@ -265,29 +264,41 @@ func _build_sparks() -> void:
 		_sparks.append(spark)
 
 
-# ── Collision area for detecting players ──
+# ── Collision body for click interaction ──
 
 func _build_collision() -> void:
-	_area = Area3D.new()
-	_area.collision_layer = 0
-	_area.collision_mask = 2  # Detect players (layer 2)
-	_area.name = "PortalArea"
-	add_child(_area)
+	var body := StaticBody3D.new()
+	body.collision_layer = 128  # Layer 8 = interactable
+	body.collision_mask = 0
+	body.name = "PortalBody"
+	add_child(body)
 
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(PORTAL_WIDTH, PORTAL_HEIGHT, 1.2)
 	var col := CollisionShape3D.new()
 	col.shape = shape
 	col.position.y = PORTAL_HEIGHT * 0.5 + 0.1
-	_area.add_child(col)
+	body.add_child(col)
 
-	_area.body_entered.connect(_on_body_entered)
+
+func interact(player: Node) -> void:
+	if not player or not is_instance_valid(player):
+		return
+	if not multiplayer.is_server():
+		return
+	var peer_id := player.get_multiplayer_authority()
+	var main_game := _get_main_game()
+	if not main_game:
+		return
+	main_game.use_town_portal(peer_id, self)
 
 
 func _build_label() -> void:
 	_label = Label3D.new()
-	var floor_text := "Floor %d" % source_floor if source_floor > 0 else "Town"
-	_label.text = "%s\n%s" % [owner_name, floor_text]
+	var dest_text := "Town" if not is_town_side else "Floor %d" % source_floor
+	_label.text = "%s's Portal\n→ %s" % [owner_name, dest_text]
+	display_name = "%s's Portal → %s" % [owner_name, dest_text]
+	interact_hint = "Click to enter"
 	_label.font_size = 48
 	_label.pixel_size = 0.005
 	_label.position.y = PORTAL_HEIGHT + 0.4
@@ -300,18 +311,6 @@ func _build_label() -> void:
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.name = "PortalLabel"
 	add_child(_label)
-
-
-func _on_body_entered(body: Node3D) -> void:
-	if not body.is_in_group("players"):
-		return
-	if not multiplayer.is_server():
-		return
-	var peer_id := body.get_multiplayer_authority()
-	var main_game := _get_main_game()
-	if not main_game:
-		return
-	main_game.use_town_portal(peer_id, self)
 
 
 # ── Animation ──

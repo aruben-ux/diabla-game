@@ -353,12 +353,20 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	hbox.add_theme_constant_override("separation", 6)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Portrait (colored square with class initial)
+	# Portrait (class icon with player's armor color)
 	var portrait := PanelContainer.new()
 	portrait.custom_minimum_size = Vector2(36, 36)
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait_style := StyleBoxFlat.new()
-	portrait_style.bg_color = Color(0.25, 0.2, 0.35, 0.9)
+	# Use player's armor color as the portrait background
+	var armor_col := Color(0.25, 0.2, 0.35)
+	var cls_id := 0
+	var appearance: Dictionary = player_node.get("cached_appearance") if player_node.get("cached_appearance") else {}
+	if appearance.size() > 0:
+		var ac: Array = appearance.get("armor_color", [0.25, 0.2, 0.35])
+		armor_col = Color(ac[0], ac[1], ac[2])
+		cls_id = appearance.get("character_class", 0)
+	portrait_style.bg_color = Color(armor_col.r * 0.5, armor_col.g * 0.5, armor_col.b * 0.5, 0.9)
 	portrait_style.corner_radius_top_left = 4
 	portrait_style.corner_radius_top_right = 4
 	portrait_style.corner_radius_bottom_left = 4
@@ -367,15 +375,17 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	portrait_style.border_width_right = 1
 	portrait_style.border_width_top = 1
 	portrait_style.border_width_bottom = 1
-	portrait_style.border_color = Color(0.5, 0.4, 0.3, 0.6)
+	portrait_style.border_color = Color(armor_col.r, armor_col.g, armor_col.b, 0.8)
 	portrait.add_theme_stylebox_override("panel", portrait_style)
 	var portrait_label := Label.new()
 	portrait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	portrait_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	portrait_label.add_theme_font_size_override("font_size", 18)
 	portrait_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var p_name: String = player_node.get("player_name") if player_node.get("player_name") else "P"
-	portrait_label.text = p_name.left(1).to_upper()
+	# Class icon: ⚔ Warrior, ✦ Mage, ⚡ Rogue
+	var class_icons := ["⚔", "✦", "⚡"]
+	portrait_label.text = class_icons[cls_id] if cls_id < class_icons.size() else "?"
+	portrait_label.add_theme_color_override("font_color", armor_col.lightened(0.3))
 	portrait.add_child(portrait_label)
 	hbox.add_child(portrait)
 

@@ -34,20 +34,25 @@ func _on_town_generated(spawn_pos: Vector3, stairs_pos: Vector3) -> void:
 
 
 func _create_stairs_trigger() -> void:
-	_stairs_area = Area3D.new()
-	_stairs_area.collision_layer = 0
-	_stairs_area.collision_mask = 6  # Player (2) + Enemy (4) layers — we only care about player
-	_stairs_area.name = "StairsTrigger"
-	add_child(_stairs_area)
+	# Clickable stairs — StaticBody3D with interactable layer
+	var body := StaticBody3D.new()
+	body.collision_layer = 128  # Layer 8 = interactable
+	body.collision_mask = 0
+	body.name = "StairsTrigger"
+	body.add_to_group("interactables")
+	body.set_meta("display_name", "Dungeon Entrance")
+	body.set_meta("interact_hint", "Click to enter dungeon")
+	body.set_meta("_town_level", self)
+	body.set_script(_stairs_interact_script())
+	add_child(body)
 
 	var col := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(6.0, 3.0, 4.0)
 	col.shape = box
 	col.position = stairs_position + Vector3(0, 1.0, 1.5)
-	_stairs_area.add_child(col)
-
-	_stairs_area.body_entered.connect(_on_stairs_body_entered)
+	body.add_child(col)
+	_stairs_area = body
 
 	# Visual marker — glowing portal frame
 	var frame := MeshInstance3D.new()
@@ -82,11 +87,26 @@ func _create_stairs_trigger() -> void:
 	add_child(label)
 
 
-func _on_stairs_body_entered(body: Node3D) -> void:
-	if not multiplayer.is_server():
+func _on_stairs_body_entered(_body: Node3D) -> void:
+	pass  # Kept for compatibility, no longer used
+
+
+func _stairs_interact_script() -> GDScript:
+	## Returns a tiny inline script that makes the stairs interactable.
+	var src := """extends StaticBody3D
+var display_name: String = "Dungeon Entrance"
+var interact_hint: String = "Click to enter dungeon"
+func interact(player: Node) -> void:
+	if not player or not is_instance_valid(player):
 		return
-	if body.is_in_group("players"):
-		enter_dungeon.emit(body)
+	var town_lvl = get_meta("_town_level")
+	if town_lvl and is_instance_valid(town_lvl):
+		town_lvl.enter_dungeon.emit(player)
+"""
+	var script := GDScript.new()
+	script.source_code = src
+	script.reload()
+	return script
 
 
 func _setup_environment() -> void:

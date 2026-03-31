@@ -678,13 +678,24 @@ func open_town_portal(peer_id: int, dungeon_pos: Vector3) -> void:
 	# Clear any existing portal for this player
 	_clear_portal(peer_id)
 
-	# Broadcast to all peers to spawn the portal visuals
-	var town_pos: Vector3 = town_level.spawn_position + Vector3(3.0, 0.0, 3.0) if town_level else _town_spawn + Vector3(3.0, 0.0, 3.0)
+	# Compute a unique position around the fountain for the town-side portal
+	var fountain_center: Vector3 = town_level.spawn_position if town_level else _town_spawn
+	var portal_radius := 6.0
+	var portal_index := _active_portals.size()  # Number of existing portals = this portal's slot
+	var angle := portal_index * TAU / max(_active_portals.size() + 1, 1)
+	# Evenly redistribute all portals around the circle
+	var town_pos := fountain_center + Vector3(cos(angle) * portal_radius, 0.0, sin(angle) * portal_radius)
 	var owner_name: String = "Player"
 	var p_node := player_container.get_node_or_null(str(peer_id))
 	if p_node and "player_name" in p_node:
 		owner_name = p_node.player_name
-	_sync_spawn_portal.rpc(peer_id, dungeon_pos, town_pos, floor_num, owner_name)
+	# Get player's armor color for portal tinting
+	var p_color: Array = [0.3, 0.5, 0.85]  # default blue
+	if peer_id in GameManager.online_players:
+		var appearance: Dictionary = GameManager.online_players[peer_id].get("appearance", {})
+		if appearance.has("armor_color"):
+			p_color = appearance["armor_color"]
+	_sync_spawn_portal.rpc(peer_id, dungeon_pos, town_pos, floor_num, owner_name, p_color)
 
 
 func use_town_portal(peer_id: int, portal_node: Node3D) -> void:
@@ -730,7 +741,7 @@ func _clear_portal(peer_id: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, floor_num: int, p_owner_name: String = "Player") -> void:
+func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, floor_num: int, p_owner_name: String = "Player", p_color: Array = [0.3, 0.5, 0.85]) -> void:
 	## All peers: instantiate dungeon-side and town-side portals.
 	# Destroy any old portals for this owner first
 	_destroy_portal_local(owner_id)
@@ -744,6 +755,7 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	dungeon_portal.is_town_side = false
 	dungeon_portal.destination_pos = town_pos
 	dungeon_portal.owner_name = p_owner_name
+	dungeon_portal.portal_color = Color(p_color[0], p_color[1], p_color[2])
 	dungeon_portal.name = "TownPortal_Dungeon_%d" % owner_id
 	level_container.add_child(dungeon_portal)
 	dungeon_portal.global_position = dungeon_pos
@@ -757,6 +769,7 @@ func _sync_spawn_portal(owner_id: int, dungeon_pos: Vector3, town_pos: Vector3, 
 	town_portal.is_town_side = true
 	town_portal.destination_pos = dungeon_pos
 	town_portal.owner_name = p_owner_name
+	town_portal.portal_color = Color(p_color[0], p_color[1], p_color[2])
 	town_portal.name = "TownPortal_Town_%d" % owner_id
 	level_container.add_child(town_portal)
 	town_portal.global_position = town_pos

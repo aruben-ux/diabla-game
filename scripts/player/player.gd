@@ -52,6 +52,9 @@ const TP_CAST_TIME := 3.0
 ## Shared outline overlay material
 static var _outline_material: ShaderMaterial
 
+## Cached appearance for UI displays (party panel, portraits)
+var cached_appearance: Dictionary = {}
+
 
 func _ready() -> void:
 	if _outline_material == null:
@@ -111,6 +114,7 @@ func _ready() -> void:
 			if pid2 in GameManager.online_players:
 				cls_id = int(GameManager.online_players[pid2].get("character_class", 0))
 		appearance = _default_appearance_for_class(cls_id)
+	cached_appearance = appearance
 	if model.has_method("build_class_model"):
 		model.build_class_model(appearance)
 
@@ -221,6 +225,8 @@ func _sync_player_name(p_name: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _sync_appearance(p_appearance: Dictionary) -> void:
+	if p_appearance.size() > 0:
+		cached_appearance = p_appearance
 	if model and model.has_method("build_class_model") and p_appearance.size() > 0:
 		model.build_class_model(p_appearance)
 

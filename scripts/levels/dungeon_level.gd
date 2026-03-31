@@ -239,40 +239,42 @@ func _build_chest(pos: Vector3, chest_name: String) -> void:
 
 
 func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:
-	var area := Area3D.new()
-	area.collision_layer = 0
-	area.collision_mask = 2  # Player layer
-	area.monitoring = false  # Disabled until activation delay expires
-	area.name = "StairsUp" if is_up else "StairsDown"
-	add_child(area)
+	var body := StaticBody3D.new()
+	body.collision_layer = 128  # Layer 8 = interactable
+	body.collision_mask = 0
+	body.name = ("StairsUp_F%d" % current_floor) if is_up else ("StairsDown_F%d" % current_floor)
+	body.add_to_group("interactables")
+	add_child(body)
 
 	var col := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(5.0, 3.0, 5.0)
 	col.shape = box
 	col.position = pos + Vector3(0, 1.5, 0)
-	area.add_child(col)
+	body.add_child(col)
 
+	# Set up interact properties and store reference to this dungeon_level
+	var label_text: String
 	if is_up:
-		_stairs_up_area = area
-		area.body_entered.connect(_on_stairs_up_entered)
+		if current_floor == 1:
+			label_text = "Return to Town"
+		else:
+			label_text = "Stairs Up (Floor %d)" % (current_floor - 1)
+		_stairs_up_area = body
 	else:
-		_stairs_down_area = area
-		area.body_entered.connect(_on_stairs_down_entered)
+		if _stairs_down_locked:
+			label_text = "BOSS GUARDS THIS PASSAGE"
+		else:
+			label_text = "Stairs Down (Floor %d)" % (current_floor + 1)
+		_stairs_down_area = body
 
-	# Activate after a short delay so spawning on stairs doesn't trigger them
-	var timer := get_tree().create_timer(1.0)
-	timer.timeout.connect(func() -> void:
-		if is_instance_valid(area):
-			area.monitoring = true
-	)
+	body.set_meta("display_name", label_text)
+	body.set_meta("interact_hint", "Click to use stairs")
+	body.set_meta("_dungeon_level", self)
+	body.set_meta("_is_up", is_up)
+	body.set_script(_stairs_interact_script())
 
 	# Visual marker
-	var label_text := "Stairs Up (Floor %d)" % (current_floor - 1) if is_up else "Stairs Down (Floor %d)" % (current_floor + 1)
-	if is_up and current_floor == 1:
-		label_text = "Return to Town"
-	if not is_up and _stairs_down_locked:
-		label_text = "BOSS GUARDS THIS PASSAGE"
 
 	var label := Label3D.new()
 	label.text = label_text
@@ -312,20 +314,37 @@ func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:
 	_stair_props_container.add_child(glow)
 
 
-func _on_stairs_up_entered(body: Node3D) -> void:
-	if not multiplayer.is_server():
-		return
-	if body.is_in_group("players"):
-		go_up.emit(body)
+func _on_stairs_up_entered(_body: Node3D) -> void:
+	pass  # Kept for compatibility — interaction is now click-based
 
 
-func _on_stairs_down_entered(body: Node3D) -> void:
-	if not multiplayer.is_server():
+func _on_stairs_down_entered(_body: Node3D) -> void:
+	pass  # Kept for compatibility — interaction is now click-based
+
+
+func _stairs_interact_script() -> GDScript:
+	var src := """extends StaticBody3D
+var display_name: String = ""
+var interact_hint: String = "Click to use stairs"
+func _ready() -> void:
+	display_name = get_meta("display_name") if has_meta("display_name") else "Stairs"
+	interact_hint = get_meta("interact_hint") if has_meta("interact_hint") else "Click to use stairs"
+func interact(player: Node) -> void:
+	if not player or not is_instance_valid(player):
 		return
-	if _stairs_down_locked:
-		return  # Boss must be defeated first
-	if body.is_in_group("players"):
-		go_down.emit(body)
+	var dl = get_meta("_dungeon_level")
+	if not dl or not is_instance_valid(dl):
+		return
+	var is_up_stair: bool = get_meta("_is_up")
+	if is_up_stair:
+		dl.go_up.emit(player)
+	else:
+		dl.go_down.emit(player)
+"""
+	var script := GDScript.new()
+	script.source_code = src
+	script.reload()
+	return script
 
 
 func _on_boss_died() -> void:

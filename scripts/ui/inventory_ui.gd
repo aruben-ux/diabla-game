@@ -40,6 +40,8 @@ var _tooltip: Panel
 var _tooltip_label: RichTextLabel
 var _gold_label: Label
 var _paperdoll_panel: Panel
+var _paperdoll_viewport: SubViewport
+var _paperdoll_model: Node3D
 var _main_panel: Panel
 var _tooltip_from_equip: bool = false
 
@@ -173,6 +175,9 @@ func _build_ui() -> void:
 	_paperdoll_panel.add_theme_stylebox_override("panel", pd_sb)
 	main_panel.add_child(_paperdoll_panel)
 
+	# Character model preview behind equipment slots
+	_setup_paperdoll_viewport(paperdoll_w, CELL_SIZE * GRID_ROWS + 20)
+
 	# Equipment slot layout — positions and sizes matching item grid dimensions
 	# Sizes: weapon 1x3, helmet 2x2, chest 2x3, boots 2x2, ring 1x1, amulet 1x1, shield 2x2
 	var cs := CELL_SIZE
@@ -248,6 +253,69 @@ func _build_ui() -> void:
 	_tooltip_label.size = Vector2(204, 144)
 	_tooltip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tooltip.add_child(_tooltip_label)
+
+
+func _setup_paperdoll_viewport(w: int, h: int) -> void:
+	## Creates a SubViewport with a 3D character model to render behind equip slots.
+	_paperdoll_viewport = SubViewport.new()
+	_paperdoll_viewport.size = Vector2i(w, h)
+	_paperdoll_viewport.transparent_bg = true
+	_paperdoll_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_paperdoll_viewport.own_world_3d = true
+	_paperdoll_viewport.name = "PaperdollViewport"
+	add_child(_paperdoll_viewport)
+
+	# Lighting
+	var env := Environment.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.85, 0.85, 0.9)
+	env.ambient_light_energy = 1.0
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0, 0, 0, 0)
+	var world_env := WorldEnvironment.new()
+	world_env.environment = env
+	_paperdoll_viewport.add_child(world_env)
+
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-40, 30, 0)
+	light.light_energy = 0.8
+	light.shadow_enabled = false
+	_paperdoll_viewport.add_child(light)
+
+	# Camera looking at the model
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	cam.fov = 28.0
+	cam.position = Vector3(0, 0.8, 2.8)
+	cam.look_at(Vector3(0, 0.6, 0))
+	_paperdoll_viewport.add_child(cam)
+
+	# Build the character model from player's appearance
+	var model_script := preload("res://scripts/visuals/model_builder.gd")
+	_paperdoll_model = Node3D.new()
+	_paperdoll_model.set_script(model_script)
+	_paperdoll_viewport.add_child(_paperdoll_model)
+	_paperdoll_model.position = Vector3(0, -0.2, 0)
+	_paperdoll_model.rotation_degrees = Vector3(0, -15, 0)
+
+	var appearance: Dictionary = {}
+	if player_ref and player_ref.get("cached_appearance"):
+		appearance = player_ref.cached_appearance
+	if appearance.is_empty():
+		appearance = {"character_class": 0, "armor_color": [0.35, 0.55, 0.9], "accent_color": [0.2, 0.45, 0.85], "body_scale": [1.0, 1.0, 1.0], "size_mult": 1.0}
+	if _paperdoll_model.has_method("build_class_model"):
+		_paperdoll_model.build_class_model(appearance)
+
+	# TextureRect showing the viewport render on top of the paperdoll panel
+	var tex_rect := TextureRect.new()
+	tex_rect.texture = _paperdoll_viewport.get_texture()
+	tex_rect.position = Vector2.ZERO
+	tex_rect.size = Vector2(w, h)
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_paperdoll_panel.add_child(tex_rect)
+	# Move to back so equip slots render on top
+	_paperdoll_panel.move_child(tex_rect, 0)
 
 
 func _build_shop_panel() -> void:
