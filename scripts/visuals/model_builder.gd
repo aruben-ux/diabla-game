@@ -1262,30 +1262,66 @@ func play_attack_anim() -> void:
 
 # --- Slash Arc VFX ---
 func _spawn_slash_arc() -> void:
+	# Wide crescent sweep — uses a flattened cylinder arc scaled to look like a blade swing
 	var arc := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.6
-	torus.outer_radius = 0.9
-	torus.rings = 8
-	torus.ring_segments = 12
-	arc.mesh = torus
-	arc.position = Vector3(0, 1.0, 0.6)
-	arc.rotation.x = PI * 0.5
-	arc.scale = Vector3(0.3, 1.0, 0.5)
+	arc.name = "SlashArc"
+
+	# Build a flat wedge mesh using ImmediateMesh for a proper arc shape
+	var im := ImmediateMesh.new()
+	var segments := 10
+	var arc_half_angle := 0.85  # Match cone half-angle
+	var inner_r := 0.6
+	var outer_r := 2.8
+	var height := 0.08
+
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(segments):
+		var t0 := float(i) / float(segments)
+		var t1 := float(i + 1) / float(segments)
+		var a0 := -arc_half_angle + t0 * arc_half_angle * 2.0
+		var a1 := -arc_half_angle + t1 * arc_half_angle * 2.0
+
+		var inner0 := Vector3(sin(a0) * inner_r, 0, cos(a0) * inner_r)
+		var outer0 := Vector3(sin(a0) * outer_r, 0, cos(a0) * outer_r)
+		var inner1 := Vector3(sin(a1) * inner_r, 0, cos(a1) * inner_r)
+		var outer1 := Vector3(sin(a1) * outer_r, 0, cos(a1) * outer_r)
+
+		# Top face
+		var n := Vector3.UP
+		im.surface_set_normal(n)
+		im.surface_add_vertex(inner0 + Vector3(0, height, 0))
+		im.surface_set_normal(n)
+		im.surface_add_vertex(outer0 + Vector3(0, height, 0))
+		im.surface_set_normal(n)
+		im.surface_add_vertex(outer1 + Vector3(0, height, 0))
+
+		im.surface_set_normal(n)
+		im.surface_add_vertex(inner0 + Vector3(0, height, 0))
+		im.surface_set_normal(n)
+		im.surface_add_vertex(outer1 + Vector3(0, height, 0))
+		im.surface_set_normal(n)
+		im.surface_add_vertex(inner1 + Vector3(0, height, 0))
+
+	im.surface_end()
+
+	arc.mesh = im
+	arc.position = Vector3(0, 1.0, 0)
 
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.7)
+	mat.albedo_color = Color(1.0, 0.95, 0.8, 0.65)
 	mat.emission_enabled = true
-	mat.emission = Color(0.9, 0.95, 1.0)
-	mat.emission_energy_multiplier = 2.0
+	mat.emission = Color(1.0, 0.85, 0.5)
+	mat.emission_energy_multiplier = 3.0
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	arc.material_override = mat
 	add_child(arc)
 
 	var tw := create_tween()
-	tw.tween_property(arc, "scale", Vector3(1.4, 1.8, 1.2), 0.12)
-	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.15)
+	tw.tween_property(arc, "scale", Vector3(1.2, 1.0, 1.2), 0.1).from(Vector3(0.3, 1.0, 0.3)).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(arc, "rotation:y", -0.4, 0.1).from(0.4)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.18)
 	tw.tween_callback(arc.queue_free)
 
 

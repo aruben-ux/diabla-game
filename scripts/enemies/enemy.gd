@@ -97,6 +97,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		# Client: interpolate toward server state
 		if _remote_initialized and state != State.DEAD:
+			# Apply local knockback on client for immediate visual feedback
+			if _knockback_vel.length() > 0.1:
+				position += _knockback_vel * delta
+				_knockback_vel = _knockback_vel.lerp(Vector3.ZERO, 10.0 * delta)
+			else:
+				_knockback_vel = Vector3.ZERO
 			position = position.lerp(_remote_pos, 15.0 * delta)
 			model.rotation.y = lerp_angle(model.rotation.y, _remote_rot_y, 15.0 * delta)
 
@@ -264,8 +270,15 @@ func _state_attack(delta: float) -> void:
 
 
 func _state_hit(delta: float) -> void:
-	velocity.x = 0.0
-	velocity.z = 0.0
+	# Apply knockback velocity and decay it
+	if _knockback_vel.length() > 0.1:
+		velocity.x = _knockback_vel.x * 8.0
+		velocity.z = _knockback_vel.z * 8.0
+		_knockback_vel = _knockback_vel.lerp(Vector3.ZERO, 10.0 * delta)
+	else:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_knockback_vel = Vector3.ZERO
 	if model.has_method("set_walking"):
 		model.set_walking(false)
 	hit_flash_timer -= delta
@@ -285,7 +298,7 @@ func take_damage(amount: float, attacker: Node3D = null) -> void:
 
 	# Brief hit stagger + visual flash
 	state = State.HIT
-	hit_flash_timer = 0.1
+	hit_flash_timer = 0.15
 	if model.has_method("play_hit_flash"):
 		model.play_hit_flash()
 	_sync_hit_flash.rpc()
@@ -314,6 +327,24 @@ func _sync_floating_text(pos: Vector3, text: String, color: Color) -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_health(new_health: float) -> void:
 	health = new_health
+
+
+# --- Knockback ---
+var _knockback_vel := Vector3.ZERO
+
+func apply_knockback(direction: Vector3, damage: float) -> void:
+	## Push enemy away from attacker. Heavier enemies (higher max_health) resist more.
+	if state == State.DEAD:
+		return
+	# Base knockback force, scaled inversely by enemy mass (max_health as proxy)
+	var weight := clampf(max_health / 40.0, 0.5, 5.0)  # 40 hp = weight 1.0
+	var force := clampf(damage * 0.4 / weight, 0.3, 3.0)
+	_knockback_vel = direction * force
+	_sync_knockback.rpc(direction, force)
+
+@rpc("authority", "call_local", "reliable")
+func _sync_knockback(dir: Vector3, force: float) -> void:
+	_knockback_vel = dir * force
 
 
 static func _load_monster_data() -> void:

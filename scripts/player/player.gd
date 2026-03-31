@@ -9,7 +9,8 @@ const MOVE_SPEED := 10.0
 const ROTATION_SPEED := 20.0
 const ARRIVAL_THRESHOLD := 0.3
 const GRAVITY := 9.8
-const ATTACK_RANGE := 2.8
+const ATTACK_RANGE := 3.5
+const ATTACK_CONE_HALF_ANGLE := 0.85  # ~49 degrees — wide enough for 2-3 enemies
 
 @export var player_name: String = "Player"
 
@@ -610,24 +611,38 @@ func _perform_attack() -> void:
 	if not multiplayer.is_server():
 		return
 
-	# Damage all enemies in the attack area
+	# Cone-shaped hit detection: check all nearby bodies in a forward arc
+	var forward := Vector3(sin(model.rotation.y), 0, cos(model.rotation.y)).normalized()
+	var hit_count := 0
 	if attack_area:
-		var hit_count := 0
 		for body in attack_area.get_overlapping_bodies():
+			var to_body := body.global_position - global_position
+			to_body.y = 0.0
+			var dist := to_body.length()
+			if dist < 0.1 or dist > ATTACK_RANGE:
+				continue
+			# Angle check — must be within the cone
+			var angle := forward.angle_to(to_body.normalized())
+			if angle > ATTACK_CONE_HALF_ANGLE:
+				continue
+
 			if body.is_in_group("enemies") and body.has_method("take_damage"):
 				var was_alive: bool = body.health > 0.0
 				body.take_damage(stats.attack_damage, self)
 				hit_count += 1
 				# Impact burst at enemy position
 				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 1.0, 0))
+				# Knockback — push enemy away from player
+				var kb_dir := to_body.normalized()
+				body.apply_knockback(kb_dir, stats.attack_damage)
 				# Hitstop on kill
 				if was_alive and body.health <= 0.0:
 					_trigger_hitstop.rpc(0.06)
 			elif body.is_in_group("breakables") and body.has_method("take_damage"):
 				body.take_damage(1.0, self)
 				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 0.3, 0))
-		if hit_count > 0:
-			_trigger_camera_shake.rpc(0.12, 0.1)
+	if hit_count > 0:
+		_trigger_camera_shake.rpc(0.12, 0.1)
 
 
 @rpc("any_peer", "call_local", "reliable")
