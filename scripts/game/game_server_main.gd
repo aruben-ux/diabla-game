@@ -249,7 +249,7 @@ func _save_player(peer_id: int) -> void:
 		func(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray):
 			http.queue_free()
 			if code == 200:
-				#print("[GameServer] Saved character %d for peer %d" % [character_id, peer_id])
+				pass
 			else:
 				printerr("[GameServer] Failed to save character %d (code %d)" % [character_id, code]),
 		CONNECT_ONE_SHOT)
