@@ -15,6 +15,7 @@ extends Camera3D
 var zoom_level := 1.0
 var _shake_intensity := 0.0
 var _shake_timer := 0.0
+var _frozen := false
 
 # Occlusion state
 var _hidden_roofs: Array[MeshInstance3D] = []
@@ -37,7 +38,7 @@ func snap_to_target() -> void:
 
 
 func _process(delta: float) -> void:
-	if not target:
+	if not target or _frozen:
 		return
 
 	var height := 12.0 * zoom_level

@@ -140,7 +140,7 @@ func _build_ui() -> void:
 
 	# Title
 	var title := Label.new()
-	title.text = "Inventory"
+	title.text = tr("Inventory")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(0, 4)
 	title.size = Vector2(panel_w, 20)
@@ -156,7 +156,7 @@ func _build_ui() -> void:
 
 	# Gold label
 	_gold_label = Label.new()
-	_gold_label.text = "Gold: 0"
+	_gold_label.text = tr("Gold: 0")
 	_gold_label.position = Vector2(12, 26)
 	_gold_label.add_theme_color_override("font_color", Color.GOLD)
 	main_panel.add_child(_gold_label)
@@ -342,7 +342,7 @@ func _build_shop_panel() -> void:
 
 	# Vendor name title
 	_shop_title_label = Label.new()
-	_shop_title_label.text = "Shop"
+	_shop_title_label.text = tr("Shop")
 	_shop_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_shop_title_label.position = Vector2(0, 4)
 	_shop_title_label.size = Vector2(panel_w, 20)
@@ -351,7 +351,7 @@ func _build_shop_panel() -> void:
 
 	# Gold label
 	_shop_gold_label = Label.new()
-	_shop_gold_label.text = "Gold: 0"
+	_shop_gold_label.text = tr("Gold: 0")
 	_shop_gold_label.position = Vector2(12, 26)
 	_shop_gold_label.add_theme_color_override("font_color", Color.GOLD)
 	_shop_panel.add_child(_shop_gold_label)
@@ -450,7 +450,7 @@ func _place_shop_stock() -> void:
 func _create_item_from_stock(entry: Dictionary) -> ItemData:
 	var item := ItemData.new()
 	item.id = entry.get("id", "item_%d" % randi())
-	item.display_name = entry.get("name", "Item")
+	item.display_name = entry.get("name", tr("Item"))
 	item.description = entry.get("description", "")
 	item.item_type = int(entry.get("item_type", ItemData.ItemType.MISC)) as ItemData.ItemType
 	item.rarity = int(entry.get("rarity", ItemData.Rarity.COMMON)) as ItemData.Rarity
@@ -471,7 +471,7 @@ func _create_item_from_stock(entry: Dictionary) -> ItemData:
 
 func _update_shop_gold() -> void:
 	if _shop_gold_label and inventory:
-		_shop_gold_label.text = "Gold: %d" % inventory.gold
+		_shop_gold_label.text = tr("Gold: %d") % inventory.gold
 
 
 func _get_sell_price(item: ItemData) -> int:
@@ -506,7 +506,7 @@ func _create_equip_slot(slot_name: String, pos: Vector2, slot_size: Vector2 = Ve
 
 	# Slot label (centered in slot)
 	var label := Label.new()
-	label.text = slot_name.capitalize()
+	label.text = tr(slot_name.capitalize())
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.position = Vector2.ZERO
@@ -572,7 +572,7 @@ func _draw_grid() -> void:
 		_grid_container.draw_rect(item_rect, bg_color)
 		_grid_container.draw_rect(item_rect, ItemData.get_rarity_color(item.rarity) * Color(1, 1, 1, 0.7), false, 2.0)
 		# Item name (truncated)
-		var text := item.display_name.left(8)
+		var text := tr(item.display_name).left(8)
 		var stack_count: int = entry.get("stack", 1)
 		if stack_count > 1:
 			text = "%s x%d" % [text, stack_count]
@@ -619,7 +619,7 @@ func _draw_shop_grid() -> void:
 		_shop_grid_container.draw_rect(item_rect, bg_color)
 		_shop_grid_container.draw_rect(item_rect, ItemData.get_rarity_color(item.rarity) * Color(1, 1, 1, 0.7), false, 2.0)
 		# Item name
-		var text := item.display_name.left(8)
+		var text := tr(item.display_name).left(8)
 		var text_pos := Vector2(gx * CELL_SIZE + 4, gy * CELL_SIZE + sz.y * CELL_SIZE * 0.5)
 		_shop_grid_container.draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, sz.x * CELL_SIZE - 8, 11, ItemData.get_rarity_color(item.rarity))
 		# Price below name
@@ -836,7 +836,7 @@ func _create_drag_ghost() -> void:
 	_drag_ghost.z_index = 50
 
 	var ghost_label := Label.new()
-	ghost_label.text = _drag_item.display_name
+	ghost_label.text = tr(_drag_item.display_name)
 	ghost_label.position = Vector2(4, 4)
 	ghost_label.add_theme_font_size_override("font_size", 10)
 	ghost_label.add_theme_color_override("font_color", ItemData.get_rarity_color(_drag_item.rarity))
@@ -1074,28 +1074,28 @@ func _show_shop_item_tooltip(shop_entry: Dictionary) -> void:
 		return
 	_tooltip.visible = true
 	var name_col := ItemData.get_rarity_color(item.rarity).to_html(false)
-	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, item.display_name]
-	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
-	text += "[color=#FFD700]Price: %d gold[/color]\n" % shop_entry["price"]
+	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, tr(item.display_name)]
+	text += tr("Slot: %s") % _slot_name_for_type(item.item_type) + "\n"
+	text += "[color=#FFD700]" + tr("Price: %d gold") % shop_entry["price"] + "[/color]\n"
 	if item.bonus_damage > 0:
-		text += "+%.0f Damage\n" % item.bonus_damage
+		text += tr("+%.0f Damage") % item.bonus_damage + "\n"
 	if item.bonus_defense > 0:
-		text += "+%.0f Defense\n" % item.bonus_defense
+		text += tr("+%.0f Defense") % item.bonus_defense + "\n"
 	if item.bonus_health > 0:
-		text += "+%.0f Health\n" % item.bonus_health
+		text += tr("+%.0f Health") % item.bonus_health + "\n"
 	if item.bonus_mana > 0:
-		text += "+%.0f Mana\n" % item.bonus_mana
+		text += tr("+%.0f Mana") % item.bonus_mana + "\n"
 	if item.bonus_strength > 0:
-		text += "+%d Strength\n" % item.bonus_strength
+		text += tr("+%d Strength") % item.bonus_strength + "\n"
 	if item.bonus_dexterity > 0:
-		text += "+%d Dexterity\n" % item.bonus_dexterity
+		text += tr("+%d Dexterity") % item.bonus_dexterity + "\n"
 	if item.bonus_intelligence > 0:
-		text += "+%d Intelligence\n" % item.bonus_intelligence
+		text += tr("+%d Intelligence") % item.bonus_intelligence + "\n"
 	if item.heal_amount > 0:
-		text += "Heals %.0f HP\n" % item.heal_amount
+		text += tr("Heals %.0f HP") % item.heal_amount + "\n"
 	if item.mana_restore > 0:
-		text += "Restores %.0f Mana\n" % item.mana_restore
-	text += "\n[color=#AAAAAA]Left-click drag to buy\nRight-click to quick buy[/color]"
+		text += tr("Restores %.0f Mana") % item.mana_restore + "\n"
+	text += "\n[color=#AAAAAA]" + tr("Left-click drag to buy\nRight-click to quick buy") + "[/color]"
 	_tooltip_label.text = text
 	_tooltip_label.size.y = 200
 	_tooltip.size.y = _tooltip_label.get_content_height() + 16
@@ -1196,7 +1196,7 @@ func _refresh_equipment_display() -> void:
 		if item:
 			item_rect.color = ItemData.get_rarity_color(item.rarity) * Color(0.5, 0.5, 0.5, 0.8)
 			item_rect.visible = true
-			item_label.text = item.display_name
+			item_label.text = tr(item.display_name)
 			item_label.add_theme_color_override("font_color", ItemData.get_rarity_color(item.rarity))
 			slot_label.visible = false
 		else:
@@ -1210,29 +1210,29 @@ func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
 		return
 	_tooltip.visible = true
 	var name_col := ItemData.get_rarity_color(item.rarity).to_html(false)
-	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, item.display_name]
-	text += "Slot: %s\n" % _slot_name_for_type(item.item_type)
+	var text := "[b][color=#%s]%s[/color][/b]\n" % [name_col, tr(item.display_name)]
+	text += tr("Slot: %s") % _slot_name_for_type(item.item_type) + "\n"
 	if item.bonus_damage > 0:
-		text += "+%.0f Damage\n" % item.bonus_damage
+		text += tr("+%.0f Damage") % item.bonus_damage + "\n"
 	if item.bonus_defense > 0:
-		text += "+%.0f Defense\n" % item.bonus_defense
+		text += tr("+%.0f Defense") % item.bonus_defense + "\n"
 	if item.bonus_health > 0:
-		text += "+%.0f Health\n" % item.bonus_health
+		text += tr("+%.0f Health") % item.bonus_health + "\n"
 	if item.bonus_mana > 0:
-		text += "+%.0f Mana\n" % item.bonus_mana
+		text += tr("+%.0f Mana") % item.bonus_mana + "\n"
 	if item.bonus_strength > 0:
-		text += "+%d Strength\n" % item.bonus_strength
+		text += tr("+%d Strength") % item.bonus_strength + "\n"
 	if item.bonus_dexterity > 0:
-		text += "+%d Dexterity\n" % item.bonus_dexterity
+		text += tr("+%d Dexterity") % item.bonus_dexterity + "\n"
 	if item.bonus_intelligence > 0:
-		text += "+%d Intelligence\n" % item.bonus_intelligence
+		text += tr("+%d Intelligence") % item.bonus_intelligence + "\n"
 	if item.heal_amount > 0:
-		text += "Heals %.0f HP\n" % item.heal_amount
+		text += tr("Heals %.0f HP") % item.heal_amount + "\n"
 	if item.mana_restore > 0:
-		text += "Restores %.0f Mana\n" % item.mana_restore
+		text += tr("Restores %.0f Mana") % item.mana_restore + "\n"
 	if _in_shop_mode:
-		text += "[color=#FFD700]Sell: %d gold[/color]\n" % _get_sell_price(item)
-		text += "[color=#AAAAAA]Drag to shop or right-click to sell[/color]"
+		text += "[color=#FFD700]" + tr("Sell: %d gold") % _get_sell_price(item) + "[/color]\n"
+		text += "[color=#AAAAAA]" + tr("Drag to shop or right-click to sell") + "[/color]"
 	_tooltip_label.text = text
 	# Fit tooltip height to content
 	_tooltip_label.size.y = 200
@@ -1253,17 +1253,17 @@ func _hide_tooltip() -> void:
 		_tooltip.visible = false
 
 
-static func _slot_name_for_type(t: ItemData.ItemType) -> String:
+func _slot_name_for_type(t: ItemData.ItemType) -> String:
 	match t:
-		ItemData.ItemType.WEAPON: return "Weapon"
-		ItemData.ItemType.HELMET: return "Helmet"
-		ItemData.ItemType.CHEST: return "Chest Armor"
-		ItemData.ItemType.BOOTS: return "Boots"
-		ItemData.ItemType.RING: return "Ring"
-		ItemData.ItemType.AMULET: return "Amulet"
-		ItemData.ItemType.SHIELD: return "Shield"
-		ItemData.ItemType.POTION: return "Consumable"
-		_: return "Misc"
+		ItemData.ItemType.WEAPON: return tr("Weapon")
+		ItemData.ItemType.HELMET: return tr("Helmet")
+		ItemData.ItemType.CHEST: return tr("Chest Armor")
+		ItemData.ItemType.BOOTS: return tr("Boots")
+		ItemData.ItemType.RING: return tr("Ring")
+		ItemData.ItemType.AMULET: return tr("Amulet")
+		ItemData.ItemType.SHIELD: return tr("Shield")
+		ItemData.ItemType.POTION: return tr("Consumable")
+		_: return tr("Misc")
 
 
 func _on_gold_changed(_amount: int) -> void:
@@ -1272,4 +1272,4 @@ func _on_gold_changed(_amount: int) -> void:
 
 func _update_gold() -> void:
 	if _gold_label and inventory:
-		_gold_label.text = "Gold: %d" % inventory.gold
+		_gold_label.text = tr("Gold: %d") % inventory.gold

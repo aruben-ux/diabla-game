@@ -48,10 +48,10 @@ func _on_login_pressed() -> void:
 	var user := login_username.text.strip_edges()
 	var pw := login_password.text
 	if user.is_empty() or pw.is_empty():
-		login_status.text = "Enter username and password."
+		login_status.text = tr("Enter username and password.")
 		return
 	login_button.disabled = true
-	login_status.text = "Logging in..."
+	login_status.text = tr("Logging in...")
 	if server_input:
 		OnlineManager.lobby_url = server_input.text.strip_edges()
 	OnlineManager.login(user, pw)
@@ -62,13 +62,13 @@ func _on_register_pressed() -> void:
 	var pw := reg_password.text
 	var email := reg_email.text.strip_edges()
 	if user.is_empty() or pw.is_empty() or email.is_empty():
-		reg_status.text = "Fill in all fields."
+		reg_status.text = tr("Fill in all fields.")
 		return
 	if pw.length() < 6:
-		reg_status.text = "Password must be at least 6 characters."
+		reg_status.text = tr("Password must be at least 6 characters.")
 		return
 	reg_button.disabled = true
-	reg_status.text = "Creating account..."
+	reg_status.text = tr("Creating account...")
 	if server_input:
 		OnlineManager.lobby_url = server_input.text.strip_edges()
 	OnlineManager.register(user, pw, email)

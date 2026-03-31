@@ -2,8 +2,8 @@ extends StaticBody3D
 
 ## Interactable fountain that restores health and mana on click.
 
-var display_name: String = "Fountain"
-var interact_hint: String = "Click to restore Health & Mana"
+var display_name: String = tr("Fountain")
+var interact_hint: String = tr("Click to restore Health & Mana")
 
 
 func interact(player: Node) -> void:

@@ -659,13 +659,13 @@ func _sync_grant_xp(amount: float) -> void:
 	var leveled := stats.add_experience(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.5, 0),
-		"+%d XP" % int(amount),
+		tr("+%d XP") % int(amount),
 		Color.GOLD
 	)
 	if leveled:
 		EventBus.show_floating_text.emit(
 			global_position + Vector3(0, 3.0, 0),
-			"LEVEL UP!",
+			tr("LEVEL UP!"),
 			Color.YELLOW
 		)
 		if skill_manager:
@@ -681,20 +681,20 @@ func pick_up_item(item: ItemData) -> bool:
 	# Route potions to the separate potion counter system
 	if item.item_type == ItemData.ItemType.POTION:
 		if inventory.add_potion(item.id):
-			_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
+			_show_pickup_text.rpc("+ " + tr(item.display_name), ItemData.get_rarity_color(item.rarity).to_html())
 			if multiplayer.is_server():
 				_client_receive_potion.rpc_id(get_multiplayer_authority(), item.id)
 			return true
 		else:
 			return false
 	if inventory.add_item(item):
-		_show_pickup_text.rpc("+ " + item.display_name, ItemData.get_rarity_color(item.rarity).to_html())
+		_show_pickup_text.rpc("+ " + tr(item.display_name), ItemData.get_rarity_color(item.rarity).to_html())
 		# Send item to owning client so it appears in their local inventory
 		if multiplayer.is_server():
 			_client_receive_pickup.rpc_id(get_multiplayer_authority(), item.to_dict())
 		return true
 	else:
-		_show_pickup_text.rpc("Inventory Full!", Color.RED.to_html())
+		_show_pickup_text.rpc(tr("Inventory Full!"), Color.RED.to_html())
 		return false
 
 
@@ -711,7 +711,7 @@ func add_gold(amount: int) -> void:
 	inventory.add_gold(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.5, 0),
-		"+ %d Gold" % amount,
+		tr("+ %d Gold") % amount,
 		Color.GOLD
 	)
 

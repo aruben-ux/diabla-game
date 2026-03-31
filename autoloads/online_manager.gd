@@ -94,7 +94,7 @@ func login(user: String, password: String) -> void:
 				is_online = true
 				login_succeeded.emit(username, account_id)
 			else:
-				var reason := _parse_error(body_bytes, "Login failed (server unreachable)" if code == 0 else "Login failed")
+				var reason := _parse_error(body_bytes, tr("Login failed (server unreachable)") if code == 0 else tr("Login failed"))
 				login_failed.emit(reason))
 
 
@@ -112,7 +112,7 @@ func register(user: String, password: String, email: String) -> void:
 				is_online = true
 				register_succeeded.emit(username, account_id)
 			else:
-				var reason := _parse_error(body_bytes, "Registration failed (server unreachable)" if code == 0 else "Registration failed")
+				var reason := _parse_error(body_bytes, tr("Registration failed (server unreachable)") if code == 0 else tr("Registration failed"))
 				register_failed.emit(reason))
 
 

@@ -19,6 +19,7 @@ var floor_color := Color(0.3, 0.3, 0.35, 0.8)
 var wall_color := Color(0.15, 0.15, 0.18, 0.9)
 var corridor_color := Color(0.28, 0.28, 0.32, 0.8)
 var building_color := Color(0.45, 0.35, 0.25, 0.9)
+var garden_color := Color(0.2, 0.35, 0.2, 0.8)
 var stairs_up_color := Color(0.3, 0.7, 0.3, 0.9)
 var stairs_down_color := Color(0.3, 0.5, 1.0, 0.9)
 var player_color := Color(0.2, 0.7, 1.0)
@@ -38,6 +39,7 @@ var _revealed: Array = []  # 2D bool grid — true = explored
 var _needs_redraw := true
 var _stairs_positions: Array = []  # [{pos: Vector2, is_up: bool}]
 var _is_town := false
+var _frozen := false
 
 
 func setup(grid: Array, width: int, height: int, ts: float, offset: Vector3 = Vector3.ZERO) -> void:
@@ -75,8 +77,16 @@ func _init_fog() -> void:
 	_fog_texture = ImageTexture.create_from_image(_fog_image)
 
 
+func freeze_reveal() -> void:
+	_frozen = true
+
+
+func unfreeze_reveal() -> void:
+	_frozen = false
+
+
 func _reveal_around_player() -> void:
-	if _is_town or not player_ref or not is_instance_valid(player_ref):
+	if _frozen or _is_town or not player_ref or not is_instance_valid(player_ref):
 		return
 	if grid_width == 0 or grid_height == 0:
 		return
@@ -119,19 +129,35 @@ func _build_map_texture() -> void:
 	img.fill(Color(0, 0, 0, 0))
 	_stairs_positions.clear()
 
-	for x in grid_width:
-		for y in grid_height:
-			var cell: int = dungeon_grid[x][y]
-			match cell:
-				1: img.set_pixel(x, y, floor_color)
-				2: img.set_pixel(x, y, wall_color)
-				3: img.set_pixel(x, y, corridor_color)
-				4:
-					img.set_pixel(x, y, stairs_up_color)
-					_stairs_positions.append({"pos": Vector2(x, y), "is_up": true})
-				5:
-					img.set_pixel(x, y, stairs_down_color)
-					_stairs_positions.append({"pos": Vector2(x, y), "is_up": false})
+	if _is_town:
+		# Town grid: 0=void, 1=plaza, 2=wall, 3=path, 4=building, 5=stairs, 6=garden
+		for x in grid_width:
+			for y in grid_height:
+				var cell: int = dungeon_grid[x][y]
+				match cell:
+					1: img.set_pixel(x, y, floor_color)
+					2: img.set_pixel(x, y, wall_color)
+					3: pass  # Don't render roads on minimap
+					4: img.set_pixel(x, y, building_color)
+					5:
+						img.set_pixel(x, y, stairs_down_color)
+						_stairs_positions.append({"pos": Vector2(x, y), "is_up": false})
+					6: img.set_pixel(x, y, garden_color)
+	else:
+		# Dungeon grid: 0=void, 1=floor, 2=wall, 3=corridor, 4=stairs_up, 5=stairs_down
+		for x in grid_width:
+			for y in grid_height:
+				var cell: int = dungeon_grid[x][y]
+				match cell:
+					1: img.set_pixel(x, y, floor_color)
+					2: img.set_pixel(x, y, wall_color)
+					3: img.set_pixel(x, y, corridor_color)
+					4:
+						img.set_pixel(x, y, stairs_up_color)
+						_stairs_positions.append({"pos": Vector2(x, y), "is_up": true})
+					5:
+						img.set_pixel(x, y, stairs_down_color)
+						_stairs_positions.append({"pos": Vector2(x, y), "is_up": false})
 
 	_map_texture = ImageTexture.create_from_image(img)
 	_needs_redraw = true

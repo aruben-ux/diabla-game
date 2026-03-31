@@ -31,6 +31,10 @@ extends Control
 
 var _games: Array = []
 var _selected_game_index: int = -1
+var _connect_retries := 0
+var _connect_info: Dictionary = {}
+const MAX_CONNECT_RETRIES := 20
+const CONNECT_RETRY_DELAY := 1.5
 
 const CLASS_NAMES := ["Warrior", "Mage", "Rogue"]
 
@@ -55,18 +59,18 @@ func _ready() -> void:
 	OnlineManager.games_loaded.connect(_on_games_loaded)
 	OnlineManager.game_created.connect(_on_game_created)
 	OnlineManager.game_joined.connect(_on_game_joined)
-	OnlineManager.lobby_connected.connect(func(): _add_system_msg("Connected to lobby."))
-	OnlineManager.lobby_disconnected.connect(func(): _add_system_msg("Disconnected from lobby."))
+	OnlineManager.lobby_connected.connect(func(): _add_system_msg(tr("Connected to lobby.")))
+	OnlineManager.lobby_disconnected.connect(func(): _add_system_msg(tr("Disconnected from lobby.")))
 
 	create_dialog.visible = false
 	join_button.disabled = true
-	status_label.text = "Welcome, %s!" % OnlineManager.username
+	status_label.text = tr("Welcome, %s!") % OnlineManager.username
 
 	# Difficulty options
 	difficulty_option.clear()
-	difficulty_option.add_item("Normal", 0)
-	difficulty_option.add_item("Nightmare", 1)
-	difficulty_option.add_item("Hell", 2)
+	difficulty_option.add_item(tr("Normal"), 0)
+	difficulty_option.add_item(tr("Nightmare"), 1)
+	difficulty_option.add_item(tr("Hell"), 2)
 
 	# Connect to lobby WebSocket
 	OnlineManager.connect_lobby()
@@ -83,12 +87,12 @@ func _ready() -> void:
 func _update_char_display() -> void:
 	var cd: Dictionary = OnlineManager.selected_character_data
 	if cd.is_empty():
-		char_name_label.text = "No character selected"
+		char_name_label.text = tr("No character selected")
 		char_info_label.text = ""
 		return
-	var cls_name: String = CLASS_NAMES[cd.get("character_class", 0)] if cd.get("character_class", 0) < CLASS_NAMES.size() else "Unknown"
+	var cls_name: String = CLASS_NAMES[cd.get("character_class", 0)] if cd.get("character_class", 0) < CLASS_NAMES.size() else tr("Unknown")
 	char_name_label.text = cd.get("character_name", "???")
-	char_info_label.text = "Lv.%d %s | Gold: %d" % [cd.get("level", 1), cls_name, cd.get("gold", 0)]
+	char_info_label.text = tr("Lv.%d %s | Gold: %d") % [cd.get("level", 1), cls_name, cd.get("gold", 0)]
 
 
 # --- Chat ---
@@ -157,9 +161,9 @@ func _on_game_selected(index: int) -> void:
 
 func _show_create_dialog() -> void:
 	if OnlineManager.selected_character_id < 0:
-		status_label.text = "Select a character first!"
+		status_label.text = tr("Select a character first!")
 		return
-	game_name_input.text = "%s's Game" % OnlineManager.username
+	game_name_input.text = tr("%s's Game") % OnlineManager.username
 	create_dialog.visible = true
 
 
@@ -170,7 +174,7 @@ func _on_confirm_create() -> void:
 	var diff_idx := difficulty_option.selected
 	var difficulty: String = ["normal", "nightmare", "hell"][diff_idx]
 	create_dialog.visible = false
-	status_label.text = "Creating game..."
+	status_label.text = tr("Creating game...")
 	OnlineManager.create_game(gname, 8, difficulty)
 
 
@@ -187,10 +191,10 @@ func _on_join_pressed() -> void:
 	if _selected_game_index < 0 or _selected_game_index >= _games.size():
 		return
 	if OnlineManager.selected_character_id < 0:
-		status_label.text = "Select a character first!"
+		status_label.text = tr("Select a character first!")
 		return
 	var game_id: int = _games[_selected_game_index].get("id", -1)
-	status_label.text = "Joining game..."
+	status_label.text = tr("Joining game...")
 	OnlineManager.join_game(game_id)
 
 
@@ -202,26 +206,68 @@ func _on_game_joined(info: Dictionary) -> void:
 
 
 func _connect_to_game_server(info: Dictionary) -> void:
-	var host: String = info.get("host", "127.0.0.1")
-	var port: int = info.get("port", 9000)
 	var game_token: String = info.get("game_token", "")
 
 	# Store the game token so NetworkManager can send it after connecting
 	NetworkManager.game_token = game_token
 	NetworkManager.game_id = info.get("game_id", -1)
 
-	# Disconnect lobby WebSocket (we're entering a game)
+	_connect_info = info
+	_connect_retries = 0
+	# Poll the lobby until the game server reports ready, then ENet connect
+	_poll_server_ready()
+
+
+func _poll_server_ready() -> void:
+	_connect_retries += 1
+	if _connect_retries > MAX_CONNECT_RETRIES:
+		status_label.text = tr("Game server did not become ready in time.")
+		OnlineManager.connect_lobby()
+		return
+
+	status_label.text = tr("Waiting for game server... (%d/%d)") % [_connect_retries, MAX_CONNECT_RETRIES]
+
+	var game_id: int = _connect_info.get("game_id", -1)
+	var url := OnlineManager.lobby_url + "/games/%d/status" % game_id
+	var http := HTTPRequest.new()
+	http.timeout = 5.0
+	add_child(http)
+	http.request_completed.connect(
+		func(_result: int, code: int, _h: PackedStringArray, body_bytes: PackedByteArray):
+			http.queue_free()
+			if code == 200:
+				var json := JSON.new()
+				json.parse(body_bytes.get_string_from_utf8())
+				var server_status: String = json.data.get("status", "waiting") if json.data is Dictionary else "waiting"
+				if server_status in ["ready", "in_progress"]:
+					# Server is ready — now connect via ENet
+					_do_enet_connect()
+					return
+			# Not ready yet — retry after delay
+			if _connect_retries < MAX_CONNECT_RETRIES:
+				get_tree().create_timer(CONNECT_RETRY_DELAY).timeout.connect(_poll_server_ready)
+			else:
+				status_label.text = tr("Game server did not become ready in time.")
+				OnlineManager.connect_lobby(),
+		CONNECT_ONE_SHOT)
+	http.request(url, PackedStringArray(), HTTPClient.METHOD_GET)
+
+
+func _do_enet_connect() -> void:
+	var host: String = _connect_info.get("host", "127.0.0.1")
+	var port: int = _connect_info.get("port", 9000)
+
+	# Disconnect lobby WebSocket now that we know the server is ready
 	OnlineManager.disconnect_lobby()
 
-	# Connect to the dedicated game server via ENet
+	status_label.text = tr("Connecting to game server...")
 	var error := NetworkManager.join_game(host, port)
 	if error == OK:
-		status_label.text = "Connecting to game server..."
-		# Wait for connection_succeeded to transition
 		NetworkManager.connection_succeeded.connect(_on_game_connection_ok, CONNECT_ONE_SHOT)
 		NetworkManager.connection_failed.connect(_on_game_connection_fail, CONNECT_ONE_SHOT)
 	else:
-		status_label.text = "Failed to connect!"
+		status_label.text = tr("Failed to connect!")
+		OnlineManager.connect_lobby()
 
 
 func _on_game_connection_ok() -> void:
@@ -234,7 +280,7 @@ func _on_game_connection_ok() -> void:
 
 
 func _on_game_connection_fail() -> void:
-	status_label.text = "Connection to game server failed."
+	status_label.text = tr("Connection to game server failed.")
 	OnlineManager.connect_lobby()
 
 

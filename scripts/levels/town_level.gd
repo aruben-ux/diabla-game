@@ -40,8 +40,8 @@ func _create_stairs_trigger() -> void:
 	body.collision_mask = 0
 	body.name = "StairsTrigger"
 	body.add_to_group("interactables")
-	body.set_meta("display_name", "Dungeon Entrance")
-	body.set_meta("interact_hint", "Click to enter dungeon")
+	body.set_meta("display_name", tr("Dungeon Entrance"))
+	body.set_meta("interact_hint", tr("Click to enter dungeon"))
 	body.set_meta("_town_level", self)
 	body.set_script(_stairs_interact_script())
 	body.position = stairs_position
@@ -77,7 +77,7 @@ func _create_stairs_trigger() -> void:
 
 	# "Enter Dungeon" label
 	var label := Label3D.new()
-	label.text = "Enter Dungeon"
+	label.text = tr("Enter Dungeon")
 	label.position = stairs_position + Vector3(0, 3.8, 0)
 	label.pixel_size = 0.012
 	label.font_size = 40
@@ -95,8 +95,11 @@ func _on_stairs_body_entered(_body: Node3D) -> void:
 func _stairs_interact_script() -> GDScript:
 	## Returns a tiny inline script that makes the stairs interactable.
 	var src := """extends StaticBody3D
-var display_name: String = "Dungeon Entrance"
-var interact_hint: String = "Click to enter dungeon"
+var display_name: String = ""
+var interact_hint: String = ""
+func _ready() -> void:
+	display_name = get_meta("display_name") if has_meta("display_name") else tr("Dungeon Entrance")
+	interact_hint = get_meta("interact_hint") if has_meta("interact_hint") else tr("Click to enter dungeon")
 func interact(player: Node) -> void:
 	if not player or not is_instance_valid(player):
 		return

@@ -208,13 +208,13 @@ func _build_dialog_panel() -> void:
 	btn_row.add_theme_constant_override("separation", 10)
 
 	_dialog_continue_btn = Button.new()
-	_dialog_continue_btn.text = "Continue"
+	_dialog_continue_btn.text = tr("Continue")
 	_dialog_continue_btn.custom_minimum_size = Vector2(100, 32)
 	_dialog_continue_btn.pressed.connect(_on_dialog_continue)
 	btn_row.add_child(_dialog_continue_btn)
 
 	_dialog_close_btn = Button.new()
-	_dialog_close_btn.text = "Close"
+	_dialog_close_btn.text = tr("Close")
 	_dialog_close_btn.custom_minimum_size = Vector2(80, 32)
 	_dialog_close_btn.pressed.connect(_on_dialog_close)
 	btn_row.add_child(_dialog_close_btn)
@@ -292,7 +292,7 @@ func _update_party_panel() -> void:
 			_party_entries.erase(peer_id)
 			continue
 
-		var p_name: String = p.get("player_name") if p.get("player_name") else "Player"
+		var p_name: String = p.get("player_name") if p.get("player_name") else tr("Player")
 		var stats: PlayerStats = p.stats if p.get("stats") else null
 
 		entry["name_label"].text = p_name
@@ -303,16 +303,16 @@ func _update_party_panel() -> void:
 			entry["mp_bar"].max_value = stats.max_mana
 			entry["mp_bar"].value = stats.mana
 			entry["mp_label"].text = "%d/%d" % [int(stats.mana), int(stats.max_mana)]
-			entry["level_label"].text = "Lv %d" % stats.level
+			entry["level_label"].text = tr("Lv %d") % stats.level
 
 		# Derive location from world position
-		var loc_text := "Town"
+		var loc_text := tr("Town")
 		if p.global_position.x > DUNGEON_X_THRESHOLD:
 			var dz: float = p.global_position.z
 			var floor_num := int(round(dz / FLOOR_SPACING)) + 1
 			if floor_num < 1:
 				floor_num = 1
-			loc_text = "Floor %d" % floor_num
+			loc_text = tr("Floor %d") % floor_num
 		entry["loc_label"].text = loc_text
 
 	# Remove entries for players who left
@@ -402,7 +402,7 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	name_label.add_theme_font_size_override("font_size", 13)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var p_name_str: String = player_node.get("player_name") if player_node.get("player_name") else "Player"
+	var p_name_str: String = player_node.get("player_name") if player_node.get("player_name") else tr("Player")
 	name_label.text = p_name_str
 	name_row.add_child(name_label)
 
@@ -410,7 +410,7 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	level_label.add_theme_font_size_override("font_size", 11)
 	level_label.modulate = Color(0.7, 0.7, 0.7)
 	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	level_label.text = "Lv 1"
+	level_label.text = tr("Lv %d") % 1
 	name_row.add_child(level_label)
 	info_vbox.add_child(name_row)
 
@@ -459,7 +459,7 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	loc_label.add_theme_font_size_override("font_size", 10)
 	loc_label.modulate = Color(0.6, 0.7, 0.6)
 	loc_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	loc_label.text = "Town"
+	loc_label.text = tr("Town")
 	info_vbox.add_child(loc_label)
 
 	hbox.add_child(info_vbox)
@@ -508,7 +508,7 @@ func _build_cast_bar() -> void:
 	_cast_bar_panel.add_child(vbox)
 
 	_cast_bar_label = Label.new()
-	_cast_bar_label.text = "Town Portal"
+	_cast_bar_label.text = tr("Town Portal")
 	_cast_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_cast_bar_label.add_theme_font_size_override("font_size", 12)
 	_cast_bar_label.add_theme_color_override("font_color", Color(0.5, 0.7, 1.0))
@@ -594,7 +594,7 @@ func _process(delta: float) -> void:
 	xp_bar.max_value = stats.experience_to_next_level
 	xp_bar.value = stats.experience
 
-	level_label.text = "Level %d" % stats.level
+	level_label.text = tr("Level %d") % stats.level
 
 	# Update potion counts
 	var inv: Inventory = tracked_player.inventory
@@ -616,10 +616,10 @@ func _process(delta: float) -> void:
 	if _is_dead:
 		_respawn_timer -= delta
 		if _respawn_timer > 0.0:
-			respawn_button.text = "Respawn (%d)" % ceili(_respawn_timer)
+			respawn_button.text = tr("Respawn (%d)") % ceili(_respawn_timer)
 			respawn_button.disabled = true
 		else:
-			respawn_button.text = "Respawn"
+			respawn_button.text = tr("Respawn")
 			respawn_button.disabled = false
 
 	# Update target info
@@ -644,15 +644,15 @@ func _update_target_display() -> void:
 	if target_node is Enemy:
 		var enemy: Enemy = target_node
 		var type_key: String = Enemy.EnemyType.keys()[enemy.enemy_type]
-		_target_name_label.text = type_key.capitalize()
+		_target_name_label.text = tr(type_key.capitalize())
 		_target_health_bar.visible = true
 		_target_health_bar.max_value = enemy.max_health
 		_target_health_bar.value = enemy.health
 		_target_health_label.visible = true
 		_target_health_label.text = "%d / %d" % [int(enemy.health), int(enemy.max_health)]
-		_target_info_label.text = "Level %d" % enemy.floor_level
+		_target_info_label.text = tr("Level %d") % enemy.floor_level
 	elif target_node.is_in_group("players"):
-		var p_name: String = target_node.get("player_name") if target_node.get("player_name") else "Player"
+		var p_name: String = target_node.get("player_name") if target_node.get("player_name") else tr("Player")
 		_target_name_label.text = p_name
 		var p_stats: PlayerStats = target_node.stats
 		_target_health_bar.visible = true
@@ -660,9 +660,9 @@ func _update_target_display() -> void:
 		_target_health_bar.value = p_stats.health
 		_target_health_label.visible = true
 		_target_health_label.text = "%d / %d" % [int(p_stats.health), int(p_stats.max_health)]
-		_target_info_label.text = "Level %d" % p_stats.level
+		_target_info_label.text = tr("Level %d") % p_stats.level
 	elif target_node.is_in_group("interactables"):
-		_target_name_label.text = target_node.get("display_name") if target_node.get("display_name") else "Object"
+		_target_name_label.text = target_node.get("display_name") if target_node.get("display_name") else tr("Object")
 		_target_health_bar.visible = false
 		_target_health_label.visible = false
 		var hint: String = target_node.get("interact_hint") if target_node.get("interact_hint") else ""
@@ -673,7 +673,7 @@ func _show_death_screen() -> void:
 	_is_dead = true
 	_respawn_timer = RESPAWN_DELAY
 	respawn_button.disabled = true
-	respawn_button.text = "Respawn (%d)" % ceili(RESPAWN_DELAY)
+	respawn_button.text = tr("Respawn (%d)") % ceili(RESPAWN_DELAY)
 	death_overlay.visible = true
 
 
@@ -730,7 +730,7 @@ func _build_character_panel() -> void:
 
 	# Title
 	var title := Label.new()
-	title.text = "Character"
+	title.text = tr("Character")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(0, 6)
 	title.size = Vector2(panel_w, 20)
@@ -785,7 +785,7 @@ func _build_character_panel() -> void:
 
 		# Label on the left
 		var name_lbl := Label.new()
-		name_lbl.text = label_text
+		name_lbl.text = tr(label_text)
 		name_lbl.position = Vector2(16, y_offset)
 		name_lbl.size = Vector2(140, line_h)
 		name_lbl.add_theme_font_size_override("font_size", 13)
@@ -821,10 +821,10 @@ func _update_character_panel() -> void:
 
 	_set_stat("name", tracked_player.player_name)
 
-	var char_class_name := "Unknown"
+	var char_class_name := tr("Unknown")
 	if CharacterManager.active_character:
 		var cc = CharacterManager.active_character.character_class
-		char_class_name = CharacterData.class_name_from_enum(cc)
+		char_class_name = tr(CharacterData.class_name_from_enum(cc))
 	_set_stat("class", char_class_name)
 
 	_set_stat("level", str(s.level))
@@ -866,16 +866,16 @@ func _build_action_buttons() -> void:
 	btn_container.alignment = BoxContainer.ALIGNMENT_END
 	add_child(btn_container)
 
-	_character_btn = _create_action_button("Character\n(C)", btn_container)
+	_character_btn = _create_action_button(tr("Character") + "\n(C)", btn_container)
 	_character_btn.pressed.connect(_toggle_character_panel)
 
-	_skill_btn = _create_action_button("Skills\n(K)", btn_container)
+	_skill_btn = _create_action_button(tr("Skills") + "\n(K)", btn_container)
 	_skill_btn.pressed.connect(_toggle_skill_tree)
 
-	_inventory_btn = _create_action_button("Inventory\n(I)", btn_container)
+	_inventory_btn = _create_action_button(tr("Inventory") + "\n(I)", btn_container)
 	_inventory_btn.pressed.connect(_on_inventory_btn_pressed)
 
-	_quest_btn = _create_action_button("Quests\n(L)", btn_container)
+	_quest_btn = _create_action_button(tr("Quests") + "\n(L)", btn_container)
 	_quest_btn.pressed.connect(_toggle_quest_panel)
 
 
@@ -957,7 +957,7 @@ func _build_quest_panel() -> void:
 
 	# Title
 	var title := Label.new()
-	title.text = "Quest Log"
+	title.text = tr("Quest Log")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(0, 6)
 	title.size = Vector2(panel_w, 20)
@@ -1011,7 +1011,7 @@ func _refresh_quest_panel() -> void:
 
 	if active.size() == 0 and completed.size() == 0:
 		var empty_lbl := Label.new()
-		empty_lbl.text = "No active quests.\nTalk to NPCs in town to find quests."
+		empty_lbl.text = tr("No active quests.\nTalk to NPCs in town to find quests.")
 		empty_lbl.add_theme_font_size_override("font_size", 13)
 		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -1029,13 +1029,13 @@ func _add_quest_entry(q: QuestData, title_color: Color) -> void:
 	entry.add_theme_constant_override("separation", 2)
 
 	var title_lbl := Label.new()
-	title_lbl.text = q.title
+	title_lbl.text = tr(q.title)
 	title_lbl.add_theme_font_size_override("font_size", 14)
 	title_lbl.add_theme_color_override("font_color", title_color)
 	entry.add_child(title_lbl)
 
 	var desc_lbl := Label.new()
-	desc_lbl.text = q.description
+	desc_lbl.text = tr(q.description)
 	desc_lbl.add_theme_font_size_override("font_size", 12)
 	desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -1043,16 +1043,16 @@ func _add_quest_entry(q: QuestData, title_color: Color) -> void:
 
 	var progress_lbl := Label.new()
 	if q.status == QuestData.QuestStatus.COMPLETED:
-		progress_lbl.text = "COMPLETE — Return to NPC"
+		progress_lbl.text = tr("COMPLETE — Return to NPC")
 		progress_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
 	else:
-		progress_lbl.text = "Progress: %d / %d" % [q.current_count, q.target_count]
+		progress_lbl.text = tr("Progress: %d / %d") % [q.current_count, q.target_count]
 		progress_lbl.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
 	progress_lbl.add_theme_font_size_override("font_size", 12)
 	entry.add_child(progress_lbl)
 
 	var reward_lbl := Label.new()
-	reward_lbl.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+	reward_lbl.text = tr("Rewards: %d Gold, %d XP") % [q.reward_gold, int(q.reward_xp)]
 	reward_lbl.add_theme_font_size_override("font_size", 11)
 	reward_lbl.add_theme_color_override("font_color", Color(0.6, 0.55, 0.4))
 	entry.add_child(reward_lbl)
@@ -1120,7 +1120,7 @@ func _populate_quest_dialog(npc_id: String) -> void:
 
 	# Title
 	var title := Label.new()
-	title.text = "Quests"
+	title.text = tr("Quests")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
@@ -1132,19 +1132,19 @@ func _populate_quest_dialog(npc_id: String) -> void:
 		entry.add_theme_constant_override("separation", 4)
 
 		var q_title := Label.new()
-		q_title.text = q.title + "  [COMPLETE]"
+		q_title.text = tr(q.title) + "  " + tr("[COMPLETE]")
 		q_title.add_theme_font_size_override("font_size", 14)
 		q_title.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
 		entry.add_child(q_title)
 
 		var reward := Label.new()
-		reward.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+		reward.text = tr("Rewards: %d Gold, %d XP") % [q.reward_gold, int(q.reward_xp)]
 		reward.add_theme_font_size_override("font_size", 12)
 		reward.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
 		entry.add_child(reward)
 
 		var btn := Button.new()
-		btn.text = "Turn In"
+		btn.text = tr("Turn In")
 		btn.custom_minimum_size = Vector2(100, 28)
 		var qid := q.quest_id
 		btn.pressed.connect(_on_turn_in_pressed.bind(qid))
@@ -1161,26 +1161,26 @@ func _populate_quest_dialog(npc_id: String) -> void:
 		entry.add_theme_constant_override("separation", 4)
 
 		var q_title := Label.new()
-		q_title.text = q.title
+		q_title.text = tr(q.title)
 		q_title.add_theme_font_size_override("font_size", 14)
 		q_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
 		entry.add_child(q_title)
 
 		var desc := Label.new()
-		desc.text = q.description
+		desc.text = tr(q.description)
 		desc.add_theme_font_size_override("font_size", 12)
 		desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 		entry.add_child(desc)
 
 		var reward := Label.new()
-		reward.text = "Rewards: %d Gold, %d XP" % [q.reward_gold, int(q.reward_xp)]
+		reward.text = tr("Rewards: %d Gold, %d XP") % [q.reward_gold, int(q.reward_xp)]
 		reward.add_theme_font_size_override("font_size", 12)
 		reward.add_theme_color_override("font_color", Color(0.8, 0.75, 0.5))
 		entry.add_child(reward)
 
 		var btn := Button.new()
-		btn.text = "Accept"
+		btn.text = tr("Accept")
 		btn.custom_minimum_size = Vector2(100, 28)
 		var qid := q.quest_id
 		btn.pressed.connect(_on_accept_pressed.bind(qid))
@@ -1193,7 +1193,7 @@ func _populate_quest_dialog(npc_id: String) -> void:
 
 	# Close button
 	var close_btn := Button.new()
-	close_btn.text = "Close"
+	close_btn.text = tr("Close")
 	close_btn.custom_minimum_size = Vector2(80, 28)
 	close_btn.pressed.connect(func(): _quest_dialog_panel.visible = false)
 	_quest_dialog_vbox.add_child(close_btn)
@@ -1221,7 +1221,7 @@ func _on_turn_in_pressed(quest_id: String) -> void:
 			tracked_player.sync_gold_to_server()
 		EventBus.show_floating_text.emit(
 			tracked_player.global_position + Vector3(0, 2, 0),
-			"Quest Complete! +%d Gold +%d XP" % [rewards["gold"], int(rewards["xp"])],
+			tr("Quest Complete! +%d Gold +%d XP") % [rewards["gold"], int(rewards["xp"])],
 			Color.GOLD
 		)
 	# Refresh dialog — may close if no more quests

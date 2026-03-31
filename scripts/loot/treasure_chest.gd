@@ -3,8 +3,8 @@ extends StaticBody3D
 ## Treasure chest interactable in dungeons.
 ## Player clicks it, walks over, and it opens to drop loot + gold.
 
-var display_name: String = "Treasure Chest"
-var interact_hint: String = "Click to open"
+var display_name: String = tr("Treasure Chest")
+var interact_hint: String = tr("Click to open")
 
 var _opened := false
 var _loot_dropped := false
@@ -22,7 +22,7 @@ func interact(player: Node) -> void:
 	if not player or not is_instance_valid(player):
 		return
 	_opened = true
-	display_name = "Empty Chest"
+	display_name = tr("Empty Chest")
 	interact_hint = ""
 	_animate_open()
 

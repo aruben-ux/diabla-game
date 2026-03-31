@@ -14,8 +14,8 @@ var owner_name: String = "Player"
 var portal_color := Color(0.3, 0.5, 0.85)
 
 ## Interactable interface
-var display_name: String = "Town Portal"
-var interact_hint: String = "Click to enter portal"
+var display_name: String = tr("Town Portal")
+var interact_hint: String = tr("Click to enter portal")
 
 var _time := 0.0
 var _viewport: SubViewport

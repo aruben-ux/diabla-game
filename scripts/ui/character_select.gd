@@ -66,7 +66,7 @@ func _rebuild_slot_ui() -> void:
 
 	if _characters.is_empty():
 		var label := Label.new()
-		label.text = "No characters yet — create one!"
+		label.text = tr("No characters yet — create one!")
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 		slot_list.add_child(label)
@@ -90,7 +90,7 @@ func _add_character_slot(index: int, data: CharacterData) -> void:
 	var time_str := "%dh %dm" % [play_hours, play_mins] if play_hours > 0 else "%dm" % play_mins
 
 	btn.text = "  %s  —  Lv.%d %s  |  Time: %s" % [
-		data.character_name, data.level, class_name_str, time_str
+		data.character_name, data.level, tr(class_name_str), time_str
 	]
 
 	var cls_color: Color = CLASS_COLORS.get(data.character_class, Color.WHITE)
@@ -106,14 +106,14 @@ func _add_online_slot(index: int, data: Dictionary) -> void:
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	var cls: int = data.get("character_class", 0)
-	var cls_name: String = CLASS_NAMES[cls] if cls < CLASS_NAMES.size() else "Unknown"
+	var cls_name: String = CLASS_NAMES[cls] if cls < CLASS_NAMES.size() else tr("Unknown")
 	var play_secs: float = data.get("play_time_seconds", 0.0)
 	var play_hours := int(play_secs / 3600.0)
 	var play_mins := int(fmod(play_secs, 3600.0) / 60.0)
 	var time_str := "%dh %dm" % [play_hours, play_mins] if play_hours > 0 else "%dm" % play_mins
 
 	btn.text = "  %s  —  Lv.%d %s  |  Time: %s" % [
-		data.get("character_name", "???"), data.get("level", 1), cls_name, time_str
+		data.get("character_name", "???"), data.get("level", 1), tr(cls_name), time_str
 	]
 
 	var cls_enum := cls as CharacterData.CharacterClass

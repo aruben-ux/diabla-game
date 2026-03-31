@@ -137,26 +137,26 @@ func _place_buildings() -> void:
 	# Heights vary for visual interest
 	var plots: Array[Dictionary] = [
 		# NW — Town Hall / Elder's house (large, tall)
-		{"rect": Rect2i(3, 3, 6, 5), "label": "Town Hall", "height": 6.0, "door_face": "east"},
+		{"rect": Rect2i(3, 3, 6, 5), "label": tr("Town Hall"), "height": 6.0, "door_face": "east"},
 		# N — Marketplace building (wide)
-		{"rect": Rect2i(15, 2, 7, 4), "label": "Marketplace", "height": 4.0},
+		{"rect": Rect2i(15, 2, 7, 4), "label": tr("Marketplace"), "height": 4.0},
 		# NE — Alchemist / Potion shop
-		{"rect": Rect2i(30, 3, 5, 4), "label": "Alchemist", "height": 5.0},
+		{"rect": Rect2i(30, 3, 5, 4), "label": tr("Alchemist"), "height": 5.0},
 		# W — Tavern / Inn (the biggest building)
-		{"rect": Rect2i(4, 15, 7, 6), "label": "Tavern", "height": 5.5},
+		{"rect": Rect2i(4, 15, 7, 6), "label": tr("Tavern"), "height": 5.5},
 		# E — General Goods
-		{"rect": Rect2i(31, 16, 6, 5), "label": "General Store", "height": 4.5},
+		{"rect": Rect2i(31, 16, 6, 5), "label": tr("General Store"), "height": 4.5},
 		# SW — Residence
-		{"rect": Rect2i(3, 30, 5, 5), "label": "Residence", "height": 4.0, "door_face": "east"},
+		{"rect": Rect2i(3, 30, 5, 5), "label": tr("Residence"), "height": 4.0, "door_face": "east"},
 		# SE — Blacksmith / Armory
-		{"rect": Rect2i(31, 30, 6, 5), "label": "Blacksmith", "height": 4.5, "door_face": "west"},
+		{"rect": Rect2i(31, 30, 6, 5), "label": tr("Blacksmith"), "height": 4.5, "door_face": "west"},
 		# Inner ring — small buildings near plaza
-		{"rect": Rect2i(11, 5, 3, 3), "label": "Healer", "height": 4.0},
-		{"rect": Rect2i(26, 5, 3, 3), "label": "Jeweler", "height": 4.0},
+		{"rect": Rect2i(11, 5, 3, 3), "label": tr("Healer"), "height": 4.0},
+		{"rect": Rect2i(26, 5, 3, 3), "label": tr("Jeweler"), "height": 4.0},
 		# Market stalls (open-air, low roofs)
-		{"rect": Rect2i(15, 7, 3, 2), "label": "Fruit Stall", "height": 2.8},
-		{"rect": Rect2i(19, 7, 3, 2), "label": "Weapon Stall", "height": 2.8},
-		{"rect": Rect2i(23, 7, 3, 2), "label": "Armor Stall", "height": 2.8},
+		{"rect": Rect2i(15, 7, 3, 2), "label": tr("Fruit Stall"), "height": 2.8},
+		{"rect": Rect2i(19, 7, 3, 2), "label": tr("Weapon Stall"), "height": 2.8},
+		{"rect": Rect2i(23, 7, 3, 2), "label": tr("Armor Stall"), "height": 2.8},
 	]
 
 	for plot in plots:
@@ -187,8 +187,8 @@ func _place_stairs() -> void:
 	_stairs_pos = Vector3((sx + 2) * TILE_SIZE, 0.5, (sy + 1) * TILE_SIZE)
 
 	# Guard tower plots (small, tall buildings flanking the entrance)
-	var left_tower := {"rect": Rect2i(sx - 3, sy - 1, 2, 2), "label": "Guard Tower", "height": 7.0}
-	var right_tower := {"rect": Rect2i(sx + 5, sy - 1, 2, 2), "label": "Guard Tower", "height": 7.0}
+	var left_tower := {"rect": Rect2i(sx - 3, sy - 1, 2, 2), "label": tr("Guard Tower"), "height": 7.0}
+	var right_tower := {"rect": Rect2i(sx + 5, sy - 1, 2, 2), "label": tr("Guard Tower"), "height": 7.0}
 	for tower in [left_tower, right_tower]:
 		var rect: Rect2i = tower["rect"]
 		buildings.append(tower)
@@ -224,17 +224,18 @@ func _carve_paths() -> void:
 	var cx := TOWN_WIDTH / 2
 	var cy := TOWN_HEIGHT / 2
 
-	# Main roads from plaza to edges (N, S, E, W)
-	_carve_road(cx, cy - 6, cx, 1, 2)                # North
-	_carve_road(cx, cy + 6, cx, TOWN_HEIGHT - 2, 2)  # South
-	_carve_road(cx - 6, cy, 1, cy, 2)                # West
-	_carve_road(cx + 6, cy, TOWN_WIDTH - 2, cy, 2)   # East
-
 	# Ring road — a rectangular loop around the plaza
 	var ring_inner := 10
 	var ring_outer := TOWN_WIDTH - 10
 	var ring_top := 10
 	var ring_bottom := TOWN_HEIGHT - 10
+
+	# Main roads from plaza to ring road (N, S, E, W)
+	_carve_road(cx, cy - 6, cx, ring_top, 2)       # North
+	_carve_road(cx, cy + 6, cx, ring_bottom, 2)     # South
+	_carve_road(cx - 6, cy, ring_inner, cy, 2)      # West
+	_carve_road(cx + 6, cy, ring_outer, cy, 2)      # East
+
 	# Top segment
 	_carve_road(ring_inner, ring_top, ring_outer, ring_top, 1)
 	# Bottom segment
@@ -264,6 +265,10 @@ func _carve_paths() -> void:
 			_carve_road(rect.position.x, by, maxi(cx, ring_outer - 1), by, 1)
 			if by != cy:
 				_carve_road(ring_outer, by, ring_outer, cy, 1)
+
+	# Connect dungeon stairs to the south main road
+	var stairs_cx := stairs_rect.position.x + stairs_rect.size.x / 2
+	_carve_road(stairs_cx, ring_bottom, stairs_cx, stairs_rect.position.y, 2)
 
 
 func _carve_road(x1: int, y1: int, x2: int, y2: int, half_w: int) -> void:
@@ -876,7 +881,7 @@ func _build_stairs_mesh(positions: Array) -> void:
 
 
 func _build_collision(floor_positions: Array, wall_positions: Array) -> void:
-	# Floor collision
+	# Floor collision — single merged plane covering the entire town grid
 	var floor_body := StaticBody3D.new()
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
@@ -884,27 +889,50 @@ func _build_collision(floor_positions: Array, wall_positions: Array) -> void:
 	add_child(floor_body)
 
 	var floor_box := BoxShape3D.new()
-	floor_box.size = Vector3(TILE_SIZE, 0.2, TILE_SIZE)
-	for pos in floor_positions:
-		var col := CollisionShape3D.new()
-		col.shape = floor_box
-		col.position = pos as Vector3 + Vector3(0, -0.1, 0)
-		floor_body.add_child(col)
+	floor_box.size = Vector3(TOWN_WIDTH * TILE_SIZE, 0.2, TOWN_HEIGHT * TILE_SIZE)
+	var floor_col := CollisionShape3D.new()
+	floor_col.shape = floor_box
+	floor_col.position = Vector3(
+		TOWN_WIDTH * TILE_SIZE * 0.5,
+		-0.1,
+		TOWN_HEIGHT * TILE_SIZE * 0.5
+	)
+	floor_body.add_child(floor_col)
 
-	# Wall collision
+	# Wall collision — merge adjacent wall tiles into row-runs
 	var wall_body := StaticBody3D.new()
 	wall_body.collision_layer = 1
 	wall_body.collision_mask = 0
 	wall_body.name = "WallCollision"
 	add_child(wall_body)
 
-	var wall_box := BoxShape3D.new()
-	wall_box.size = Vector3(TILE_SIZE, WALL_HEIGHT, TILE_SIZE)
+	var wall_set := {}
 	for pos in wall_positions:
-		var col := CollisionShape3D.new()
-		col.shape = wall_box
-		col.position = pos as Vector3 + Vector3(0, WALL_HEIGHT / 2.0, 0)
-		wall_body.add_child(col)
+		var gx := roundi((pos as Vector3).x / TILE_SIZE)
+		var gy := roundi((pos as Vector3).z / TILE_SIZE)
+		wall_set[gx * 10000 + gy] = true
+
+	for y in TOWN_HEIGHT:
+		var run_start := -1
+		for x in range(TOWN_WIDTH + 1):
+			var key := x * 10000 + y
+			if x < TOWN_WIDTH and wall_set.has(key):
+				if run_start < 0:
+					run_start = x
+			else:
+				if run_start >= 0:
+					var run_len := x - run_start
+					var box := BoxShape3D.new()
+					box.size = Vector3(run_len * TILE_SIZE, WALL_HEIGHT, TILE_SIZE)
+					var col := CollisionShape3D.new()
+					col.shape = box
+					col.position = Vector3(
+						(run_start + (run_len - 1) * 0.5) * TILE_SIZE,
+						WALL_HEIGHT * 0.5,
+						y * TILE_SIZE
+					)
+					wall_body.add_child(col)
+					run_start = -1
 
 
 # --- Props ---

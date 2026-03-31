@@ -45,6 +45,7 @@ func _ready() -> void:
 
 	# Connect token received signal
 	EventBus.game_token_received.connect(_on_game_token_received)
+	EventBus.server_ready.connect(_notify_lobby_ready, CONNECT_ONE_SHOT)
 	NetworkManager.player_disconnected.connect(_on_player_disconnected)
 
 	# Start ENet server
@@ -256,6 +257,24 @@ func _save_player(peer_id: int) -> void:
 
 
 # --- Lobby Communication ---
+
+func _notify_lobby_ready() -> void:
+	print("[GameServer] Town ready — notifying lobby")
+	var url := _lobby_url + "/games/internal/ready"
+	var body := JSON.stringify({
+		"server_secret": _server_secret,
+		"game_id": _game_id,
+		"current_players": 0,
+	})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(_result: int, _code: int, _h: PackedStringArray, _b: PackedByteArray):
+			http.queue_free(),
+		CONNECT_ONE_SHOT)
+	http.request(url, headers, HTTPClient.METHOD_POST, body)
+
 
 func _update_player_count() -> void:
 	var url := _lobby_url + "/games/internal/player_count"

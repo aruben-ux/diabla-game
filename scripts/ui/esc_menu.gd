@@ -106,7 +106,7 @@ func _build_main_panel() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 
 	var title := Label.new()
-	title.text = "MENU"
+	title.text = tr("MENU")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	vbox.add_child(title)
@@ -114,27 +114,27 @@ func _build_main_panel() -> void:
 	var sep := HSeparator.new()
 	vbox.add_child(sep)
 
-	var btn_resume := _make_button("Resume")
+	var btn_resume := _make_button(tr("Resume"))
 	btn_resume.pressed.connect(_close)
 	vbox.add_child(btn_resume)
 
-	var btn_options := _make_button("Options")
+	var btn_options := _make_button(tr("Options"))
 	btn_options.pressed.connect(_show_options)
 	vbox.add_child(btn_options)
 
 	if OS.has_feature("debug"):
-		var btn_debug := _make_button("Debug Menu")
+		var btn_debug := _make_button(tr("Debug Menu"))
 		btn_debug.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 		btn_debug.add_theme_color_override("font_hover_color", Color(1.0, 0.5, 0.5))
 		btn_debug.add_theme_color_override("font_pressed_color", Color(0.8, 0.2, 0.2))
 		btn_debug.pressed.connect(_show_debug)
 		vbox.add_child(btn_debug)
 
-	var btn_title := _make_button("Return to Title")
+	var btn_title := _make_button(tr("Return to Title"))
 	btn_title.pressed.connect(_on_return_to_title)
 	vbox.add_child(btn_title)
 
-	var btn_quit := _make_button("Quit Game")
+	var btn_quit := _make_button(tr("Quit Game"))
 	btn_quit.pressed.connect(_on_quit)
 	vbox.add_child(btn_quit)
 
@@ -169,7 +169,7 @@ func _build_options_panel() -> void:
 	vbox.add_theme_constant_override("separation", 8)
 
 	var title := Label.new()
-	title.text = "OPTIONS"
+	title.text = tr("OPTIONS")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	vbox.add_child(title)
@@ -177,23 +177,23 @@ func _build_options_panel() -> void:
 	vbox.add_child(HSeparator.new())
 
 	# Master Volume
-	_master_slider = _add_slider_row(vbox, "Master Volume", _get_bus_volume_linear("Master"))
+	_master_slider = _add_slider_row(vbox, tr("Master Volume"), _get_bus_volume_linear("Master"))
 	_master_slider.value_changed.connect(_on_master_volume_changed)
 
 	# Music Volume
 	var music_bus := "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
-	_music_slider = _add_slider_row(vbox, "Music Volume", _get_bus_volume_linear(music_bus))
+	_music_slider = _add_slider_row(vbox, tr("Music Volume"), _get_bus_volume_linear(music_bus))
 	_music_slider.value_changed.connect(_on_music_volume_changed)
 
 	# SFX Volume
 	var sfx_bus := "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
-	_sfx_slider = _add_slider_row(vbox, "SFX Volume", _get_bus_volume_linear(sfx_bus))
+	_sfx_slider = _add_slider_row(vbox, tr("SFX Volume"), _get_bus_volume_linear(sfx_bus))
 	_sfx_slider.value_changed.connect(_on_sfx_volume_changed)
 
 	vbox.add_child(HSeparator.new())
 
 	# Camera follow speed
-	_camera_sens_slider = _add_slider_row(vbox, "Camera Speed", 0.5, 0.1, 1.0)
+	_camera_sens_slider = _add_slider_row(vbox, tr("Camera Speed"), 0.5, 0.1, 1.0)
 	_camera_sens_slider.value_changed.connect(_on_camera_speed_changed)
 	# Initialize from current camera if available
 	var camera := get_viewport().get_camera_3d()
@@ -204,21 +204,21 @@ func _build_options_panel() -> void:
 
 	# Fullscreen toggle
 	var fs_check := CheckBox.new()
-	fs_check.text = "  Fullscreen"
+	fs_check.text = "  " + tr("Fullscreen")
 	fs_check.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 	fs_check.toggled.connect(_on_fullscreen_toggled)
 	vbox.add_child(fs_check)
 
 	# V-Sync toggle
 	var vsync_check := CheckBox.new()
-	vsync_check.text = "  V-Sync"
+	vsync_check.text = "  " + tr("V-Sync")
 	vsync_check.button_pressed = DisplayServer.window_get_vsync_mode() != DisplayServer.VSYNC_DISABLED
 	vsync_check.toggled.connect(_on_vsync_toggled)
 	vbox.add_child(vsync_check)
 
 	vbox.add_child(HSeparator.new())
 
-	var btn_back := _make_button("Back")
+	var btn_back := _make_button(tr("Back"))
 	btn_back.pressed.connect(_show_main)
 	vbox.add_child(btn_back)
 
@@ -362,14 +362,14 @@ func _build_debug_panel() -> void:
 	vbox.add_theme_constant_override("separation", 8)
 
 	var title := Label.new()
-	title.text = "DEBUG MENU"
+	title.text = tr("DEBUG MENU")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	vbox.add_child(title)
 
 	var warn := Label.new()
-	warn.text = "Debug build only — hidden in production"
+	warn.text = tr("Debug build only — hidden in production")
 	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	warn.add_theme_font_size_override("font_size", 11)
 	warn.add_theme_color_override("font_color", Color(0.6, 0.4, 0.4))
@@ -379,7 +379,7 @@ func _build_debug_panel() -> void:
 
 	# Invincible toggle
 	_invincible_check = CheckBox.new()
-	_invincible_check.text = "  Invincible"
+	_invincible_check.text = "  " + tr("Invincible")
 	_invincible_check.add_theme_color_override("font_color", Color(0.9, 0.8, 0.6))
 	var player := _get_local_player()
 	if player:
@@ -390,47 +390,47 @@ func _build_debug_panel() -> void:
 	vbox.add_child(HSeparator.new())
 
 	# Action buttons
-	var btn_reveal := _make_debug_button("Reveal Entire Minimap")
+	var btn_reveal := _make_debug_button(tr("Reveal Entire Minimap"))
 	btn_reveal.pressed.connect(_on_debug_reveal_minimap)
 	vbox.add_child(btn_reveal)
 
-	var btn_gold := _make_debug_button("+1000 Gold")
+	var btn_gold := _make_debug_button(tr("+1000 Gold"))
 	btn_gold.pressed.connect(_on_debug_add_gold)
 	vbox.add_child(btn_gold)
 
-	var btn_xp := _make_debug_button("+1000 XP")
+	var btn_xp := _make_debug_button(tr("+1000 XP"))
 	btn_xp.pressed.connect(_on_debug_add_xp)
 	vbox.add_child(btn_xp)
 
-	var btn_heal := _make_debug_button("Full Heal + Mana")
+	var btn_heal := _make_debug_button(tr("Full Heal + Mana"))
 	btn_heal.pressed.connect(_on_debug_full_heal)
 	vbox.add_child(btn_heal)
 
-	var btn_kill := _make_debug_button("Kill Nearby Enemies")
+	var btn_kill := _make_debug_button(tr("Kill Nearby Enemies"))
 	btn_kill.pressed.connect(_on_debug_kill_enemies)
 	vbox.add_child(btn_kill)
 
-	var btn_quests := _make_debug_button("Complete Active Quests")
+	var btn_quests := _make_debug_button(tr("Complete Active Quests"))
 	btn_quests.pressed.connect(_on_debug_complete_quests)
 	vbox.add_child(btn_quests)
 
-	var btn_level := _make_debug_button("Level Up")
+	var btn_level := _make_debug_button(tr("Level Up"))
 	btn_level.pressed.connect(_on_debug_level_up)
 	vbox.add_child(btn_level)
 
 	vbox.add_child(HSeparator.new())
 
-	var btn_floor_down := _make_debug_button("Go Floor Down")
+	var btn_floor_down := _make_debug_button(tr("Go Floor Down"))
 	btn_floor_down.pressed.connect(_on_debug_floor_down)
 	vbox.add_child(btn_floor_down)
 
-	var btn_floor_up := _make_debug_button("Go Floor Up")
+	var btn_floor_up := _make_debug_button(tr("Go Floor Up"))
 	btn_floor_up.pressed.connect(_on_debug_floor_up)
 	vbox.add_child(btn_floor_up)
 
 	vbox.add_child(HSeparator.new())
 
-	var btn_back := _make_button("Back")
+	var btn_back := _make_button(tr("Back"))
 	btn_back.pressed.connect(_show_main)
 	vbox.add_child(btn_back)
 

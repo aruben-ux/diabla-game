@@ -29,7 +29,7 @@ async def list_games(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(GameSession, Account.username)
         .join(Account, Account.id == GameSession.host_account_id)
-        .where(GameSession.status.in_(["waiting", "in_progress"]))
+        .where(GameSession.status.in_(["waiting", "ready", "in_progress"]))
         .order_by(GameSession.created_at.desc())
     )
     games = []
@@ -66,7 +66,7 @@ async def create_game(
 
     # Find an available port
     used_ports_result = await db.execute(
-        select(GameSession.port).where(GameSession.status.in_(["waiting", "in_progress"]))
+        select(GameSession.port).where(GameSession.status.in_(["waiting", "ready", "in_progress"]))
     )
     used_ports = {row[0] for row in used_ports_result}
     port = None
@@ -219,6 +219,37 @@ async def validate_game_token(
     )
 
 
+@router.get("/{game_id}/status")
+async def get_game_status(
+    game_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Quick status check — clients poll this while waiting for the server to be ready."""
+    result = await db.execute(select(GameSession.status).where(GameSession.id == game_id))
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return {"status": row}
+
+
+@router.post("/internal/ready")
+async def mark_server_ready(
+    req: GameServerPlayerCount,
+    db: AsyncSession = Depends(get_db),
+):
+    """Called by game server after town generation is complete."""
+    if req.server_secret != settings.game_server_secret:
+        raise HTTPException(status_code=403, detail="Invalid server secret")
+    result = await db.execute(select(GameSession).where(GameSession.id == req.game_id))
+    game = result.scalar_one_or_none()
+    if game is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    if game.status == "waiting":
+        game.status = "ready"
+    await db.commit()
+    return {"ok": True}
+
+
 @router.post("/internal/player_count")
 async def update_player_count(
     req: GameServerPlayerCount,
@@ -231,10 +262,10 @@ async def update_player_count(
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
     game.current_players = req.current_players
-    if req.current_players == 0:
-        game.status = "waiting"  # Keep joinable; game server idle timeout handles shutdown
-    elif game.status == "waiting":
+    if req.current_players > 0 and game.status in ("waiting", "ready"):
         game.status = "in_progress"
+    elif req.current_players == 0 and game.status == "in_progress":
+        game.status = "ready"  # Server still running, just empty
     await db.commit()
     return {"ok": True}
 

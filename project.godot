@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+TranslationManager="*res://autoloads/translation_manager.gd"
 GameManager="*res://autoloads/game_manager.gd"
 NetworkManager="*res://autoloads/network_manager.gd"
 EventBus="*res://autoloads/event_bus.gd"

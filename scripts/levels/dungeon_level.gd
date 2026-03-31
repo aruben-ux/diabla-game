@@ -258,19 +258,19 @@ func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:
 	var label_text: String
 	if is_up:
 		if current_floor == 1:
-			label_text = "Return to Town"
+			label_text = tr("Return to Town")
 		else:
-			label_text = "Stairs Up (Floor %d)" % (current_floor - 1)
+			label_text = tr("Stairs Up (Floor %d)") % (current_floor - 1)
 		_stairs_up_area = body
 	else:
 		if _stairs_down_locked:
-			label_text = "BOSS GUARDS THIS PASSAGE"
+			label_text = tr("BOSS GUARDS THIS PASSAGE")
 		else:
-			label_text = "Stairs Down (Floor %d)" % (current_floor + 1)
+			label_text = tr("Stairs Down (Floor %d)") % (current_floor + 1)
 		_stairs_down_area = body
 
 	body.set_meta("display_name", label_text)
-	body.set_meta("interact_hint", "Click to use stairs")
+	body.set_meta("interact_hint", tr("Click to use stairs"))
 	body.set_meta("_dungeon_level", self)
 	body.set_meta("_is_up", is_up)
 	body.set_script(_stairs_interact_script())
@@ -326,10 +326,10 @@ func _on_stairs_down_entered(_body: Node3D) -> void:
 func _stairs_interact_script() -> GDScript:
 	var src := """extends StaticBody3D
 var display_name: String = ""
-var interact_hint: String = "Click to use stairs"
+var interact_hint: String = ""
 func _ready() -> void:
-	display_name = get_meta("display_name") if has_meta("display_name") else "Stairs"
-	interact_hint = get_meta("interact_hint") if has_meta("interact_hint") else "Click to use stairs"
+	display_name = get_meta("display_name") if has_meta("display_name") else tr("Stairs")
+	interact_hint = get_meta("interact_hint") if has_meta("interact_hint") else tr("Click to use stairs")
 func interact(player: Node) -> void:
 	if not player or not is_instance_valid(player):
 		return
@@ -361,7 +361,7 @@ func _sync_unlock_stairs() -> void:
 	if _stair_props_container:
 		for child in _stair_props_container.get_children():
 			if child is Label3D and "Stairs Down" in child.text:
-				child.text = "Stairs Down (Floor %d)" % (current_floor + 1)
+				child.text = tr("Stairs Down (Floor %d)") % (current_floor + 1)
 				child.modulate = Color(0.5, 0.5, 1.0)
 
 

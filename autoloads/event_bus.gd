@@ -21,6 +21,7 @@ signal level_loaded(level_name: String)
 
 # Online / dedicated server events
 signal game_token_received(peer_id: int, token: String)
+signal server_ready()
 
 # NPC / dialog events
 signal npc_dialog_opened(npc_name: String, lines: Array)

@@ -7,8 +7,8 @@ extends Area3D
 @export var bob_speed := 2.0
 @export var bob_height := 0.3
 
-var display_name: String = "Loot"
-var interact_hint: String = "Click to pick up"
+var display_name: String = tr("Loot")
+var interact_hint: String = tr("Click to pick up")
 
 var _base_y: float
 var _time: float = 0.0

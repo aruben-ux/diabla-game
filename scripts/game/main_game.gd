@@ -186,6 +186,7 @@ func _on_town_ready(spawn_pos: Vector3) -> void:
 	if multiplayer.is_server():
 		var gen_seed := _game_seed + 1
 		_sync_ensure_floor.rpc(1, gen_seed)
+		EventBus.server_ready.emit()
 	else:
 		_request_game_seed.rpc_id(1)
 
@@ -219,7 +220,9 @@ func _on_floor_ready(spawn_pos: Vector3, stairs_up_pos: Vector3, stairs_down_pos
 	# Update minimap if local player is on this floor
 	var my_id := multiplayer.get_unique_id()
 	if _player_floors.get(my_id, 0) == floor_num:
+		_save_fog_for_current_floor()
 		_update_minimap_for_dungeon(floor_num)
+		_restore_fog_for_floor(floor_num)
 
 
 # --- Stair trigger handlers (server only) ---
@@ -396,6 +399,9 @@ func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> voi
 	var is_local := peer_id == multiplayer.get_unique_id()
 	if is_local:
 		_save_fog_for_current_floor()
+		if minimap:
+			minimap.freeze_reveal()
+		_freeze_camera()
 		_fade_out()
 
 	_player_locations[peer_id] = ActiveLevel.DUNGEON
@@ -409,6 +415,9 @@ func _sync_player_to_dungeon(peer_id: int, dest: Vector3, floor_num: int) -> voi
 		_update_minimap_for_dungeon(floor_num)
 		_restore_fog_for_floor(floor_num)
 		_snap_camera()
+		if minimap:
+			minimap.unfreeze_reveal()
+		_unfreeze_camera()
 		_fade_in()
 
 
@@ -417,6 +426,9 @@ func _sync_player_to_town(peer_id: int, dest: Vector3) -> void:
 	var is_local := peer_id == multiplayer.get_unique_id()
 	if is_local:
 		_save_fog_for_current_floor()
+		if minimap:
+			minimap.freeze_reveal()
+		_freeze_camera()
 		_fade_out()
 
 	_player_locations[peer_id] = ActiveLevel.TOWN
@@ -429,6 +441,9 @@ func _sync_player_to_town(peer_id: int, dest: Vector3) -> void:
 			town_level.sun.visible = true
 		_update_minimap_for_town()
 		_snap_camera()
+		if minimap:
+			minimap.unfreeze_reveal()
+		_unfreeze_camera()
 		_fade_in()
 
 
@@ -452,6 +467,18 @@ func _snap_camera() -> void:
 	var camera := $IsometricCamera
 	if camera and camera.has_method("snap_to_target"):
 		camera.snap_to_target()
+
+
+func _freeze_camera() -> void:
+	var camera := $IsometricCamera
+	if camera:
+		camera._frozen = true
+
+
+func _unfreeze_camera() -> void:
+	var camera := $IsometricCamera
+	if camera:
+		camera._frozen = false
 
 
 func _fade_out() -> void:

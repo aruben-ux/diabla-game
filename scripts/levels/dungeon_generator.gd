@@ -711,7 +711,7 @@ func _build_merged_wall_collision(positions: Array) -> void:
 					var col := CollisionShape3D.new()
 					col.shape = box
 					col.position = Vector3(
-						(run_start + run_len * 0.5) * TILE_SIZE,
+						(run_start + (run_len - 1) * 0.5) * TILE_SIZE,
 						WALL_HEIGHT * 0.5,
 						y * TILE_SIZE
 					)

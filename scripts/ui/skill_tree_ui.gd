@@ -80,7 +80,7 @@ func _build_ui() -> void:
 
 	# Title
 	_title_label = Label.new()
-	_title_label.text = "Skill Tree"
+	_title_label.text = tr("Skill Tree")
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.position = Vector2(0, 8)
 	_title_label.size = Vector2(880, 26)
@@ -90,7 +90,7 @@ func _build_ui() -> void:
 
 	# Skill points display
 	_points_label = Label.new()
-	_points_label.text = "Skill Points: 0"
+	_points_label.text = tr("Skill Points: 0")
 	_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_points_label.position = Vector2(0, 34)
 	_points_label.size = Vector2(880, 20)
@@ -209,12 +209,12 @@ func _refresh() -> void:
 	_node_data.clear()
 
 	var trees := SkillTreeData.get_trees_for_class(skill_manager.character_class)
-	_points_label.text = "Skill Points: %d" % skill_manager.skill_points
+	_points_label.text = tr("Skill Points: %d") % skill_manager.skill_points
 
 	# Set title based on class
-	var class_names := ["Warrior", "Mage", "Rogue"]
+	var class_names := [tr("Warrior"), tr("Mage"), tr("Rogue")]
 	var cls_idx: int = clampi(skill_manager.character_class, 0, 2)
-	_title_label.text = "%s Skill Tree" % class_names[cls_idx]
+	_title_label.text = tr("%s Skill Tree") % class_names[cls_idx]
 
 	for i in mini(trees.size(), 3):
 		_populate_branch(_branch_containers[i], trees[i])
@@ -230,7 +230,7 @@ func _populate_branch(container: VBoxContainer, branch: Dictionary) -> void:
 
 	# Branch title
 	var title := Label.new()
-	title.text = branch.get("branch_name", "Branch")
+	title.text = tr(branch.get("branch_name", "Branch"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 15)
 	var bc: Color = branch.get("branch_color", Color.WHITE)
@@ -239,7 +239,7 @@ func _populate_branch(container: VBoxContainer, branch: Dictionary) -> void:
 
 	# Branch description
 	var desc := Label.new()
-	desc.text = branch.get("branch_description", "")
+	desc.text = tr(branch.get("branch_description", ""))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.add_theme_font_size_override("font_size", 11)
 	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
@@ -267,7 +267,7 @@ func _populate_branch(container: VBoxContainer, branch: Dictionary) -> void:
 
 		var btn := Button.new()
 		var short_name: String = node.get("name", "?")
-		btn.text = short_name
+		btn.text = tr(short_name)
 		btn.custom_minimum_size = Vector2(200, 36)
 		btn.tooltip_text = ""  # We use custom tooltip
 
@@ -350,22 +350,22 @@ func _on_node_hover(node_id: String, btn: Button) -> void:
 	var node: Dictionary = _node_data.get(node_id, {})
 	if node.is_empty():
 		return
-	_tooltip_name.text = node.get("name", "?")
-	_tooltip_desc.text = node.get("description", "")
+	_tooltip_name.text = tr(node.get("name", "?"))
+	_tooltip_desc.text = tr(node.get("description", ""))
 
 	var rank: int = skill_manager.get_node_rank(node_id) if skill_manager else 0
 	var max_rank: int = node.get("max_rank", 1)
-	_tooltip_rank.text = "Rank: %d / %d" % [rank, max_rank]
+	_tooltip_rank.text = tr("Rank: %d / %d") % [rank, max_rank]
 
 	var effects: Dictionary = node.get("effects", {})
 	var eff_lines := ""
 	for key in effects:
 		if key == "skill_id":
-			eff_lines += "Unlocks: %s\n" % str(effects[key]).capitalize()
+			eff_lines += tr("Unlocks: %s") % str(effects[key]).capitalize() + "\n"
 		else:
 			var per_rank: float = effects[key]
 			var total: float = per_rank * max(rank, 1)
-			eff_lines += "%s: +%s per rank\n" % [key.replace("_", " ").capitalize(), str(per_rank)]
+			eff_lines += tr("%s: +%s per rank") % [key.replace("_", " ").capitalize(), str(per_rank)] + "\n"
 	_tooltip_effects.text = eff_lines.strip_edges()
 
 	# Prereqs
@@ -374,8 +374,8 @@ func _on_node_hover(node_id: String, btn: Button) -> void:
 		var req_names: Array = []
 		for req_id: String in requires:
 			var req_node: Dictionary = _node_data.get(req_id, {})
-			req_names.append(req_node.get("name", req_id))
-		_tooltip_effects.text += "\nRequires: %s" % ", ".join(req_names)
+			req_names.append(tr(req_node.get("name", req_id)))
+		_tooltip_effects.text += "\n" + tr("Requires: %s") % ", ".join(req_names)
 
 	_tooltip_panel.visible = true
 

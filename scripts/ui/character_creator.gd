@@ -98,7 +98,7 @@ func _build_ui() -> void:
 
 	# Title
 	var title := Label.new()
-	title.text = "Create Character"
+	title.text = tr("Create Character")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
 	title.offset_top = 20
@@ -117,7 +117,7 @@ func _build_ui() -> void:
 	add_child(left_panel)
 
 	var cards_label := Label.new()
-	cards_label.text = "Choose Class"
+	cards_label.text = tr("Choose Class")
 	cards_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cards_label.add_theme_font_size_override("font_size", 20)
 	left_panel.add_child(cards_label)
@@ -125,7 +125,7 @@ func _build_ui() -> void:
 	for cls in [CharacterData.CharacterClass.WARRIOR, CharacterData.CharacterClass.MAGE, CharacterData.CharacterClass.ROGUE]:
 		var info: Dictionary = CLASS_INFO[cls]
 		var card := Button.new()
-		card.text = info["name"]
+		card.text = tr(info["name"])
 		card.custom_minimum_size.y = 60
 		card.add_theme_font_size_override("font_size", 18)
 		var cls_color: Color = info["color"]
@@ -206,18 +206,18 @@ func _build_ui() -> void:
 	add_child(right_panel)
 
 	var custom_label := Label.new()
-	custom_label.text = "Customize"
+	custom_label.text = tr("Customize")
 	custom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	custom_label.add_theme_font_size_override("font_size", 20)
 	right_panel.add_child(custom_label)
 
 	# Name
 	var name_label := Label.new()
-	name_label.text = "Name"
+	name_label.text = tr("Name")
 	right_panel.add_child(name_label)
 
 	_name_input = LineEdit.new()
-	_name_input.placeholder_text = "Enter character name"
+	_name_input.placeholder_text = tr("Enter character name")
 	_name_input.max_length = 20
 	right_panel.add_child(_name_input)
 
@@ -225,7 +225,7 @@ func _build_ui() -> void:
 
 	# Color theme
 	var color_label := Label.new()
-	color_label.text = "Color Theme"
+	color_label.text = tr("Color Theme")
 	right_panel.add_child(color_label)
 
 	_color_option = OptionButton.new()
@@ -234,7 +234,7 @@ func _build_ui() -> void:
 
 	# Body shape
 	var body_label := Label.new()
-	body_label.text = "Body Shape"
+	body_label.text = tr("Body Shape")
 	right_panel.add_child(body_label)
 
 	_body_option = OptionButton.new()
@@ -243,12 +243,12 @@ func _build_ui() -> void:
 
 	# Size
 	var size_label := Label.new()
-	size_label.text = "Size"
+	size_label.text = tr("Size")
 	right_panel.add_child(size_label)
 
 	_size_option = OptionButton.new()
 	for i in SIZE_PRESETS.size():
-		_size_option.add_item(SIZE_PRESETS[i]["name"], i)
+		_size_option.add_item(tr(SIZE_PRESETS[i]["name"]), i)
 	_size_option.selected = _size_index
 	_size_option.item_selected.connect(_on_size_selected)
 	right_panel.add_child(_size_option)
@@ -260,7 +260,7 @@ func _build_ui() -> void:
 
 	# Create button
 	_create_btn = Button.new()
-	_create_btn.text = "Create Character"
+	_create_btn.text = tr("Create Character")
 	_create_btn.custom_minimum_size.y = 50
 	_create_btn.add_theme_font_size_override("font_size", 18)
 	_create_btn.pressed.connect(_on_create_pressed)
@@ -277,7 +277,7 @@ func _build_ui() -> void:
 	add_child(bottom)
 
 	_back_btn = Button.new()
-	_back_btn.text = "Back"
+	_back_btn.text = tr("Back")
 	_back_btn.custom_minimum_size = Vector2(180, 0)
 	_back_btn.pressed.connect(_on_back_pressed)
 	bottom.add_child(_back_btn)
@@ -297,21 +297,21 @@ func _select_class(cls: CharacterData.CharacterClass) -> void:
 
 	# Update description
 	_desc_label.text = "[color=#%s][b]%s[/b][/color]\n\n%s" % [
-		info["color"].to_html(false), info["name"], info["desc"]
+		info["color"].to_html(false), tr(info["name"]), tr(info["desc"])
 	]
 
 	# Rebuild color options
 	_color_option.clear()
 	var presets: Array = info["color_presets"]
 	for i in presets.size():
-		_color_option.add_item(presets[i]["name"], i)
+		_color_option.add_item(tr(presets[i]["name"]), i)
 	_color_option.selected = 0
 
 	# Rebuild body options
 	_body_option.clear()
 	var bodies: Array = info["body_presets"]
 	for i in bodies.size():
-		_body_option.add_item(bodies[i]["name"], i)
+		_body_option.add_item(tr(bodies[i]["name"]), i)
 	_body_option.selected = _body_index
 
 	_refresh_preview()

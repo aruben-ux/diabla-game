@@ -67,7 +67,7 @@ func try_use_skill(slot: int, target_pos: Vector3) -> bool:
 			if player.is_multiplayer_authority():
 				EventBus.show_floating_text.emit(
 					player.global_position + Vector3(0, 2.5, 0),
-					"No Mana!",
+					tr("No Mana!"),
 					Color.DODGER_BLUE
 				)
 			return false
@@ -89,7 +89,7 @@ func _execute_skill(skill: SkillData, target_pos: Vector3) -> void:
 	# Show skill name
 	EventBus.show_floating_text.emit(
 		cast_pos + Vector3(0, 1.5, 0),
-		skill.display_name.to_upper(),
+		tr(skill.display_name).to_upper(),
 		skill.icon_color
 	)
 
@@ -99,7 +99,7 @@ func _execute_skill(skill: SkillData, target_pos: Vector3) -> void:
 			player.stats.heal(skill.damage + player.stats.intelligence * 0.3)
 		EventBus.show_floating_text.emit(
 			player.global_position + Vector3(0, 2.5, 0),
-			"+%d HP" % int(skill.damage),
+			tr("+%d HP") % int(skill.damage),
 			Color.GREEN
 		)
 		return
