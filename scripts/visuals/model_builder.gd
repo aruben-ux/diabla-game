@@ -9,6 +9,10 @@ var left_arm_pivot: Node3D
 var right_leg_pivot: Node3D
 var left_leg_pivot: Node3D
 
+# Static material caches — shared across all model instances
+static var _toon_mat_cache: Dictionary = {}       # Color.to_html() -> ShaderMaterial
+static var _emissive_mat_cache: Dictionary = {}   # Color.to_html() -> StandardMaterial3D
+
 # --- Procedural animation state ---
 var _is_walking: bool = false
 var _anim_time: float = 0.0
@@ -1126,13 +1130,19 @@ func _add_part(part_name: String, mesh: Mesh, pos: Vector3, scale_vec: Vector3, 
 	mi.position = pos
 	mi.scale = scale_vec
 
-	var mat := ShaderMaterial.new()
-	mat.shader = toon_shader
-	mat.set_shader_parameter("albedo_color", color)
-	mat.set_shader_parameter("rim_color", Color(1, 1, 1, 1))
-	mat.set_shader_parameter("rim_strength", 0.3)
-	mat.set_shader_parameter("rim_power", 3.0)
-	mat.set_shader_parameter("bands", 3.0)
+	var key := color.to_html()
+	var mat: ShaderMaterial
+	if key in _toon_mat_cache:
+		mat = _toon_mat_cache[key]
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = toon_shader
+		mat.set_shader_parameter("albedo_color", color)
+		mat.set_shader_parameter("rim_color", Color(1, 1, 1, 1))
+		mat.set_shader_parameter("rim_strength", 0.3)
+		mat.set_shader_parameter("rim_power", 3.0)
+		mat.set_shader_parameter("bands", 3.0)
+		_toon_mat_cache[key] = mat
 	mi.material_override = mat
 
 	add_child(mi)
@@ -1145,11 +1155,17 @@ func _add_emissive_part(part_name: String, mesh: Mesh, pos: Vector3, scale_vec: 
 	mi.position = pos
 	mi.scale = scale_vec
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 2.0
+	var key := color.to_html()
+	var mat: StandardMaterial3D
+	if key in _emissive_mat_cache:
+		mat = _emissive_mat_cache[key]
+	else:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 2.0
+		_emissive_mat_cache[key] = mat
 	mi.material_override = mat
 
 	add_child(mi)
@@ -1162,13 +1178,19 @@ func _create_part(part_name: String, mesh: Mesh, pos: Vector3, scale_vec: Vector
 	mi.position = pos
 	mi.scale = scale_vec
 
-	var mat := ShaderMaterial.new()
-	mat.shader = toon_shader
-	mat.set_shader_parameter("albedo_color", color)
-	mat.set_shader_parameter("rim_color", Color(1, 1, 1, 1))
-	mat.set_shader_parameter("rim_strength", 0.3)
-	mat.set_shader_parameter("rim_power", 3.0)
-	mat.set_shader_parameter("bands", 3.0)
+	var key := color.to_html()
+	var mat: ShaderMaterial
+	if key in _toon_mat_cache:
+		mat = _toon_mat_cache[key]
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = toon_shader
+		mat.set_shader_parameter("albedo_color", color)
+		mat.set_shader_parameter("rim_color", Color(1, 1, 1, 1))
+		mat.set_shader_parameter("rim_strength", 0.3)
+		mat.set_shader_parameter("rim_power", 3.0)
+		mat.set_shader_parameter("bands", 3.0)
+		_toon_mat_cache[key] = mat
 	mi.material_override = mat
 
 	return mi
@@ -1181,11 +1203,17 @@ func _create_emissive_part(part_name: String, mesh: Mesh, pos: Vector3, scale_ve
 	mi.position = pos
 	mi.scale = scale_vec
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 2.0
+	var key := color.to_html()
+	var mat: StandardMaterial3D
+	if key in _emissive_mat_cache:
+		mat = _emissive_mat_cache[key]
+	else:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 2.0
+		_emissive_mat_cache[key] = mat
 	mi.material_override = mat
 
 	return mi

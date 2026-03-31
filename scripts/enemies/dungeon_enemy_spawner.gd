@@ -25,6 +25,10 @@ const SYNC_INTERVAL := 0.05
 var _boss_room_idx := -1
 var _boss_alive := false
 
+# Stagger initial spawns across frames to avoid a hitch
+var _spawn_queue: Array = []  # [[enemy_name, room_idx, Vector3, type_int], ...]
+const SPAWNS_PER_FRAME := 5
+
 # Point costs per enemy type (higher = tougher)
 const ENEMY_POINTS := {
 	"GRUNT": 1, "SKELETON": 1, "SCARAB": 1, "SPIDER": 1,
@@ -91,6 +95,13 @@ func setup(rooms: Array[Rect2i], centers: Array[Vector3], ts: float, floor_num: 
 func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
+
+	# Drain staggered spawn queue
+	if not _spawn_queue.is_empty():
+		var batch := mini(_spawn_queue.size(), SPAWNS_PER_FRAME)
+		for _i in batch:
+			var entry: Array = _spawn_queue.pop_front()
+			_create_enemy(entry[0], entry[1], entry[2], entry[3])
 
 	_sync_timer += delta
 	if _sync_timer >= SYNC_INTERVAL:
@@ -215,14 +226,53 @@ func _initial_spawn() -> void:
 			continue
 		var room := room_data[i]
 		var num_clusters := _get_clusters_for_room(room)
-		var total_spawned := 0
+		var total_queued := 0
 		for c in num_clusters:
 			# Offset each cluster from center
 			var angle := (float(c) / num_clusters) * TAU
 			var dist := minf(room.size.x, room.size.y) * 0.25
 			var offset := Vector2(cos(angle) * dist, sin(angle) * dist)
-			total_spawned += _spawn_cluster_in_room(i, offset)
-		_room_cluster_targets[i] = total_spawned
+			total_queued += _queue_cluster_in_room(i, offset)
+		_room_cluster_targets[i] = total_queued
+
+
+func _queue_cluster_in_room(room_idx: int, center_offset: Vector2) -> int:
+	## Same logic as _spawn_cluster_in_room but queues spawns for staggered creation.
+	var room := room_data[room_idx]
+	var budget := _get_cluster_budget()
+	var type_name := _pick_cluster_type()
+	var point_cost: int = ENEMY_POINTS.get(type_name, 1)
+	var type_int: int = Enemy.EnemyType.keys().find(type_name)
+	if type_int < 0:
+		type_int = 0
+
+	var room_cx := (room.position.x + room.size.x / 2.0) * tile_size
+	var room_cz := (room.position.y + room.size.y / 2.0) * tile_size
+	var cluster_cx := room_cx + center_offset.x * tile_size
+	var cluster_cz := room_cz + center_offset.y * tile_size
+
+	var min_x := (room.position.x + 1) * tile_size
+	var max_x := (room.position.x + room.size.x - 1) * tile_size
+	var min_z := (room.position.y + 1) * tile_size
+	var max_z := (room.position.y + room.size.y - 1) * tile_size
+	cluster_cx = clampf(cluster_cx, min_x, max_x)
+	cluster_cz = clampf(cluster_cz, min_z, max_z)
+
+	var count := 0
+	var spent := 0
+	while spent + point_cost <= budget:
+		var rx := cluster_cx + randf_range(-3.0, 3.0) * tile_size * 0.3
+		var rz := cluster_cz + randf_range(-3.0, 3.0) * tile_size * 0.3
+		rx = clampf(rx, min_x, max_x)
+		rz = clampf(rz, min_z, max_z)
+		var spawn_pos := Vector3(rx, 1.0, rz)
+
+		_spawn_counter += 1
+		_spawn_queue.append(["E_%d" % _spawn_counter, room_idx, spawn_pos, type_int])
+		spent += point_cost
+		count += 1
+
+	return count
 
 
 func _respawn_pass() -> void:

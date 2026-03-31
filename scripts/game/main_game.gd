@@ -183,10 +183,14 @@ func _on_town_ready(spawn_pos: Vector3) -> void:
 	_update_minimap_for_town()
 
 	# Pre-generate dungeon floor 1 so it's ready when someone enters
+	# Deferred by 3s to avoid stacking cost on top of town generation
 	if multiplayer.is_server():
-		var gen_seed := _game_seed + 1
-		_sync_ensure_floor.rpc(1, gen_seed)
 		EventBus.server_ready.emit()
+		var gen_seed := _game_seed + 1
+		get_tree().create_timer(3.0).timeout.connect(func():
+			if multiplayer.is_server():
+				_sync_ensure_floor.rpc(1, gen_seed)
+		)
 	else:
 		_request_game_seed.rpc_id(1)
 

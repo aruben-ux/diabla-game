@@ -732,8 +732,8 @@ func _build_navigation() -> void:
 	nav_region.navigation_mesh = nav_mesh
 	add_child(nav_region)
 
-	# Bake after a frame so geometry is ready
-	nav_region.bake_navigation_mesh.call_deferred()
+	# Bake after a frame so geometry is ready (on_thread=true for background baking)
+	nav_region.bake_navigation_mesh.call_deferred(true)
 
 
 # --- Materials ---
