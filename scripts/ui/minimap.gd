@@ -164,8 +164,9 @@ func _build_map_texture() -> void:
 
 
 func _draw() -> void:
-	# Background
-	draw_rect(Rect2(Vector2.ZERO, map_size), bg_color)
+	# Background — use fog color in dungeon so out-of-grid areas match the fog
+	var effective_bg := fog_color if (not _is_town and _fog_texture) else bg_color
+	draw_rect(Rect2(Vector2.ZERO, map_size), effective_bg)
 
 	if not _map_texture or not player_ref or not is_instance_valid(player_ref):
 		return

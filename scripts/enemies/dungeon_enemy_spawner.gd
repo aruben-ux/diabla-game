@@ -93,15 +93,15 @@ func setup(rooms: Array[Rect2i], centers: Array[Vector3], ts: float, floor_num: 
 
 
 func _process(delta: float) -> void:
-	if not multiplayer.is_server():
-		return
-
-	# Drain staggered spawn queue
+	# Drain staggered spawn queue on ALL peers (server + clients)
 	if not _spawn_queue.is_empty():
 		var batch := mini(_spawn_queue.size(), SPAWNS_PER_FRAME)
 		for _i in batch:
 			var entry: Array = _spawn_queue.pop_front()
 			_create_enemy(entry[0], entry[1], entry[2], entry[3])
+
+	if not multiplayer.is_server():
+		return
 
 	_sync_timer += delta
 	if _sync_timer >= SYNC_INTERVAL:
