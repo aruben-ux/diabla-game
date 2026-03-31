@@ -571,7 +571,10 @@ func _deal_damage_to_target() -> void:
 	if not is_instance_valid(target):
 		return
 
-	if _is_ranged():
+	var ranged := _is_ranged()
+	print("[Enemy] %s (type=%d) deal_damage ranged=%s" % [name, enemy_type, str(ranged)])
+
+	if ranged:
 		# Fire a projectile — it must fly and hit the player to deal damage
 		_fire_projectile()
 	else:
