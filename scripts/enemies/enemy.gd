@@ -485,6 +485,8 @@ func apply_remote_state(pos: Vector3, rot_y: float, st: int, wandering: bool = f
 
 @rpc("authority", "call_remote", "reliable")
 func _sync_attack_anim() -> void:
+	if _is_ranged():
+		return  # Ranged enemies don't swing — projectile VFX is enough
 	if model.has_method("play_attack_anim"):
 		model.play_attack_anim()
 
