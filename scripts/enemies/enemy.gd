@@ -563,11 +563,6 @@ func _spawn_loot_drop(loot_name: String, item_dict: Dictionary, pos: Vector3) ->
 
 
 func _deal_damage_to_target() -> void:
-	# Attack animation
-	if model.has_method("play_attack_anim"):
-		model.play_attack_anim()
-	_sync_attack_anim.rpc()
-
 	if not is_instance_valid(target):
 		return
 
@@ -575,10 +570,14 @@ func _deal_damage_to_target() -> void:
 	printerr("[Enemy] %s (type=%d) deal_damage ranged=%s" % [name, enemy_type, str(ranged)])
 
 	if ranged:
-		# Fire a projectile — it must fly and hit the player to deal damage
+		# Cast animation (no melee swing)
+		_sync_attack_anim.rpc()
 		_fire_projectile()
 	else:
-		# Melee: instant damage
+		# Melee swing animation
+		if model.has_method("play_attack_anim"):
+			model.play_attack_anim()
+		_sync_attack_anim.rpc()
 		if target.has_method("receive_damage"):
 			target.receive_damage.rpc(attack_damage)
 			if model.has_method("spawn_impact_burst"):

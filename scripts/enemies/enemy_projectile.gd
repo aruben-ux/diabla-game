@@ -11,21 +11,24 @@ var _damage := 0.0
 var _alive := true
 var _lifetime := 0.0
 var _projectile_color := Color(0.8, 0.3, 0.1)
+var _start_pos := Vector3.ZERO
 
 
 func setup(from_pos: Vector3, target_pos: Vector3, damage: float, speed: float = 12.0, color: Color = Color(0.8, 0.3, 0.1)) -> void:
-	global_position = from_pos + Vector3(0, 1.2, 0)  # Launch from chest height
+	_start_pos = from_pos + Vector3(0, 1.2, 0)  # Launch from chest height
 	_damage = damage
 	_speed = speed
 	_projectile_color = color
 	var dir := target_pos - from_pos
 	dir.y = 0.0
 	_direction = dir.normalized()
-	# Face travel direction
-	rotation.y = atan2(_direction.x, _direction.z)
 
 
 func _ready() -> void:
+	# Apply stored position now that we're in the tree
+	global_position = _start_pos
+	rotation.y = atan2(_direction.x, _direction.z)
+
 	# Collision: detect players (layer 2)
 	collision_layer = 0
 	collision_mask = 2  # Players
