@@ -416,7 +416,7 @@ func _place_corridor_lights() -> void:
 			light_container.add_child(light)
 			count += 1
 
-	print("[Dungeon] Placed %d corridor lights" % count)
+	#print("[Dungeon] Placed %d corridor lights" % count)
 
 
 func _place_torches_in_room(room: Rect2i) -> void:

@@ -75,7 +75,7 @@ func get_unique_id() -> int:
 
 
 func _on_peer_connected(id: int) -> void:
-	print("Peer connected: ", id)
+	#print("Peer connected: ", id)
 	if not GameManager.is_online_mode:
 		# Offline/LAN: register immediately
 		GameManager.register_player(id, {"name": "Player_%d" % id})
@@ -85,7 +85,7 @@ func _on_peer_connected(id: int) -> void:
 
 
 func _on_peer_disconnected(id: int) -> void:
-	print("Peer disconnected: ", id)
+	#print("Peer disconnected: ", id)
 	GameManager.unregister_player(id)
 	GameManager.online_players.erase(id)
 	player_disconnected.emit(id)
@@ -131,7 +131,7 @@ func _send_game_token(token: String) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
 	# The headless game server will validate this token with the lobby server.
 	# This is handled in the game_server_main.gd script.
-	print("[Server] Received game token from peer ", sender_id)
+	#print("[Server] Received game token from peer ", sender_id)
 	EventBus.game_token_received.emit(sender_id, token)
 
 

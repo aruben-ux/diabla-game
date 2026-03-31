@@ -107,7 +107,7 @@ func _parse_args() -> void:
 # --- Player Authentication ---
 
 func _on_game_token_received(peer_id: int, token: String) -> void:
-	print("[GameServer] Validating token for peer ", peer_id)
+	#print("[GameServer] Validating token for peer ", peer_id)
 	_pending_auth[peer_id] = token
 	_validate_token_with_lobby(peer_id, token)
 
@@ -249,7 +249,7 @@ func _save_player(peer_id: int) -> void:
 		func(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray):
 			http.queue_free()
 			if code == 200:
-				print("[GameServer] Saved character %d for peer %d" % [character_id, peer_id])
+				#print("[GameServer] Saved character %d for peer %d" % [character_id, peer_id])
 			else:
 				printerr("[GameServer] Failed to save character %d (code %d)" % [character_id, code]),
 		CONNECT_ONE_SHOT)

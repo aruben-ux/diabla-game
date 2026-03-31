@@ -62,7 +62,7 @@ func save_character(data: CharacterData = active_character) -> bool:
 	file.store_string(json_string)
 	file.close()
 	character_saved.emit(data.save_slot)
-	print("Character saved: %s (slot %d)" % [data.character_name, data.save_slot])
+	#print("Character saved: %s (slot %d)" % [data.character_name, data.save_slot])
 	return true
 
 
