@@ -26,6 +26,11 @@ CharacterManager="*res://autoloads/character_manager.gd"
 QuestManager="*res://autoloads/quest_manager.gd"
 OnlineManager="*res://autoloads/online_manager.gd"
 
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+
 [input]
 
 move_click={

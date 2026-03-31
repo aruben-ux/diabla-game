@@ -24,15 +24,21 @@ var _chest_container: Node3D
 var _flicker_time := 0.0
 var _boss_room_idx := -1
 var _stairs_down_locked := false
+var _props_container: Node3D
 
 
 func _process(delta: float) -> void:
-	# Animate torch lights — subtle flicker
+	# Animate torch / brazier lights — subtle flicker
 	_flicker_time += delta
-	for torch_node in light_container.get_children():
+	_flicker_lights(light_container)
+	if _props_container and is_instance_valid(_props_container):
+		_flicker_lights(_props_container)
+
+
+func _flicker_lights(container: Node3D) -> void:
+	for torch_node in container.get_children():
 		var tl := torch_node.get_node_or_null("TorchLight") as OmniLight3D
 		if tl:
-			# Use the torch's position to offset the flicker so each is unique
 			var offset: float = torch_node.position.x * 3.7 + torch_node.position.z * 7.3
 			var flicker: float = sin(_flicker_time * 8.0 + offset) * 0.08 + sin(_flicker_time * 13.0 + offset * 2.0) * 0.05
 			tl.light_energy = 0.8 + flicker
@@ -80,6 +86,9 @@ func _cleanup_floor() -> void:
 	if _chest_container and is_instance_valid(_chest_container):
 		_chest_container.queue_free()
 		_chest_container = null
+	if _props_container and is_instance_valid(_props_container):
+		_props_container.queue_free()
+		_props_container = null
 
 	# Clear lights
 	for child in light_container.get_children():
@@ -127,6 +136,9 @@ func _on_dungeon_generated(room_list: Array, spawn_pos: Vector3, stairs_up: Vect
 
 	# Spawn treasure chests in some rooms
 	_spawn_treasure_chests(room_list)
+
+	# Scatter decorative props and breakable objects
+	_spawn_dungeon_props(room_list)
 
 	level_ready.emit(spawn_position, stairs_up_position, stairs_down_position)
 
@@ -236,6 +248,146 @@ func _build_chest(pos: Vector3, chest_name: String) -> void:
 	body.add_child(lock_mi)
 
 	_chest_container.add_child(body)
+
+
+# ---------------------------------------------------------------------------
+# Dungeon Props — decorative and breakable objects
+# ---------------------------------------------------------------------------
+
+func _spawn_dungeon_props(room_list: Array) -> void:
+	_props_container = Node3D.new()
+	_props_container.name = "PropsContainer"
+	add_child(_props_container)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = generator.dungeon_seed + 77713
+	var ts: float = generator.TILE_SIZE
+
+	# Place room props (skip first room = spawn and last room = stairs down)
+	for i in range(1, room_list.size() - 1):
+		var room: Rect2i = room_list[i]
+		_place_room_props(room, rng, ts)
+
+	# Scatter some props in corridors
+	_place_corridor_props(rng, ts)
+
+
+func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float) -> void:
+	# Skip tiny rooms
+	if room.size.x < 4 or room.size.y < 4:
+		return
+
+	var min_x := room.position.x + 1
+	var max_x := room.position.x + room.size.x - 2
+	var min_y := room.position.y + 1
+	var max_y := room.position.y + room.size.y - 2
+
+	# Pot cluster (40%)
+	if rng.randf() < 0.4:
+		var cx := float(rng.randi_range(min_x, max_x)) * ts
+		var cz := float(rng.randi_range(min_y, max_y)) * ts
+		var pot_count := rng.randi_range(2, 4)
+		for j in range(pot_count):
+			var offset := Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6))
+			var scale_f := rng.randf_range(0.7, 1.2)
+			var drops := rng.randf() < 0.3
+			var gold := rng.randi_range(5, 15) * current_floor if drops else 0
+			var pot := DungeonProps.build_breakable_pot(
+				Vector3(cx, 0, cz) + offset, current_floor, drops, gold, scale_f
+			)
+			_props_container.add_child(pot)
+
+	# Barrel group (30%)
+	if rng.randf() < 0.3:
+		var bx := float(rng.randi_range(min_x, max_x)) * ts
+		var bz := float(rng.randi_range(min_y, max_y)) * ts
+		var barrel_count := rng.randi_range(1, 3)
+		for j in range(barrel_count):
+			var offset := Vector3(rng.randf_range(-0.7, 0.7), 0, rng.randf_range(-0.7, 0.7))
+			var intact := rng.randf() > 0.3
+			_props_container.add_child(
+				DungeonProps.build_barrel(Vector3(bx, 0, bz) + offset, rng, intact)
+			)
+
+	# Brazier (15%, larger rooms only)
+	if rng.randf() < 0.15 and room.size.x >= 6 and room.size.y >= 6:
+		var bcx := (float(room.position.x) + float(room.size.x) * 0.5) * ts
+		var bcz := (float(room.position.y) + float(room.size.y) * 0.5) * ts
+		bcx += rng.randf_range(-2.0, 2.0)
+		bcz += rng.randf_range(-2.0, 2.0)
+		_props_container.add_child(DungeonProps.build_brazier(Vector3(bcx, 0, bcz)))
+
+	# Bone pile (25%)
+	if rng.randf() < 0.25:
+		var bpx := float(rng.randi_range(min_x, max_x)) * ts
+		var bpz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_bone_pile(Vector3(bpx, 0, bpz), rng))
+
+	# Broken pillar (20%, medium+ rooms)
+	if rng.randf() < 0.2 and room.size.x >= 5 and room.size.y >= 5:
+		var ppx := float(rng.randi_range(min_x, max_x)) * ts
+		var ppz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_broken_pillar(Vector3(ppx, 0, ppz), rng))
+
+	# Blood stain (20%)
+	if rng.randf() < 0.2:
+		var bsx := float(rng.randi_range(min_x, max_x)) * ts
+		var bsz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_blood_stain(Vector3(bsx, 0, bsz), rng))
+
+	# Rubble pile (25%)
+	if rng.randf() < 0.25:
+		var rpx := float(rng.randi_range(min_x, max_x)) * ts
+		var rpz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_rubble_pile(Vector3(rpx, 0, rpz), rng))
+
+	# Skull pile (10%)
+	if rng.randf() < 0.1:
+		var spx := float(rng.randi_range(min_x, max_x)) * ts
+		var spz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_skull_pile(Vector3(spx, 0, spz), rng))
+
+	# Cobweb in corner (35%)
+	if rng.randf() < 0.35:
+		var corners: Array[Vector3] = [
+			Vector3(float(room.position.x) * ts + 0.5, 3.0, float(room.position.y) * ts + 0.5),
+			Vector3(float(room.position.x + room.size.x) * ts - 0.5, 3.0, float(room.position.y) * ts + 0.5),
+			Vector3(float(room.position.x) * ts + 0.5, 3.0, float(room.position.y + room.size.y) * ts - 0.5),
+			Vector3(float(room.position.x + room.size.x) * ts - 0.5, 3.0, float(room.position.y + room.size.y) * ts - 0.5),
+		]
+		_props_container.add_child(DungeonProps.build_cobweb(corners[rng.randi_range(0, 3)], rng))
+
+	# Hanging chains (15%)
+	if rng.randf() < 0.15:
+		var hcx := float(rng.randi_range(min_x, max_x)) * ts
+		var hcz := float(rng.randi_range(min_y, max_y)) * ts
+		_props_container.add_child(DungeonProps.build_hanging_chains(Vector3(hcx, 0, hcz), rng))
+
+
+func _place_corridor_props(rng: RandomNumberGenerator, ts: float) -> void:
+	var g: Array = generator.grid
+	var gw: int = generator.dungeon_width
+	var gh: int = generator.dungeon_height
+
+	for x in range(0, gw, 3):
+		for y in range(0, gh, 3):
+			if g[x][y] != 3:  # 3 = corridor
+				continue
+			if rng.randf() > 0.08:  # ~8% of sampled corridor tiles
+				continue
+
+			var pos := Vector3(float(x) * ts, 0, float(y) * ts)
+			var roll := rng.randf()
+			if roll < 0.25:
+				_props_container.add_child(DungeonProps.build_bone_pile(pos, rng))
+			elif roll < 0.45:
+				_props_container.add_child(DungeonProps.build_blood_stain(pos, rng))
+			elif roll < 0.65:
+				_props_container.add_child(DungeonProps.build_rubble_pile(pos, rng))
+			elif roll < 0.8:
+				_props_container.add_child(DungeonProps.build_cobweb(pos + Vector3(0, 3.2, 0), rng))
+			else:
+				_props_container.add_child(DungeonProps.build_skull_pile(pos, rng))
 
 
 func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:

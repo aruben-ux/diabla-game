@@ -623,6 +623,9 @@ func _perform_attack() -> void:
 				# Hitstop on kill
 				if was_alive and body.health <= 0.0:
 					_trigger_hitstop.rpc(0.06)
+			elif body.is_in_group("breakables") and body.has_method("take_damage"):
+				body.take_damage(1.0, self)
+				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 0.3, 0))
 		if hit_count > 0:
 			_trigger_camera_shake.rpc(0.12, 0.1)
 
