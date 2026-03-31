@@ -24,19 +24,6 @@ static var _monster_data_loaded := false
 enum EnemyType { GRUNT, MAGE, BRUTE, SKELETON, SPIDER, GHOST, ARCHER, SHAMAN, GOLEM, SCARAB, WRAITH, NECROMANCER, DEMON, BOSS_GOLEM, BOSS_DEMON, BOSS_DRAGON }
 
 # Ranged enemy types that fire projectiles instead of melee attacks
-const RANGED_TYPES: Array[EnemyType] = [
-	EnemyType.MAGE, EnemyType.ARCHER, EnemyType.SHAMAN,
-	EnemyType.NECROMANCER, EnemyType.GHOST,
-]
-
-# Projectile colors per enemy type
-const PROJECTILE_COLORS: Dictionary = {
-	EnemyType.MAGE: Color(0.3, 0.4, 1.0),       # Blue arcane bolt
-	EnemyType.ARCHER: Color(0.7, 0.5, 0.2),      # Brown arrow
-	EnemyType.SHAMAN: Color(0.2, 0.9, 0.3),      # Green spirit bolt
-	EnemyType.NECROMANCER: Color(0.6, 0.1, 0.7),  # Purple death bolt
-	EnemyType.GHOST: Color(0.5, 0.8, 1.0),        # Pale ghost bolt
-}
 static var _projectile_counter: int = 0
 
 @onready var model = $Model
@@ -596,17 +583,31 @@ func _deal_damage_to_target() -> void:
 
 
 func _is_ranged() -> bool:
-	return enemy_type in RANGED_TYPES
+	match enemy_type:
+		EnemyType.MAGE, EnemyType.ARCHER, EnemyType.SHAMAN, EnemyType.NECROMANCER, EnemyType.GHOST:
+			return true
+		_:
+			return false
 
 
 func _fire_projectile() -> void:
 	_projectile_counter += 1
 	var proj_name := "EProj_%d" % _projectile_counter
 	var target_pos := target.global_position
-	var color: Color = PROJECTILE_COLORS.get(enemy_type, Color(0.8, 0.3, 0.1))
+	var color := Color(0.8, 0.3, 0.1)
 	var speed := 10.0
-	if enemy_type == EnemyType.ARCHER:
-		speed = 14.0  # Arrows fly faster
+	match enemy_type:
+		EnemyType.MAGE:
+			color = Color(0.3, 0.4, 1.0)
+		EnemyType.ARCHER:
+			color = Color(0.7, 0.5, 0.2)
+			speed = 14.0
+		EnemyType.SHAMAN:
+			color = Color(0.2, 0.9, 0.3)
+		EnemyType.NECROMANCER:
+			color = Color(0.6, 0.1, 0.7)
+		EnemyType.GHOST:
+			color = Color(0.5, 0.8, 1.0)
 	_sync_fire_projectile.rpc(proj_name, global_position, target_pos, attack_damage, speed, color)
 
 
