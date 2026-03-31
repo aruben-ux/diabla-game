@@ -29,7 +29,7 @@ var fog_color := Color(0.0, 0.0, 0.0, 1.0)
 
 ## Camera rotation angle in XZ plane. The isometric camera sits at (+X, +Y, +Z)
 ## so its ground-projected forward is toward (-X, -Z) = 225° = -45° for minimap.
-const MAP_ROTATION := -PI / 4.0
+const MAP_ROTATION := -3.0 * PI / 4.0
 
 var _map_texture: ImageTexture
 var _fog_texture: ImageTexture
