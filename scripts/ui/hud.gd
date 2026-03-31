@@ -402,7 +402,8 @@ func _create_party_entry(peer_id: int, player_node: Node) -> void:
 	name_label.add_theme_font_size_override("font_size", 13)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_label.text = p_name
+	var p_name_str: String = player_node.get("player_name") if player_node.get("player_name") else "Player"
+	name_label.text = p_name_str
 	name_row.add_child(name_label)
 
 	var level_label := Label.new()

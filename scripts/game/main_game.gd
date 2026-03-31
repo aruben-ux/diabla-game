@@ -681,8 +681,8 @@ func open_town_portal(peer_id: int, dungeon_pos: Vector3) -> void:
 	# Compute a unique position around the fountain for the town-side portal
 	var fountain_center: Vector3 = town_level.spawn_position if town_level else _town_spawn
 	var portal_radius := 6.0
-	var portal_index := _active_portals.size()  # Number of existing portals = this portal's slot
-	var angle := portal_index * TAU / max(_active_portals.size() + 1, 1)
+	var portal_index: int = _active_portals.size()
+	var angle: float = portal_index * TAU / max(_active_portals.size() + 1, 1)
 	# Evenly redistribute all portals around the circle
 	var town_pos := fountain_center + Vector3(cos(angle) * portal_radius, 0.0, sin(angle) * portal_radius)
 	var owner_name: String = "Player"

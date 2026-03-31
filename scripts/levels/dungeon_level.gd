@@ -16,8 +16,8 @@ var spawn_position := Vector3.ZERO
 var stairs_up_position := Vector3.ZERO
 var stairs_down_position := Vector3.ZERO
 var current_floor := 1
-var _stairs_up_area: Area3D
-var _stairs_down_area: Area3D
+var _stairs_up_area: Node3D
+var _stairs_down_area: Node3D
 var _stair_props_container: Node3D
 var _particles_node: GPUParticles3D
 var _chest_container: Node3D

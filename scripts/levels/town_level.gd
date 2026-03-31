@@ -11,7 +11,7 @@ signal enter_dungeon(body: Node3D)
 
 var spawn_position := Vector3.ZERO
 var stairs_position := Vector3.ZERO
-var _stairs_area: Area3D
+var _stairs_area: Node3D
 var sun: DirectionalLight3D
 
 
