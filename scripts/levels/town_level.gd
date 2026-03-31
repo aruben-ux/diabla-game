@@ -44,13 +44,14 @@ func _create_stairs_trigger() -> void:
 	body.set_meta("interact_hint", "Click to enter dungeon")
 	body.set_meta("_town_level", self)
 	body.set_script(_stairs_interact_script())
+	body.position = stairs_position
 	add_child(body)
 
 	var col := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(6.0, 3.0, 4.0)
 	col.shape = box
-	col.position = stairs_position + Vector3(0, 1.0, 1.5)
+	col.position = Vector3(0, 1.0, 1.5)
 	body.add_child(col)
 	_stairs_area = body
 

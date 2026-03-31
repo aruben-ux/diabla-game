@@ -244,13 +244,14 @@ func _create_stairs_trigger(pos: Vector3, is_up: bool) -> void:
 	body.collision_mask = 0
 	body.name = ("StairsUp_F%d" % current_floor) if is_up else ("StairsDown_F%d" % current_floor)
 	body.add_to_group("interactables")
+	body.position = pos
 	add_child(body)
 
 	var col := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(5.0, 3.0, 5.0)
 	col.shape = box
-	col.position = pos + Vector3(0, 1.5, 0)
+	col.position = Vector3(0, 1.5, 0)
 	body.add_child(col)
 
 	# Set up interact properties and store reference to this dungeon_level
