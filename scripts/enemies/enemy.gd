@@ -60,6 +60,9 @@ var _look_timer := 0.0
 const LOOK_INTERVAL_MIN := 3.0
 const LOOK_INTERVAL_MAX := 8.0
 
+# Abilities assigned at spawn
+var _abilities: Array[StringName] = []
+
 
 func _ready() -> void:
 	_load_monster_data()
@@ -69,6 +72,7 @@ func _ready() -> void:
 	dissolve_shader = load("res://assets/shaders/dissolve.gdshader")
 	_build_model()
 	_apply_floor_scaling()
+	_abilities = EnemyAbilities.get_abilities(enemy_type)
 	# Desync idle animations so enemies don't breathe/sway in unison
 	if model:
 		model._anim_time = randf() * 10.0
@@ -96,6 +100,8 @@ func _physics_process(delta: float) -> void:
 				pass
 
 		if state != State.DEAD:
+			EnemyAbilities.on_tick(self, delta, _abilities)
+			EnemyAbilities.tick_cooldowns(self, delta)
 			move_and_slide()
 	else:
 		# Client: interpolate toward server state
@@ -296,7 +302,8 @@ func take_damage(amount: float, attacker: Node3D = null) -> void:
 	if state == State.DEAD:
 		return
 
-	health -= amount
+	var final_amount: float = EnemyAbilities.on_take_damage(self, amount, _abilities)
+	health -= final_amount
 	health = maxf(health, 0.0)
 
 	# Brief hit stagger + visual flash
@@ -441,6 +448,10 @@ func _apply_floor_scaling() -> void:
 
 
 func _die() -> void:
+	# Check if an ability cancels death (e.g. skeleton reassemble)
+	if EnemyAbilities.on_die(self, _abilities):
+		return
+
 	state = State.DEAD
 	velocity = Vector3.ZERO
 	EventBus.entity_died.emit(get_instance_id())
@@ -495,6 +506,235 @@ func _sync_attack_anim() -> void:
 func _sync_hit_flash() -> void:
 	if model.has_method("play_hit_flash"):
 		model.play_hit_flash()
+
+
+# =========================================================================
+# Ability VFX RPCs — called by EnemyAbilities, executed on all peers
+# =========================================================================
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_aoe_ring(center: Vector3, radius: float, color: Color, duration: float) -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = 0.05
+	ring.mesh = mesh
+	ring.global_position = center + Vector3(0, 0.1, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.5)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.0, duration)
+	tw.tween_callback(ring.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_phase_visual(phasing: bool) -> void:
+	if not model:
+		return
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		if phasing:
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color(0.5, 0.7, 1.0, 0.2)
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.emission_enabled = true
+			mat.emission = Color(0.4, 0.6, 1.0)
+			mat.emission_energy_multiplier = 1.5
+			child.set_meta(&"_pre_phase_mat", child.material_override)
+			child.material_override = mat
+		else:
+			var prev = child.get_meta(&"_pre_phase_mat", null)
+			if prev:
+				child.material_override = prev
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_fortify_flash() -> void:
+	if not model:
+		return
+	var flash_mat := StandardMaterial3D.new()
+	flash_mat.albedo_color = Color(0.5, 0.5, 0.6)
+	flash_mat.emission_enabled = true
+	flash_mat.emission = Color(0.4, 0.4, 0.5)
+	flash_mat.emission_energy_multiplier = 2.0
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		child.set_meta(&"_fort_orig", child.material_override)
+		child.material_override = flash_mat
+	get_tree().create_timer(0.08).timeout.connect(func() -> void:
+		if not is_instance_valid(self) or not model:
+			return
+		for child in model.find_children("*", "MeshInstance3D", true, false):
+			var orig = child.get_meta(&"_fort_orig", null)
+			if orig:
+				child.material_override = orig
+	)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_enrage_vfx() -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 1.5
+	mesh.bottom_radius = 1.5
+	mesh.height = 2.0
+	ring.mesh = mesh
+	ring.global_position = global_position + Vector3(0, 1.0, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.15, 0.0, 0.5)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.2, 0.0)
+	mat.emission_energy_multiplier = 3.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(ring, "scale", Vector3(2.5, 2.5, 2.5), 0.4).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.5)
+	tw.tween_callback(ring.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_reassemble_vfx() -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 1.0
+	mesh.bottom_radius = 1.0
+	mesh.height = 2.5
+	ring.mesh = mesh
+	ring.global_position = global_position + Vector3(0, 1.0, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.9, 0.85, 0.7, 0.6)
+	mat.emission_enabled = true
+	mat.emission = Color(0.9, 0.8, 0.5)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(ring, "scale", Vector3(0.1, 1.0, 0.1), 0.4).from(Vector3(2.0, 1.0, 2.0)).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.5)
+	tw.tween_callback(ring.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_drain_vfx() -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	ring.mesh = mesh
+	ring.global_position = global_position + Vector3(0, 1.2, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.9, 0.2, 0.5)
+	mat.emission_enabled = true
+	mat.emission = Color(0.1, 0.8, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(ring, "scale", Vector3(0.1, 0.1, 0.1), 0.3).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.35)
+	tw.tween_callback(ring.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_breath_vfx(origin: Vector3, forward: Vector3, breath_range: float) -> void:
+	var fire := GPUParticles3D.new()
+	fire.emitting = true
+	fire.one_shot = true
+	fire.amount = 30
+	fire.lifetime = 0.6
+	fire.explosiveness = 0.8
+	fire.global_position = origin + Vector3(0, 1.5, 0)
+	fire.visibility_aabb = AABB(Vector3(-10, -5, -10), Vector3(20, 10, 20))
+	var pmat := ParticleProcessMaterial.new()
+	pmat.direction = forward
+	pmat.spread = 25.0
+	pmat.initial_velocity_min = breath_range * 0.8
+	pmat.initial_velocity_max = breath_range * 1.2
+	pmat.gravity = Vector3(0, 1, 0)
+	pmat.scale_min = 0.15
+	pmat.scale_max = 0.35
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1.0, 0.7, 0.1, 1.0))
+	grad.set_color(1, Color(1.0, 0.15, 0.0, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = grad
+	pmat.color_ramp = ramp
+	fire.process_material = pmat
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.3, 0.3)
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(1.0, 0.5, 0.1)
+	fmat.emission_enabled = true
+	fmat.emission = Color(1.0, 0.3, 0.0)
+	fmat.emission_energy_multiplier = 3.0
+	fmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	fmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	quad.material = fmat
+	fire.draw_pass_1 = quad
+	get_tree().current_scene.add_child(fire)
+	get_tree().create_timer(1.5).timeout.connect(fire.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_boulder_warning(pos: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 1.5
+	mesh.bottom_radius = 1.5
+	mesh.height = 0.02
+	ring.mesh = mesh
+	ring.global_position = pos + Vector3(0, 0.05, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.2, 0.1, 0.4)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.2, 0.0)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(mat, "albedo_color:a", 0.7, 0.3)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.3)
+	tw.tween_callback(ring.queue_free)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_boulder_impact(pos: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.8
+	mesh.height = 1.6
+	ring.mesh = mesh
+	ring.global_position = pos + Vector3(0, 0.5, 0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.35, 0.2, 0.7)
+	mat.emission_enabled = true
+	mat.emission = Color(0.4, 0.3, 0.15)
+	mat.emission_energy_multiplier = 1.5
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring.material_override = mat
+	get_tree().current_scene.add_child(ring)
+	var tw := ring.create_tween()
+	tw.tween_property(ring, "scale", Vector3(2.0, 0.5, 2.0), 0.2).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tw.tween_callback(ring.queue_free)
 
 
 func _apply_dissolve() -> void:
@@ -568,8 +808,11 @@ func _deal_damage_to_target() -> void:
 	if not is_instance_valid(target):
 		return
 
+	# Check if a special ability replaces the normal attack this cycle
+	if EnemyAbilities.on_attack(self, _abilities):
+		return
+
 	var ranged := _is_ranged()
-	printerr("[Enemy] %s (type=%d) deal_damage ranged=%s" % [name, enemy_type, str(ranged)])
 
 	if ranged:
 		# Cast animation (no melee swing)
@@ -582,6 +825,8 @@ func _deal_damage_to_target() -> void:
 		_sync_attack_anim.rpc()
 		if target.has_method("receive_damage"):
 			target.receive_damage.rpc(attack_damage)
+			# Notify abilities of the hit
+			EnemyAbilities.on_hit_player(self, target, attack_damage, _abilities)
 			if model.has_method("spawn_impact_burst"):
 				model.spawn_impact_burst(target.global_position + Vector3(0, 1.0, 0), Color.RED)
 
@@ -622,6 +867,7 @@ func _sync_fire_projectile(proj_name: String, from_pos: Vector3, target_pos: Vec
 	proj.name = proj_name
 	proj.set_script(proj_script)
 	proj.setup(from_pos, target_pos, damage, speed, color)
+	proj._owner_enemy = self
 	get_parent().add_child(proj)
 
 

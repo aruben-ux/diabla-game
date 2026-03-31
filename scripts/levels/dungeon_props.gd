@@ -347,15 +347,85 @@ static func build_rubble_pile(pos: Vector3, rng: RandomNumberGenerator) -> Node3
 
 # ---------------------------------------------------------------------------
 # 8. Wooden Barrel — cylinder with metal bands (intact or toppled)
+#    Intact barrels are breakable StaticBody3D; toppled ones are pure decor.
 # ---------------------------------------------------------------------------
-static func build_barrel(pos: Vector3, rng: RandomNumberGenerator, intact: bool = true) -> Node3D:
-	var root := Node3D.new()
-	root.name = "Barrel"
-	root.position = pos
+static func build_barrel(pos: Vector3, rng: RandomNumberGenerator, intact: bool = true, prop_name: String = "", floor_level: int = 1) -> Node3D:
+	if intact:
+		return _build_breakable_barrel(pos, rng, prop_name, floor_level)
+	else:
+		return _build_toppled_barrel(pos, rng)
 
-	if not intact:
-		root.rotation.x = rng.randf_range(0.3, 0.7) * (1.0 if rng.randf() > 0.5 else -1.0)
-		root.rotation.z = rng.randf_range(-0.15, 0.15)
+
+static func _build_breakable_barrel(pos: Vector3, rng: RandomNumberGenerator, prop_name: String, floor_level: int) -> StaticBody3D:
+	var pot_script := preload("res://scripts/interactables/breakable_pot.gd")
+
+	var body := StaticBody3D.new()
+	if prop_name != "":
+		body.name = prop_name
+	body.position = pos
+	body.collision_layer = 4
+	body.collision_mask = 0
+	body.add_to_group("breakables")
+	body.set_script(pot_script)
+	var drops := rng.randf() < 0.2
+	var gold := rng.randi_range(3, 10) * floor_level if drops else 0
+	body.setup(floor_level, drops, gold)
+
+	# Collision
+	var col := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = 0.3
+	shape.height = 0.8
+	col.shape = shape
+	col.position = Vector3(0, 0.4, 0)
+	body.add_child(col)
+
+	# Barrel body
+	var body_mi := MeshInstance3D.new()
+	body_mi.name = "BarrelBody"
+	var body_mesh := CylinderMesh.new()
+	body_mesh.top_radius = 0.28
+	body_mesh.bottom_radius = 0.28
+	body_mesh.height = 0.8
+	body_mi.mesh = body_mesh
+	body_mi.position = Vector3(0, 0.4, 0)
+	body_mi.material_override = _mat(Color(0.45, 0.3, 0.15), 0.8)
+	body.add_child(body_mi)
+
+	# Wider middle bulge
+	var bulge_mi := MeshInstance3D.new()
+	bulge_mi.name = "BarrelBulge"
+	var bulge_mesh := CylinderMesh.new()
+	bulge_mesh.top_radius = 0.305
+	bulge_mesh.bottom_radius = 0.305
+	bulge_mesh.height = 0.2
+	bulge_mi.mesh = bulge_mesh
+	bulge_mi.position = Vector3(0, 0.4, 0)
+	bulge_mi.material_override = _mat(Color(0.43, 0.28, 0.13), 0.8)
+	body.add_child(bulge_mi)
+
+	# Metal bands
+	var band_mat := _mat(Color(0.3, 0.28, 0.25), 0.6, 0.5)
+	for y_off in [0.12, 0.68]:
+		var band := MeshInstance3D.new()
+		var band_mesh := CylinderMesh.new()
+		band_mesh.top_radius = 0.295
+		band_mesh.bottom_radius = 0.295
+		band_mesh.height = 0.04
+		band.mesh = band_mesh
+		band.position = Vector3(0, y_off, 0)
+		band.material_override = band_mat
+		body.add_child(band)
+
+	return body
+
+
+static func _build_toppled_barrel(pos: Vector3, rng: RandomNumberGenerator) -> Node3D:
+	var root := Node3D.new()
+	root.name = "ToppledBarrel"
+	root.position = pos
+	root.rotation.x = rng.randf_range(0.3, 0.7) * (1.0 if rng.randf() > 0.5 else -1.0)
+	root.rotation.z = rng.randf_range(-0.15, 0.15)
 
 	# Barrel body
 	var body_mi := MeshInstance3D.new()

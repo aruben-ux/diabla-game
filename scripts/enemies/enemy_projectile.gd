@@ -12,6 +12,7 @@ var _alive := true
 var _lifetime := 0.0
 var _projectile_color := Color(0.8, 0.3, 0.1)
 var _start_pos := Vector3.ZERO
+var _owner_enemy: Node3D = null
 
 
 func setup(from_pos: Vector3, target_pos: Vector3, damage: float, speed: float = 12.0, color: Color = Color(0.8, 0.3, 0.1)) -> void:
@@ -124,6 +125,9 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if body.is_in_group("players") and body.has_method("receive_damage"):
 		body.receive_damage.rpc(_damage)
+		# Notify owner enemy's abilities of the hit
+		if _owner_enemy and is_instance_valid(_owner_enemy) and _owner_enemy is Enemy:
+			EnemyAbilities.on_hit_player(_owner_enemy, body, _damage, _owner_enemy._abilities)
 		_sync_hit.rpc()
 
 

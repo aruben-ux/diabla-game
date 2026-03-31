@@ -31,19 +31,45 @@ func take_damage(amount: float, attacker: Node3D = null) -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_break() -> void:
 	_broken = true
-	# Hide pot meshes and disable collision
+	# Disable collision immediately
 	for child in get_children():
-		if child is MeshInstance3D:
-			child.visible = false
 		if child is CollisionShape3D:
 			child.set_deferred("disabled", true)
-	_spawn_debris()
-	get_tree().create_timer(2.0).timeout.connect(_cleanup)
+	_play_shatter_anim()
 
 
-func _cleanup() -> void:
-	if is_instance_valid(self):
+func _play_shatter_anim() -> void:
+	# Collect mesh children for the burst animation
+	var meshes: Array[MeshInstance3D] = []
+	for child in get_children():
+		if child is MeshInstance3D:
+			meshes.append(child as MeshInstance3D)
+
+	if meshes.is_empty():
 		queue_free()
+		return
+
+	# Give each mesh piece a random outward burst + shrink
+	var center := global_position + Vector3(0, 0.25, 0)
+	for i in range(meshes.size()):
+		var mesh_node := meshes[i]
+		var angle := TAU * float(i) / float(meshes.size()) + randf_range(-0.3, 0.3)
+		var burst_dist := randf_range(0.3, 0.6)
+		var burst_target := mesh_node.position + Vector3(cos(angle) * burst_dist, randf_range(0.1, 0.4), sin(angle) * burst_dist)
+		var tw := mesh_node.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(mesh_node, "position", burst_target, 0.15).set_ease(Tween.EASE_OUT)
+		tw.tween_property(mesh_node, "scale", Vector3(0.01, 0.01, 0.01), 0.3).set_ease(Tween.EASE_IN)
+		tw.tween_property(mesh_node, "rotation", mesh_node.rotation + Vector3(randf_range(-3, 3), randf_range(-3, 3), randf_range(-3, 3)), 0.3)
+
+	# Spawn debris shards in the parent so they outlive `self`
+	_spawn_debris()
+
+	# Despawn after the animation finishes
+	get_tree().create_timer(0.35).timeout.connect(func() -> void:
+		if is_instance_valid(self):
+			queue_free()
+	)
 
 
 func _spawn_debris() -> void:
@@ -51,8 +77,14 @@ func _spawn_debris() -> void:
 	if not parent:
 		return
 
+	# Try to match the main mesh color for debris
+	var debris_color := Color(0.55, 0.35, 0.18)
+	for child in get_children():
+		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+			debris_color = (child.material_override as StandardMaterial3D).albedo_color
+			break
 	var debris_mat := StandardMaterial3D.new()
-	debris_mat.albedo_color = Color(0.55, 0.35, 0.18)
+	debris_mat.albedo_color = debris_color
 	debris_mat.roughness = 0.9
 
 	for i in range(6):
@@ -78,5 +110,6 @@ func _spawn_debris() -> void:
 		var tween := piece.create_tween()
 		tween.tween_property(piece, "position", peak, 0.12).set_ease(Tween.EASE_OUT)
 		tween.tween_property(piece, "position", landing, 0.22).set_ease(Tween.EASE_IN)
-		# Fade away
-		get_tree().create_timer(1.5).timeout.connect(piece.queue_free)
+		# Fade out and despawn
+		tween.tween_property(piece, "scale", Vector3(0.01, 0.01, 0.01), 0.4).set_delay(0.8)
+		tween.tween_callback(piece.queue_free)

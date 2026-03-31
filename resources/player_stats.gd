@@ -18,6 +18,15 @@ class_name PlayerStats
 @export var level: int = 1
 @export var experience: float = 0.0
 
+## Percentage-based stats from skill tree passives (stored as fractions, e.g. 0.05 = 5%)
+var crit_chance_pct: float = 0.0
+var crit_damage_pct: float = 0.0
+var spell_damage_pct: float = 0.0
+var attack_speed_pct: float = 0.0
+var mana_regen_pct: float = 0.0
+var mana_cost_reduction_pct: float = 0.0
+var dodge_pct: float = 0.0
+
 static var _progression: Dictionary = {}
 static var _progression_loaded := false
 
@@ -53,6 +62,11 @@ func heal(amount: float) -> void:
 	health = minf(health + amount, max_health)
 
 
+func tick_mana_regen(delta: float) -> void:
+	if mana_regen_pct > 0.0 and mana < max_mana:
+		mana = minf(mana + max_mana * mana_regen_pct * delta, max_mana)
+
+
 func use_mana(amount: float) -> bool:
 	if mana >= amount:
 		mana -= amount
@@ -60,14 +74,15 @@ func use_mana(amount: float) -> bool:
 	return false
 
 
-func add_experience(amount: float) -> bool:
+func add_experience(amount: float) -> int:
 	experience += amount
-	if experience >= experience_to_next_level:
+	var levels_gained := 0
+	while experience >= experience_to_next_level:
 		experience -= experience_to_next_level
 		level += 1
 		_on_level_up()
-		return true
-	return false
+		levels_gained += 1
+	return levels_gained
 
 
 func _on_level_up() -> void:

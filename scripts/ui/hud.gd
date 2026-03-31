@@ -69,11 +69,16 @@ var _quest_dialog_npc_id: String = ""
 # Skill tree UI
 var _skill_tree_ui: SkillTreeUI
 var _skill_btn: Button
+var _skill_badge: Label
 
 # Cast bar
 var _cast_bar_panel: PanelContainer
 var _cast_bar_progress: ProgressBar
 var _cast_bar_label: Label
+
+# Debuff display (above skill bar)
+var _debuff_container: HBoxContainer
+var _debuff_icons: Dictionary = {}  # id -> Dictionary{panel, label, timer_label, bar}
 
 
 func _ready() -> void:
@@ -93,6 +98,7 @@ func _ready() -> void:
 	EventBus.quest_dialog_requested.connect(_on_quest_dialog_requested)
 	_build_skill_tree_ui()
 	_build_cast_bar()
+	_build_debuff_display()
 
 
 func _build_target_panel() -> void:
@@ -554,6 +560,135 @@ func _update_cast_bar() -> void:
 		_cast_bar_panel.visible = false
 
 
+func _build_debuff_display() -> void:
+	_debuff_container = HBoxContainer.new()
+	_debuff_container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_debuff_container.offset_left = -120
+	_debuff_container.offset_right = 120
+	_debuff_container.offset_top = -110
+	_debuff_container.offset_bottom = -70
+	_debuff_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	_debuff_container.add_theme_constant_override("separation", 6)
+	_debuff_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_debuff_container)
+
+
+func _update_debuff_display() -> void:
+	if not tracked_player or not is_instance_valid(tracked_player):
+		return
+
+	var debuffs: Array = tracked_player.get("active_debuffs")
+	if debuffs == null:
+		debuffs = []
+	var buffs: Array = tracked_player.get("active_buffs")
+	if buffs == null:
+		buffs = []
+
+	# Merge into one list — prefix buff ids with "b_" to avoid key collision
+	var all_entries: Array[Dictionary] = []
+	for d in debuffs:
+		all_entries.append({"id": d["id"], "name": d["name"], "remaining": d["remaining"],
+			"duration": d["duration"], "color": d["color"], "is_buff": false})
+	for b in buffs:
+		all_entries.append({"id": "b_" + b["id"], "name": b["name"], "remaining": b["remaining"],
+			"duration": b["duration"], "color": b["color"], "is_buff": true})
+
+	# Collect current ids
+	var active_ids: Array[String] = []
+	for e in all_entries:
+		active_ids.append(e["id"] as String)
+
+	# Remove icons for expired entries
+	var to_remove: Array[String] = []
+	for id in _debuff_icons:
+		if id not in active_ids:
+			to_remove.append(id)
+	for id in to_remove:
+		var entry: Dictionary = _debuff_icons[id]
+		if is_instance_valid(entry["panel"]):
+			entry["panel"].queue_free()
+		_debuff_icons.erase(id)
+
+	# Add / update icons
+	for e in all_entries:
+		var id: String = e["id"]
+		var remaining: float = e["remaining"]
+		var color: Color = e["color"]
+		var entry_name: String = e["name"]
+		var is_buff: bool = e["is_buff"]
+
+		if not _debuff_icons.has(id):
+			var panel := PanelContainer.new()
+			panel.custom_minimum_size = Vector2(40, 40)
+			panel.mouse_filter = Control.MOUSE_FILTER_PASS
+			panel.tooltip_text = entry_name
+
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.85)
+			sb.border_color = color
+			sb.border_width_left = 2
+			sb.border_width_right = 2
+			sb.border_width_top = 2
+			sb.border_width_bottom = 2
+			sb.corner_radius_top_left = 4
+			sb.corner_radius_top_right = 4
+			sb.corner_radius_bottom_left = 4
+			sb.corner_radius_bottom_right = 4
+			sb.content_margin_left = 2
+			sb.content_margin_right = 2
+			sb.content_margin_top = 2
+			sb.content_margin_bottom = 2
+			panel.add_theme_stylebox_override("panel", sb)
+
+			var vbox := VBoxContainer.new()
+			vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			vbox.add_theme_constant_override("separation", 0)
+			vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			panel.add_child(vbox)
+
+			var icon_label := Label.new()
+			icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			icon_label.add_theme_font_size_override("font_size", 14)
+			icon_label.add_theme_color_override("font_color", color)
+			icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			if is_buff:
+				icon_label.text = "▲"
+			else:
+				match id:
+					"slow":
+						icon_label.text = "❄"
+					"web":
+						icon_label.text = "◎"
+					_:
+						icon_label.text = "▼"
+			vbox.add_child(icon_label)
+
+			var timer_label := Label.new()
+			timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			timer_label.add_theme_font_size_override("font_size", 10)
+			timer_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
+			timer_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			vbox.add_child(timer_label)
+
+			_debuff_container.add_child(panel)
+			_debuff_icons[id] = {
+				"panel": panel,
+				"timer_label": timer_label,
+				"style": sb,
+			}
+
+		var entry: Dictionary = _debuff_icons[id]
+		var tl: Label = entry["timer_label"]
+		tl.text = "%.1f" % maxf(remaining, 0.0)
+
+		var sb: StyleBoxFlat = entry["style"]
+		if remaining < 1.0:
+			var pulse := 0.5 + 0.5 * sin(remaining * TAU * 3.0)
+			sb.border_color = color.lerp(Color.WHITE, pulse * 0.4)
+		else:
+			sb.border_color = color
+
+
 func _style_potion_panel(panel: Panel, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -627,6 +762,8 @@ func _process(delta: float) -> void:
 	_update_party_panel()
 	_update_character_panel()
 	_update_cast_bar()
+	_update_debuff_display()
+	_update_skill_badge()
 
 
 func _update_target_display() -> void:
@@ -871,6 +1008,33 @@ func _build_action_buttons() -> void:
 
 	_skill_btn = _create_action_button(tr("Skills") + "\n(K)", btn_container)
 	_skill_btn.pressed.connect(_toggle_skill_tree)
+	# Skill point badge (red circle with count)
+	_skill_badge = Label.new()
+	_skill_badge.text = ""
+	_skill_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_skill_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_skill_badge.custom_minimum_size = Vector2(20, 20)
+	_skill_badge.add_theme_font_size_override("font_size", 11)
+	_skill_badge.add_theme_color_override("font_color", Color.WHITE)
+	var badge_sb := StyleBoxFlat.new()
+	badge_sb.bg_color = Color(0.85, 0.15, 0.15, 0.95)
+	badge_sb.corner_radius_top_left = 10
+	badge_sb.corner_radius_top_right = 10
+	badge_sb.corner_radius_bottom_left = 10
+	badge_sb.corner_radius_bottom_right = 10
+	badge_sb.content_margin_left = 3
+	badge_sb.content_margin_right = 3
+	badge_sb.content_margin_top = 1
+	badge_sb.content_margin_bottom = 1
+	_skill_badge.add_theme_stylebox_override("normal", badge_sb)
+	_skill_badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_skill_badge.offset_left = -22
+	_skill_badge.offset_right = -2
+	_skill_badge.offset_top = -4
+	_skill_badge.offset_bottom = 16
+	_skill_badge.visible = false
+	_skill_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skill_btn.add_child(_skill_badge)
 
 	_inventory_btn = _create_action_button(tr("Inventory") + "\n(I)", btn_container)
 	_inventory_btn.pressed.connect(_on_inventory_btn_pressed)
@@ -1251,6 +1415,18 @@ func _toggle_skill_tree() -> void:
 	else:
 		if tracked_player and tracked_player.skill_manager:
 			_skill_tree_ui.open(tracked_player.skill_manager)
+
+
+func _update_skill_badge() -> void:
+	if not tracked_player or not tracked_player.skill_manager:
+		_skill_badge.visible = false
+		return
+	var pts: int = tracked_player.skill_manager.skill_points
+	if pts > 0:
+		_skill_badge.text = str(pts)
+		_skill_badge.visible = true
+	else:
+		_skill_badge.visible = false
 
 
 func _refresh_skill_slots() -> void:

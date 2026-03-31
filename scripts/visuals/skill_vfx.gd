@@ -3,52 +3,72 @@ extends Node3D
 ## Manages skill visual effects using GPUParticles3D.
 ## Attach to the player; call trigger_*() methods when skills fire.
 
-var _fireball_particles: GPUParticles3D
-var _heal_particles: GPUParticles3D
-var _whirlwind_particles: GPUParticles3D
-var _frost_particles: GPUParticles3D
+# Pre-built particle systems (reusable one-shots)
+var _particles: Dictionary = {}  # id → GPUParticles3D
 
 
 func _ready() -> void:
-	_fireball_particles = _create_burst_particles(Color.ORANGE_RED, 1.5, 40)
-	_fireball_particles.name = "FireballVFX"
-	add_child(_fireball_particles)
+	# ── Warrior ──
+	_register("cleave", _create_ring_particles(Color.LIGHT_GRAY, 3.0, 35))
+	_register("whirlwind", _create_ring_particles(Color.LIGHT_BLUE, 4.0, 50))
+	_register("shield_wall", _create_rise_particles(Color(0.7, 0.7, 0.8), 1.8, 25))
+	_register("ground_slam", _create_ring_particles(Color(0.6, 0.4, 0.2), 5.0, 60))
+	_register("war_cry", _create_ring_particles(Color(1.0, 0.8, 0.2), 6.0, 40))
+	_register("charge", _create_burst_particles(Color.YELLOW, 1.5, 30))
+	_register("berserker_rage", _create_rise_particles(Color(0.9, 0.2, 0.1), 2.5, 35))
 
-	_heal_particles = _create_rise_particles(Color.GREEN, 2.0, 30)
-	_heal_particles.name = "HealVFX"
-	add_child(_heal_particles)
+	# ── Mage ──
+	_register("fireball", _create_burst_particles(Color.ORANGE_RED, 1.5, 40))
+	_register("fire_wall", _create_ring_particles(Color.ORANGE, 3.0, 45))
+	_register("meteor", _create_burst_particles(Color(1.0, 0.4, 0.0), 3.0, 70))
+	_register("frost_nova", _create_burst_particles(Color.CYAN, 2.5, 50))
+	_register("ice_barrier", _create_rise_particles(Color(0.4, 0.7, 1.0), 1.5, 20))
+	_register("blizzard", _create_burst_particles(Color(0.6, 0.8, 1.0), 4.0, 60))
+	_register("heal", _create_rise_particles(Color.GREEN, 2.0, 30))
+	_register("teleport", _create_burst_particles(Color(0.5, 0.3, 0.9), 1.0, 25))
+	_register("arcane_missiles", _create_burst_particles(Color(0.6, 0.3, 1.0), 1.5, 35))
+	_register("mana_shield", _create_rise_particles(Color(0.5, 0.3, 0.9), 1.8, 20))
 
-	_whirlwind_particles = _create_ring_particles(Color.LIGHT_BLUE, 4.0, 50)
-	_whirlwind_particles.name = "WhirlwindVFX"
-	add_child(_whirlwind_particles)
+	# ── Rogue ──
+	_register("backstab", _create_burst_particles(Color(0.8, 0.1, 0.1), 1.0, 20))
+	_register("poison_blade", _create_rise_particles(Color(0.3, 0.8, 0.2), 1.5, 20))
+	_register("death_mark", _create_burst_particles(Color(0.6, 0.0, 0.0), 1.5, 25))
+	_register("shadow_step", _create_burst_particles(Color(0.3, 0.3, 0.4), 1.0, 25))
+	_register("vanish", _create_rise_particles(Color(0.3, 0.3, 0.4), 1.0, 15))
+	_register("smoke_bomb", _create_burst_particles(Color(0.4, 0.4, 0.4), 3.0, 50))
+	_register("spike_trap", _create_ring_particles(Color(0.7, 0.5, 0.2), 3.0, 30))
+	_register("fan_of_knives", _create_ring_particles(Color.SILVER, 4.0, 45))
+	_register("rain_of_arrows", _create_burst_particles(Color(0.6, 0.5, 0.3), 4.0, 55))
 
-	_frost_particles = _create_burst_particles(Color.CYAN, 2.5, 50)
-	_frost_particles.name = "FrostVFX"
-	add_child(_frost_particles)
+
+func _register(id: String, p: GPUParticles3D) -> void:
+	p.name = id + "_vfx"
+	add_child(p)
+	_particles[id] = p
 
 
+## Generic trigger — plays the VFX for the given skill at the given position.
+func trigger(skill_id: String, pos: Vector3) -> void:
+	var p: GPUParticles3D = _particles.get(skill_id) as GPUParticles3D
+	if not p:
+		return
+	p.global_position = pos + Vector3(0, 0.5, 0)
+	p.restart()
+	p.emitting = true
+
+
+## Convenience wrappers kept for back-compat
 func trigger_fireball(target_pos: Vector3) -> void:
-	_fireball_particles.global_position = target_pos + Vector3(0, 0.5, 0)
-	_fireball_particles.restart()
-	_fireball_particles.emitting = true
-
+	trigger("fireball", target_pos)
 
 func trigger_heal() -> void:
-	_heal_particles.position = Vector3(0, 0.5, 0)
-	_heal_particles.restart()
-	_heal_particles.emitting = true
-
+	trigger("heal", global_position)
 
 func trigger_whirlwind() -> void:
-	_whirlwind_particles.position = Vector3(0, 0.8, 0)
-	_whirlwind_particles.restart()
-	_whirlwind_particles.emitting = true
-
+	trigger("whirlwind", global_position)
 
 func trigger_frost_nova() -> void:
-	_frost_particles.position = Vector3(0, 0.5, 0)
-	_frost_particles.restart()
-	_frost_particles.emitting = true
+	trigger("frost_nova", global_position)
 
 
 func _create_burst_particles(color: Color, radius: float, count: int) -> GPUParticles3D:

@@ -95,20 +95,31 @@ func capture_player_state(player: Node) -> void:
 	if active_character == null or player == null:
 		return
 	var stats: PlayerStats = player.stats
+
+	# Compute effective stat deltas from tree bonuses to save BASE values
+	var tree_bonuses: Dictionary = player.get_meta("_tree_bonuses", {})
+	var hp_bonus := tree_bonuses.get("max_health", 0.0) + tree_bonuses.get("vitality", 0.0) * 5.0
+	var mp_bonus := tree_bonuses.get("max_mana", 0.0)
+
 	active_character.level = stats.level
 	active_character.experience = stats.experience
-	active_character.max_health = stats.max_health
-	active_character.max_mana = stats.max_mana
-	active_character.health = stats.health
-	active_character.mana = stats.mana
-	active_character.strength = stats.strength
-	active_character.dexterity = stats.dexterity
-	active_character.intelligence = stats.intelligence
-	active_character.vitality = stats.vitality
-	active_character.attack_damage = stats.attack_damage
+	active_character.max_health = stats.max_health - hp_bonus
+	active_character.max_mana = stats.max_mana - mp_bonus
+	active_character.health = minf(stats.health, active_character.max_health)
+	active_character.mana = minf(stats.mana, active_character.max_mana)
+	active_character.strength = stats.strength - int(tree_bonuses.get("strength", 0.0))
+	active_character.dexterity = stats.dexterity - int(tree_bonuses.get("dexterity", 0.0))
+	active_character.intelligence = stats.intelligence - int(tree_bonuses.get("intelligence", 0.0))
+	active_character.vitality = stats.vitality - int(tree_bonuses.get("vitality", 0.0))
+	active_character.attack_damage = stats.attack_damage - tree_bonuses.get("attack_damage", 0.0)
 	active_character.attack_speed = stats.attack_speed
-	active_character.defense = stats.defense
-	active_character.move_speed = stats.move_speed
+	active_character.defense = stats.defense - tree_bonuses.get("defense", 0.0)
+	active_character.move_speed = stats.move_speed - tree_bonuses.get("move_speed", 0.0)
+
+	# Persist skill tree data
+	if player.get("skill_manager") and player.skill_manager:
+		active_character.skill_points = player.skill_manager.skill_points
+		active_character.allocated_skill_points = player.skill_manager.allocated_points.duplicate()
 
 	# Serialize inventory (grid-based)
 	var inv: Inventory = player.inventory

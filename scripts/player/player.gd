@@ -56,6 +56,20 @@ static var _outline_material: ShaderMaterial
 ## Cached appearance for UI displays (party panel, portraits)
 var cached_appearance: Dictionary = {}
 
+## Speed modifier applied by enemy abilities (frost, web, etc.)
+var _speed_mod: float = 1.0
+## Knockback velocity from enemy abilities
+var _knockback_vel: Vector3 = Vector3.ZERO
+## Active debuffs — Array of Dictionaries: {id: String, name: String, remaining: float, duration: float, color: Color}
+var active_debuffs: Array[Dictionary] = []
+
+## Buff state variables (managed by skill_manager, ticked by _tick_buffs)
+var _buff_damage_mult: float = 0.0     # Extra damage multiplier from buffs (war_cry, berserker_rage)
+var _buff_invulnerable: bool = false    # Shield Wall
+var _buff_absorb: float = 0.0          # Ice Barrier absorb pool
+var _buff_mana_shield: bool = false     # Mana Shield active
+var _buff_invisible: bool = false       # Vanish stealth
+
 
 func _ready() -> void:
 	if _outline_material == null:
@@ -388,6 +402,7 @@ func _physics_process(delta: float) -> void:
 		_update_mouse_target()
 		_check_pending_interact()
 		_tick_town_portal_cast(delta)
+		_tick_debuffs(delta)
 		if _is_server_auth:
 			_process_grid_sync(delta)
 	if _is_server_auth:
@@ -418,6 +433,8 @@ func _physics_process_server_auth(delta: float) -> void:
 		# Server simulates movement for ALL players
 		if attack_timer > 0.0:
 			attack_timer -= delta
+		stats.tick_mana_regen(delta)
+		_tick_buffs(delta)
 		_process_movement(delta)
 		# Broadcast authoritative position to all clients
 		_apply_remote_position.rpc(global_position, model.rotation.y)
@@ -503,7 +520,7 @@ func _handle_attack_click() -> void:
 	else:
 		is_attacking = true
 		is_moving = false
-		attack_timer = 1.0 / stats.attack_speed
+		attack_timer = 1.0 / (stats.attack_speed * (1.0 + stats.attack_speed_pct))
 		_perform_attack.rpc()
 
 
@@ -566,7 +583,7 @@ func _server_attack_intent(target_pos: Vector3) -> void:
 
 	is_attacking = true
 	is_moving = false
-	attack_timer = 1.0 / stats.attack_speed
+	attack_timer = 1.0 / (stats.attack_speed * (1.0 + stats.attack_speed_pct))
 	_perform_attack.rpc()
 
 
@@ -628,7 +645,28 @@ func _perform_attack() -> void:
 
 			if body.is_in_group("enemies") and body.has_method("take_damage"):
 				var was_alive: bool = body.health > 0.0
-				body.take_damage(stats.attack_damage, self)
+				var dmg := stats.attack_damage * (1.0 + _buff_damage_mult)
+				# Poison Blade — add bonus poison damage per hit
+				var has_poison := false
+				for b in active_buffs:
+					if b["id"] == "poison_blade":
+						has_poison = true
+						break
+				if has_poison:
+					dmg += stats.dexterity * 0.3
+				# Vanish — bonus damage on first attack from stealth
+				if _buff_invisible:
+					dmg *= 1.8
+					_buff_invisible = false
+					_set_visibility.rpc(true)
+					# Remove vanish buff early
+					for bi in range(active_buffs.size() - 1, -1, -1):
+						if active_buffs[bi]["id"] == "vanish":
+							active_buffs.remove_at(bi)
+				# Crit check
+				if randf() < stats.crit_chance_pct:
+					dmg *= 1.5 + stats.crit_damage_pct
+				body.take_damage(dmg, self)
 				hit_count += 1
 				# Impact burst at enemy position
 				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 1.0, 0))
@@ -649,6 +687,52 @@ func _perform_attack() -> void:
 func receive_damage(amount: float) -> void:
 	if debug_invincible:
 		return
+	# Shield Wall — block all damage
+	if _buff_invulnerable:
+		EventBus.show_floating_text.emit(
+			global_position + Vector3(0, 2.2, 0),
+			tr("Blocked"),
+			Color.GRAY
+		)
+		return
+	# Berserker Rage — take 30% more damage while active
+	var has_berserk := false
+	for b in active_buffs:
+		if b["id"] == "berserker_rage":
+			has_berserk = true
+			break
+	if has_berserk:
+		amount *= 1.3
+	# Mana Shield — redirect to mana
+	if _buff_mana_shield and stats.mana > 0.0:
+		var mana_cost := amount * 0.5
+		if stats.mana >= mana_cost:
+			stats.mana -= mana_cost
+			amount *= 0.5
+		else:
+			amount -= stats.mana * 2.0
+			stats.mana = 0.0
+	# Dodge check
+	if stats.dodge_pct > 0.0 and randf() < stats.dodge_pct:
+		EventBus.show_floating_text.emit(
+			global_position + Vector3(0, 2.2, 0),
+			tr("Dodge!"),
+			Color.LIGHT_BLUE
+		)
+		return
+	# Ice Barrier absorb
+	if _buff_absorb > 0.0:
+		if _buff_absorb >= amount:
+			_buff_absorb -= amount
+			EventBus.show_floating_text.emit(
+				global_position + Vector3(0, 2.2, 0),
+				tr("Absorbed"),
+				Color.CYAN
+			)
+			return
+		else:
+			amount -= _buff_absorb
+			_buff_absorb = 0.0
 	var actual := stats.take_damage(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.2, 0),
@@ -674,20 +758,21 @@ func grant_xp(amount: float) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func _sync_grant_xp(amount: float) -> void:
-	var leveled := stats.add_experience(amount)
+	var levels_gained: int = stats.add_experience(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.5, 0),
 		tr("+%d XP") % int(amount),
 		Color.GOLD
 	)
-	if leveled:
+	if levels_gained > 0:
 		EventBus.show_floating_text.emit(
 			global_position + Vector3(0, 3.0, 0),
 			tr("LEVEL UP!"),
 			Color.YELLOW
 		)
 		if skill_manager:
-			skill_manager.add_skill_point()
+			for _i in range(levels_gained):
+				skill_manager.add_skill_point()
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -1085,6 +1170,12 @@ func _sync_spawn_loot(loot_name: String, item_dict: Dictionary, pos: Vector3) ->
 
 
 func _process_movement(delta: float) -> void:
+	# Decay knockback
+	if _knockback_vel.length() > 0.1:
+		_knockback_vel = _knockback_vel.move_toward(Vector3.ZERO, 20.0 * delta)
+	else:
+		_knockback_vel = Vector3.ZERO
+
 	# Spawn grace — skip gravity until physics has processed floor collision
 	if _spawn_grace > 0.0:
 		_spawn_grace -= delta
@@ -1096,9 +1187,10 @@ func _process_movement(delta: float) -> void:
 		velocity.y -= GRAVITY * delta
 
 	if not is_moving:
-		velocity.x = 0.0
-		velocity.z = 0.0
-		_play_animation("idle")
+		velocity.x = _knockback_vel.x
+		velocity.z = _knockback_vel.z
+		if _knockback_vel.length() < 0.1:
+			_play_animation("idle")
 		move_and_slide()
 		return
 
@@ -1108,9 +1200,10 @@ func _process_movement(delta: float) -> void:
 
 	if distance < ARRIVAL_THRESHOLD:
 		is_moving = false
-		velocity.x = 0.0
-		velocity.z = 0.0
-		_play_animation("idle")
+		velocity.x = _knockback_vel.x
+		velocity.z = _knockback_vel.z
+		if _knockback_vel.length() < 0.1:
+			_play_animation("idle")
 		move_and_slide()
 		return
 
@@ -1120,8 +1213,8 @@ func _process_movement(delta: float) -> void:
 	var target_rotation := atan2(direction.x, direction.z)
 	model.rotation.y = lerp_angle(model.rotation.y, target_rotation, ROTATION_SPEED * delta)
 
-	velocity.x = direction.x * MOVE_SPEED
-	velocity.z = direction.z * MOVE_SPEED
+	velocity.x = direction.x * MOVE_SPEED * _speed_mod + _knockback_vel.x
+	velocity.z = direction.z * MOVE_SPEED * _speed_mod + _knockback_vel.z
 
 	_play_animation("run")
 	move_and_slide()
@@ -1187,15 +1280,17 @@ func _on_skill_used(slot: int, skill: SkillData) -> void:
 	var target_pos := _raycast_ground()
 	if target_pos == Vector3.INF:
 		target_pos = global_position
-	match skill.id:
-		"fireball":
-			skill_vfx.trigger_fireball(target_pos)
-		"heal":
-			skill_vfx.trigger_heal()
-		"whirlwind":
-			skill_vfx.trigger_whirlwind()
-		"frost_nova":
-			skill_vfx.trigger_frost_nova()
+
+	# Self-centered skills use player position; targeted skills use cursor position
+	var self_skills: Array[String] = [
+		"heal", "whirlwind", "shield_wall", "war_cry", "berserker_rage",
+		"frost_nova", "ice_barrier", "mana_shield", "poison_blade",
+		"vanish", "fan_of_knives", "cleave"
+	]
+	if skill.id in self_skills:
+		skill_vfx.trigger(skill.id, global_position)
+	else:
+		skill_vfx.trigger(skill.id, target_pos)
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -1363,3 +1458,125 @@ func _get_main_game() -> Node:
 			return node
 		node = node.get_parent()
 	return null
+
+
+# =========================================================================
+# Enemy ability effects on the player
+# =========================================================================
+
+@rpc("authority", "call_local", "reliable")
+func apply_speed_modifier(speed_mult: float, duration: float) -> void:
+	_speed_mod = speed_mult
+	# Determine debuff name/color from the multiplier
+	var debuff_id := "slow"
+	var debuff_name := "Slowed"
+	var debuff_color := Color(0.3, 0.6, 1.0)  # Blue = frost
+	if speed_mult <= 0.45:
+		debuff_id = "web"
+		debuff_name = "Webbed"
+		debuff_color = Color(0.6, 0.7, 0.5)  # Green-gray = web
+	_add_debuff(debuff_id, debuff_name, duration, debuff_color)
+
+
+@rpc("authority", "call_local", "reliable")
+func apply_knockback_force(direction: Vector3, force: float) -> void:
+	_knockback_vel = direction * force
+
+
+func _add_debuff(id: String, debuff_name: String, duration: float, color: Color) -> void:
+	# Replace existing debuff with same id (refresh duration)
+	for d in active_debuffs:
+		if d["id"] == id:
+			d["remaining"] = duration
+			d["duration"] = duration
+			return
+	active_debuffs.append({
+		"id": id,
+		"name": debuff_name,
+		"remaining": duration,
+		"duration": duration,
+		"color": color,
+	})
+
+
+func _tick_debuffs(delta: float) -> void:
+	var i := active_debuffs.size() - 1
+	while i >= 0:
+		active_debuffs[i]["remaining"] -= delta
+		if active_debuffs[i]["remaining"] <= 0.0:
+			var id: String = active_debuffs[i]["id"]
+			active_debuffs.remove_at(i)
+			# Reset effects when debuff expires
+			if id == "slow" or id == "web":
+				# Only reset if no other slow is still active
+				var still_slowed := false
+				for d in active_debuffs:
+					if d["id"] == "slow" or d["id"] == "web":
+						still_slowed = true
+						break
+				if not still_slowed:
+					_speed_mod = 1.0
+		i -= 1
+
+
+# =========================================================================
+# Player buff system (from active skills)
+# =========================================================================
+
+## active_buffs uses same format as active_debuffs for HUD display
+## {id, name, remaining, duration, color}
+var active_buffs: Array[Dictionary] = []
+
+
+func add_buff(id: String, buff_name: String, duration: float, color: Color) -> void:
+	for b in active_buffs:
+		if b["id"] == id:
+			b["remaining"] = duration
+			b["duration"] = duration
+			return
+	active_buffs.append({
+		"id": id,
+		"name": buff_name,
+		"remaining": duration,
+		"duration": duration,
+		"color": color,
+	})
+
+
+func _tick_buffs(delta: float) -> void:
+	var i := active_buffs.size() - 1
+	while i >= 0:
+		active_buffs[i]["remaining"] -= delta
+		if active_buffs[i]["remaining"] <= 0.0:
+			var id: String = active_buffs[i]["id"]
+			active_buffs.remove_at(i)
+			_on_buff_expired(id)
+		i -= 1
+
+
+func _on_buff_expired(id: String) -> void:
+	match id:
+		"shield_wall":
+			_buff_invulnerable = false
+		"war_cry":
+			_buff_damage_mult = maxf(_buff_damage_mult - 0.3, 0.0)
+		"berserker_rage":
+			_buff_damage_mult = maxf(_buff_damage_mult - 0.5, 0.0)
+		"ice_barrier":
+			_buff_absorb = 0.0
+		"mana_shield":
+			_buff_mana_shield = false
+		"vanish":
+			_buff_invisible = false
+			_set_visibility.rpc(true)
+		"poison_blade":
+			pass  # Handled per-attack
+		"death_mark":
+			pass  # Handled on target
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_visibility(visible_flag: bool) -> void:
+	if model:
+		for child in model.find_children("*", "MeshInstance3D", true, false):
+			child.visible = visible_flag

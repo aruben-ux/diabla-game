@@ -262,20 +262,21 @@ func _spawn_dungeon_props(room_list: Array) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = generator.dungeon_seed + 77713
 	var ts: float = generator.TILE_SIZE
+	var prop_id := 0  # Deterministic counter for unique names (needed for RPCs)
 
 	# Place room props (skip first room = spawn and last room = stairs down)
 	for i in range(1, room_list.size() - 1):
 		var room: Rect2i = room_list[i]
-		_place_room_props(room, rng, ts)
+		prop_id = _place_room_props(room, rng, ts, prop_id)
 
 	# Scatter some props in corridors
 	_place_corridor_props(rng, ts)
 
 
-func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float) -> void:
+func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float, prop_id: int) -> int:
 	# Skip tiny rooms
 	if room.size.x < 4 or room.size.y < 4:
-		return
+		return prop_id
 
 	var min_x := room.position.x + 1
 	var max_x := room.position.x + room.size.x - 2
@@ -292,9 +293,11 @@ func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float) -> v
 			var scale_f := rng.randf_range(0.7, 1.2)
 			var drops := rng.randf() < 0.3
 			var gold := rng.randi_range(5, 15) * current_floor if drops else 0
+			prop_id += 1
 			var pot := DungeonProps.build_breakable_pot(
 				Vector3(cx, 0, cz) + offset, current_floor, drops, gold, scale_f
 			)
+			pot.name = "Pot_%d" % prop_id
 			_props_container.add_child(pot)
 
 	# Barrel group (30%)
@@ -305,9 +308,10 @@ func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float) -> v
 		for j in range(barrel_count):
 			var offset := Vector3(rng.randf_range(-0.7, 0.7), 0, rng.randf_range(-0.7, 0.7))
 			var intact := rng.randf() > 0.3
-			_props_container.add_child(
-				DungeonProps.build_barrel(Vector3(bx, 0, bz) + offset, rng, intact)
-			)
+			prop_id += 1
+			var barrel_name := "Barrel_%d" % prop_id if intact else ""
+			var barrel := DungeonProps.build_barrel(Vector3(bx, 0, bz) + offset, rng, intact, barrel_name, current_floor)
+			_props_container.add_child(barrel)
 
 	# Brazier (15%, larger rooms only)
 	if rng.randf() < 0.15 and room.size.x >= 6 and room.size.y >= 6:
@@ -362,6 +366,8 @@ func _place_room_props(room: Rect2i, rng: RandomNumberGenerator, ts: float) -> v
 		var hcx := float(rng.randi_range(min_x, max_x)) * ts
 		var hcz := float(rng.randi_range(min_y, max_y)) * ts
 		_props_container.add_child(DungeonProps.build_hanging_chains(Vector3(hcx, 0, hcz), rng))
+
+	return prop_id
 
 
 func _place_corridor_props(rng: RandomNumberGenerator, ts: float) -> void:
