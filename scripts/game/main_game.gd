@@ -460,6 +460,9 @@ func _teleport_player_local(peer_id: int, dest: Vector3) -> void:
 	player_node.global_position = dest
 	player_node.move_target = dest
 	player_node.is_moving = false
+	# Sync remote interpolation target so the client doesn't lerp back to old pos
+	if "_remote_pos" in player_node:
+		player_node._remote_pos = dest
 	# Reset all movement-blocking states on every teleport
 	if player_node.has_method("reset_movement_locks"):
 		player_node.reset_movement_locks()
@@ -483,6 +486,7 @@ func _unfreeze_camera() -> void:
 	var camera := $IsometricCamera
 	if camera:
 		camera._frozen = false
+		camera.snap_to_target()
 
 
 func _fade_out() -> void:
