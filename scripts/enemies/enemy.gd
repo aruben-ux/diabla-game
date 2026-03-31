@@ -23,6 +23,22 @@ static var _monster_data_loaded := false
 
 enum EnemyType { GRUNT, MAGE, BRUTE, SKELETON, SPIDER, GHOST, ARCHER, SHAMAN, GOLEM, SCARAB, WRAITH, NECROMANCER, DEMON, BOSS_GOLEM, BOSS_DEMON, BOSS_DRAGON }
 
+# Ranged enemy types that fire projectiles instead of melee attacks
+const RANGED_TYPES: Array[EnemyType] = [
+	EnemyType.MAGE, EnemyType.ARCHER, EnemyType.SHAMAN,
+	EnemyType.NECROMANCER, EnemyType.GHOST,
+]
+
+# Projectile colors per enemy type
+const PROJECTILE_COLORS: Dictionary = {
+	EnemyType.MAGE: Color(0.3, 0.4, 1.0),       # Blue arcane bolt
+	EnemyType.ARCHER: Color(0.7, 0.5, 0.2),      # Brown arrow
+	EnemyType.SHAMAN: Color(0.2, 0.9, 0.3),      # Green spirit bolt
+	EnemyType.NECROMANCER: Color(0.6, 0.1, 0.7),  # Purple death bolt
+	EnemyType.GHOST: Color(0.5, 0.8, 1.0),        # Pale ghost bolt
+}
+static var _projectile_counter: int = 0
+
 @onready var model = $Model
 @onready var hitbox: Area3D = $Hitbox
 
@@ -565,12 +581,43 @@ func _deal_damage_to_target() -> void:
 		model.play_attack_anim()
 	_sync_attack_anim.rpc()
 
-	if target.has_method("receive_damage"):
-		# Use RPC so damage applies on all peers (including the client who owns the player)
-		target.receive_damage.rpc(attack_damage)
-		# Impact burst at target
-		if model.has_method("spawn_impact_burst"):
-			model.spawn_impact_burst(target.global_position + Vector3(0, 1.0, 0), Color.RED)
+	if not is_instance_valid(target):
+		return
+
+	if _is_ranged():
+		# Fire a projectile — it must fly and hit the player to deal damage
+		_fire_projectile()
+	else:
+		# Melee: instant damage
+		if target.has_method("receive_damage"):
+			target.receive_damage.rpc(attack_damage)
+			if model.has_method("spawn_impact_burst"):
+				model.spawn_impact_burst(target.global_position + Vector3(0, 1.0, 0), Color.RED)
+
+
+func _is_ranged() -> bool:
+	return enemy_type in RANGED_TYPES
+
+
+func _fire_projectile() -> void:
+	_projectile_counter += 1
+	var proj_name := "EProj_%d" % _projectile_counter
+	var target_pos := target.global_position
+	var color: Color = PROJECTILE_COLORS.get(enemy_type, Color(0.8, 0.3, 0.1))
+	var speed := 10.0
+	if enemy_type == EnemyType.ARCHER:
+		speed = 14.0  # Arrows fly faster
+	_sync_fire_projectile.rpc(proj_name, global_position, target_pos, attack_damage, speed, color)
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_fire_projectile(proj_name: String, from_pos: Vector3, target_pos: Vector3, damage: float, speed: float, color: Color) -> void:
+	var proj_script := preload("res://scripts/enemies/enemy_projectile.gd")
+	var proj := Area3D.new()
+	proj.name = proj_name
+	proj.set_script(proj_script)
+	proj.setup(from_pos, target_pos, damage, speed, color)
+	get_parent().add_child(proj)
 
 
 func _find_nearest_player() -> Node3D:
