@@ -1319,8 +1319,7 @@ func _spawn_slash_arc() -> void:
 	add_child(arc)
 
 	var tw := create_tween()
-	tw.tween_property(arc, "scale", Vector3(1.2, 1.0, 1.2), 0.1).from(Vector3(0.3, 1.0, 0.3)).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(arc, "rotation:y", -0.4, 0.1).from(0.4)
+	tw.tween_property(arc, "scale", Vector3(1.2, 1.0, 1.2), 0.12).from(Vector3(0.3, 1.0, 0.3)).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.18)
 	tw.tween_callback(arc.queue_free)
 
