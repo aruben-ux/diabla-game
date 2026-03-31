@@ -33,7 +33,7 @@ var _games: Array = []
 var _selected_game_index: int = -1
 var _connect_retries := 0
 var _connect_info: Dictionary = {}
-const MAX_CONNECT_RETRIES := 20
+const MAX_CONNECT_RETRIES := 40
 const CONNECT_RETRY_DELAY := 1.5
 
 const CLASS_NAMES := ["Warrior", "Mage", "Rogue"]
