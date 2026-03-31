@@ -32,11 +32,12 @@ async def spawn_game_server(
 
     log_path = f"/opt/diabla/logs/game_{game_id}.log"
     os.makedirs("/opt/diabla/logs", exist_ok=True)
+    # Truncate old log and cap output to prevent filling disk
     log_file = open(log_path, "w")
 
     process = await asyncio.create_subprocess_exec(
         *cmd,
-        stdout=log_file,
+        stdout=asyncio.subprocess.DEVNULL,
         stderr=log_file,
     )
     print(f"[Spawner] Game server started: game_id={game_id} port={port} pid={process.pid}")
