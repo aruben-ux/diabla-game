@@ -24,7 +24,7 @@ async def _reap_stale_games():
             async with async_session() as db:
                 result = await db.execute(
                     select(GameSession).where(
-                        GameSession.status.in_(["waiting", "in_progress"])
+                        GameSession.status.in_(["waiting", "ready", "in_progress"])
                     )
                 )
                 closed = 0
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
         # Close any stale games from previous runs (processes no longer alive)
         async with async_session() as db:
             result = await db.execute(
-                select(GameSession).where(GameSession.status.in_(["waiting", "in_progress"]))
+                select(GameSession).where(GameSession.status.in_(["waiting", "ready", "in_progress"]))
             )
             stale = 0
             for game in result.scalars():
