@@ -531,8 +531,8 @@ func _create_dungeon_environment() -> Environment:
 	e.background_mode = Environment.BG_COLOR
 	e.background_color = Color(0.03, 0.03, 0.05)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.25, 0.2, 0.16)
-	e.ambient_light_energy = 1.2
+	e.ambient_light_color = Color(0.35, 0.3, 0.25)
+	e.ambient_light_energy = 1.6
 	return e
 
 
