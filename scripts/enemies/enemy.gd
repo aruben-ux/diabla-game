@@ -42,6 +42,21 @@ var _remote_pos := Vector3.ZERO
 var _remote_rot_y := 0.0
 var _remote_initialized := false
 
+# Idle wander state (server-side)
+var _home_pos := Vector3.ZERO       # Spawn position — wander anchor
+var _wander_target := Vector3.ZERO   # Current wander destination
+var _wander_timer := 0.0            # Countdown until next wander
+var _is_wandering := false           # Currently walking to a wander point
+const WANDER_RADIUS := 4.0           # Max distance from home to wander
+const WANDER_SPEED_MULT := 0.35      # Walk slower when wandering
+const WANDER_PAUSE_MIN := 2.0        # Min seconds between wanders
+const WANDER_PAUSE_MAX := 7.0        # Max seconds between wanders
+
+# Idle look-around (server-side, synced via broadcast)
+var _look_timer := 0.0
+const LOOK_INTERVAL_MIN := 3.0
+const LOOK_INTERVAL_MAX := 8.0
+
 
 func _ready() -> void:
 	_load_monster_data()
@@ -51,6 +66,12 @@ func _ready() -> void:
 	dissolve_shader = load("res://assets/shaders/dissolve.gdshader")
 	_build_model()
 	_apply_floor_scaling()
+	# Desync idle animations so enemies don't breathe/sway in unison
+	if model:
+		model._anim_time = randf() * 10.0
+	# Initialize wander timers with random offset
+	_wander_timer = randf_range(1.0, WANDER_PAUSE_MAX)
+	_look_timer = randf_range(1.0, LOOK_INTERVAL_MAX)
 
 
 func _physics_process(delta: float) -> void:
@@ -80,16 +101,65 @@ func _physics_process(delta: float) -> void:
 			model.rotation.y = lerp_angle(model.rotation.y, _remote_rot_y, 15.0 * delta)
 
 
-func _state_idle(_delta: float) -> void:
-	velocity.x = 0.0
-	velocity.z = 0.0
-	if model.has_method("set_walking"):
-		model.set_walking(false)
-
-	# Look for nearest player in aggro range
+func _state_idle(delta: float) -> void:
+	# Look for nearest player in aggro range (always top priority)
 	target = _find_nearest_player()
 	if target:
+		_is_wandering = false
 		state = State.CHASE
+		return
+
+	# Record home position on first idle frame
+	if _home_pos == Vector3.ZERO:
+		_home_pos = global_position
+
+	# Idle wandering
+	if _is_wandering:
+		# Walking toward wander target
+		var to_wander := _wander_target - global_position
+		to_wander.y = 0.0
+		var dist := to_wander.length()
+		if dist < 0.5:
+			# Arrived
+			_is_wandering = false
+			_wander_timer = randf_range(WANDER_PAUSE_MIN, WANDER_PAUSE_MAX)
+			velocity.x = 0.0
+			velocity.z = 0.0
+			if model.has_method("set_walking"):
+				model.set_walking(false)
+		else:
+			var dir := to_wander.normalized()
+			var wander_speed := move_speed * WANDER_SPEED_MULT
+			velocity.x = dir.x * wander_speed
+			velocity.z = dir.z * wander_speed
+			model.rotation.y = lerp_angle(model.rotation.y, atan2(dir.x, dir.z), 6.0 * delta)
+			if model.has_method("set_walking"):
+				model.set_walking(true)
+	else:
+		# Standing still — count down to next wander
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if model.has_method("set_walking"):
+			model.set_walking(false)
+
+		# Occasional head/body turn to look around
+		_look_timer -= delta
+		if _look_timer <= 0.0:
+			_look_timer = randf_range(LOOK_INTERVAL_MIN, LOOK_INTERVAL_MAX)
+			model.rotation.y = randf_range(-PI, PI)
+
+		_wander_timer -= delta
+		if _wander_timer <= 0.0:
+			_pick_wander_target()
+
+
+func _pick_wander_target() -> void:
+	## Choose a random point near _home_pos to wander to.
+	var angle := randf() * TAU
+	var dist := randf_range(1.5, WANDER_RADIUS)
+	_wander_target = _home_pos + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+	_wander_target.y = global_position.y
+	_is_wandering = true
 
 
 func _state_chase(delta: float) -> void:
@@ -366,13 +436,13 @@ func _sync_die() -> void:
 	tween.tween_callback(queue_free)
 
 
-func apply_remote_state(pos: Vector3, rot_y: float, st: int) -> void:
+func apply_remote_state(pos: Vector3, rot_y: float, st: int, wandering: bool = false) -> void:
 	## Called by the spawner's batch broadcast, not an RPC.
 	_remote_pos = pos
 	_remote_rot_y = rot_y
 	state = st as State
 	if model.has_method("set_walking"):
-		model.set_walking(state == State.CHASE)
+		model.set_walking(state == State.CHASE or wandering)
 	if not _remote_initialized:
 		_remote_initialized = true
 		position = pos

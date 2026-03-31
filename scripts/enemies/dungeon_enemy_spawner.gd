@@ -380,7 +380,7 @@ func _broadcast_all_enemies() -> void:
 	var data: Array = []
 	for child in get_children():
 		if child is Enemy and child.state != Enemy.State.DEAD:
-			data.append([child.name, child.position, child.model.rotation.y, child.state])
+			data.append([child.name, child.position, child.model.rotation.y, child.state, child._is_wandering])
 	if data.size() > 0:
 		_sync_enemy_states.rpc(data)
 
@@ -390,4 +390,4 @@ func _sync_enemy_states(data: Array) -> void:
 	for entry in data:
 		var enemy = get_node_or_null(NodePath(entry[0]))
 		if enemy and enemy.has_method("apply_remote_state"):
-			enemy.apply_remote_state(entry[1], entry[2], entry[3])
+			enemy.apply_remote_state(entry[1], entry[2], entry[3], entry[4])
