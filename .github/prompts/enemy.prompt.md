@@ -10,10 +10,10 @@ Design a new enemy for the Diabla ARPG. Follow these steps precisely:
 ## 1. Gather Context
 
 Read these files first:
-- [docs/enemies.md](docs/enemies.md) — existing enemy stats and abilities
-- [data/game_data.json](data/game_data.json) — the `monsters` section for stat ranges
-- [scripts/enemies/enemy_abilities.gd](scripts/enemies/enemy_abilities.gd) — how abilities are implemented
-- [scripts/enemies/enemy.gd](scripts/enemies/enemy.gd) — VFX RPCs and ability hooks
+- `docs/enemies.md` — existing enemy stats and abilities
+- `data/game_data.json` — the `monsters` section for stat ranges
+- `scripts/enemies/enemy_abilities.gd` — how abilities are implemented
+- `scripts/enemies/enemy.gd` — VFX RPCs and ability hooks
 
 ## 2. Design Stats
 
@@ -37,7 +37,7 @@ Every enemy needs exactly one unique ability (bosses get 2-3). Pattern after exi
 1. Add the enemy entry to `data/game_data.json` in the `monsters` object
 2. Add the ability logic to `scripts/enemies/enemy_abilities.gd`
 3. Add any needed VFX RPCs to `scripts/enemies/enemy.gd`
-4. Update [docs/enemies.md](docs/enemies.md) with the new stat row and ability description
+4. Update `docs/enemies.md` with the new stat row and ability description
 5. Add to the dungeon spawner floor table if applicable
 
 ## 5. Output

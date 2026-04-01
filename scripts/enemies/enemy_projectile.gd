@@ -134,7 +134,8 @@ func _on_body_entered(body: Node3D) -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_hit() -> void:
 	_alive = false
-	_spawn_impact()
+	var pos := global_position if is_inside_tree() else Vector3.ZERO
+	_spawn_impact(pos)
 	queue_free()
 
 
@@ -143,7 +144,9 @@ func _despawn() -> void:
 	queue_free()
 
 
-func _spawn_impact() -> void:
+func _spawn_impact(pos: Vector3) -> void:
+	if pos == Vector3.ZERO:
+		return
 	# Brief flash at impact point
 	var burst := GPUParticles3D.new()
 	burst.emitting = true
@@ -178,6 +181,6 @@ func _spawn_impact() -> void:
 	# Parent to level root so it doesn't die with projectile
 	var level_root := get_tree().current_scene
 	if level_root:
-		burst.global_position = global_position
+		burst.global_position = pos
 		level_root.add_child(burst)
 		get_tree().create_timer(0.5).timeout.connect(burst.queue_free)

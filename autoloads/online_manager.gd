@@ -83,7 +83,7 @@ func _process(_delta: float) -> void:
 func login(user: String, password: String) -> void:
 	var body := JSON.stringify({"username": user, "password": password})
 	_make_request(lobby_url + "/auth/login", _json_headers(), HTTPClient.METHOD_POST, body,
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -101,7 +101,7 @@ func login(user: String, password: String) -> void:
 func register(user: String, password: String, email: String) -> void:
 	var body := JSON.stringify({"username": user, "password": password, "email": email})
 	_make_request(lobby_url + "/auth/register", _json_headers(), HTTPClient.METHOD_POST, body,
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -130,7 +130,7 @@ func logout() -> void:
 
 func fetch_characters() -> void:
 	_make_request(lobby_url + "/characters/", _auth_headers(), HTTPClient.METHOD_GET, "",
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -142,7 +142,7 @@ func fetch_characters() -> void:
 func create_character(char_name: String, char_class: int, appearance: Dictionary = {}) -> void:
 	var body := JSON.stringify({"character_name": char_name, "character_class": char_class, "appearance": appearance})
 	_make_request(lobby_url + "/characters/", _auth_json_headers(), HTTPClient.METHOD_POST, body,
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -166,7 +166,7 @@ func select_character(char_data: Dictionary) -> void:
 
 func fetch_games() -> void:
 	_make_request(lobby_url + "/games/", [], HTTPClient.METHOD_GET, "",
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -179,7 +179,7 @@ func create_game(game_name: String, max_players: int = 8, difficulty: String = "
 	var body := JSON.stringify({"name": game_name, "max_players": max_players, "difficulty": difficulty})
 	var url := lobby_url + "/games/?character_id=%d" % selected_character_id
 	_make_request(url, _auth_json_headers(), HTTPClient.METHOD_POST, body,
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 201:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())
@@ -192,7 +192,7 @@ func create_game(game_name: String, max_players: int = 8, difficulty: String = "
 func join_game(game_id: int) -> void:
 	var url := lobby_url + "/games/%d/join?character_id=%d" % [game_id, selected_character_id]
 	_make_request(url, _auth_json_headers(), HTTPClient.METHOD_POST, "",
-		func(result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		func(_result: int, code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 			if code == 200:
 				var json := JSON.new()
 				json.parse(body_bytes.get_string_from_utf8())

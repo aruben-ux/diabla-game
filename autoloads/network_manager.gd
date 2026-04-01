@@ -9,7 +9,7 @@ signal connection_failed
 signal server_disconnected
 signal player_connected(peer_id: int)
 signal player_disconnected(peer_id: int)
-signal player_authenticated(peer_id: int, character_data: Dictionary)
+#signal player_authenticated(peer_id: int, character_data: Dictionary)
 
 const DEFAULT_PORT := 9999
 const MAX_CLIENTS := 8
@@ -143,4 +143,4 @@ func _confirm_player_authenticated(peer_id: int, char_data: Dictionary) -> void:
 	GameManager.register_player(peer_id, {"name": char_name})
 	GameManager.online_players[peer_id] = char_data
 	player_connected.emit(peer_id)
-	player_authenticated.emit(peer_id, char_data)
+	#player_authenticated.emit(peer_id, char_data)

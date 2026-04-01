@@ -255,7 +255,7 @@ func _show_dialog_line() -> void:
 
 func _on_dialog_continue() -> void:
 	_dialog_index += 1
-	EventBus.npc_dialog_advance.emit()
+	#EventBus.npc_dialog_advance.emit()
 	_show_dialog_line()
 
 
@@ -823,7 +823,7 @@ func _on_respawn_pressed() -> void:
 		tracked_player.request_respawn()
 
 
-func _on_cooldown_updated(slot: int, remaining: float, total: float) -> void:
+func _on_cooldown_updated(slot: int, remaining: float, _total: float) -> void:
 	if slot < 0 or slot >= skill_slots.size():
 		return
 	var panel: Panel = skill_slots[slot]

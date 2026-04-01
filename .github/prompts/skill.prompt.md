@@ -10,11 +10,11 @@ Design a new skill for the Diabla ARPG. Follow these steps:
 ## 1. Gather Context
 
 Read these files first:
-- [scripts/player/skill_tree_data.gd](scripts/player/skill_tree_data.gd) — all tree definitions and skill defs
-- [scripts/player/skill_manager.gd](scripts/player/skill_manager.gd) — `_execute_skill()` implementation
-- [scripts/visuals/skill_vfx.gd](scripts/visuals/skill_vfx.gd) — VFX system
-- [scripts/player/player.gd](scripts/player/player.gd) — buff system, `_on_skill_used()`
-- [resources/skill_data.gd](resources/skill_data.gd) — SkillData resource fields
+- `scripts/player/skill_tree_data.gd` — all tree definitions and skill defs
+- `scripts/player/skill_manager.gd` — `_execute_skill()` implementation
+- `scripts/visuals/skill_vfx.gd` — VFX system
+- `scripts/player/player.gd` — buff system, `_on_skill_used()`
+- `resources/skill_data.gd` — SkillData resource fields
 
 ## 2. Determine Placement
 

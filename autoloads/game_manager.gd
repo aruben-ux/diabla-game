@@ -3,9 +3,9 @@ extends Node
 ## Central game state manager.
 ## Handles game-wide state, player registry, and game flow.
 
-signal player_registered(peer_id: int, player_data: Dictionary)
-signal player_unregistered(peer_id: int)
-signal game_state_changed(new_state: GameState)
+#signal player_registered(peer_id: int, player_data: Dictionary)
+#signal player_unregistered(peer_id: int)
+#signal game_state_changed(new_state: GameState)
 
 enum GameState { MENU, LOBBY, LOADING, PLAYING, PAUSED }
 
@@ -45,17 +45,17 @@ func _start_dedicated_server() -> void:
 
 func register_player(peer_id: int, player_data: Dictionary) -> void:
 	players[peer_id] = player_data
-	player_registered.emit(peer_id, player_data)
+	#player_registered.emit(peer_id, player_data)
 
 
 func unregister_player(peer_id: int) -> void:
 	players.erase(peer_id)
-	player_unregistered.emit(peer_id)
+	#player_unregistered.emit(peer_id)
 
 
 func change_state(new_state: GameState) -> void:
 	current_state = new_state
-	game_state_changed.emit(new_state)
+	#game_state_changed.emit(new_state)
 
 
 func get_player_data(peer_id: int) -> Dictionary:

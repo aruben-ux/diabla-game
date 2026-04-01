@@ -31,4 +31,4 @@
 - Upload: `scp F:\Godot\diabla\diabla.pck root@5.78.206.166:/opt/diabla/diabla.pck`
 - Server: Hetzner VPS `5.78.206.166`, lobby service: `diabla-lobby` (systemd)
 - Game instances spawned by lobby on ports 9000-9099 (auto-killed when idle)
-- See [docs/enemies.md](docs/enemies.md) for enemy reference
+- See `docs/enemies.md` for enemy reference

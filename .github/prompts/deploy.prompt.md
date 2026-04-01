@@ -1,7 +1,7 @@
 ---
 description: "Export the Godot .pck, upload to server, and restart. Use when the user says deploy, ship, push to server, or upload."
 agent: "agent"
-tools: ["run_in_terminal"]
+tools: ["execute"]
 ---
 
 Run all three steps in sequence. Stop and report if any step fails.

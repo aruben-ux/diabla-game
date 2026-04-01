@@ -1274,7 +1274,7 @@ static func _default_appearance_for_class(cls_id: int) -> Dictionary:
 		}
 
 
-func _on_skill_used(slot: int, skill: SkillData) -> void:
+func _on_skill_used(_slot: int, skill: SkillData) -> void:
 	if not skill_vfx:
 		return
 	var target_pos := _raycast_ground()

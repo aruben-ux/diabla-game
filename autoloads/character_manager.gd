@@ -2,14 +2,12 @@ extends Node
 
 ## Manages saving and loading character data to user://characters/.
 
-signal character_saved(slot: int)
-signal character_loaded(data: CharacterData)
+#signal character_saved(slot: int)
+#signal character_loaded(data: CharacterData)
 
 const SAVE_DIR := "user://characters/"
-const AUTO_SAVE_INTERVAL := 60.0  # Seconds between auto-saves
 
 var active_character: CharacterData = null
-var _auto_save_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -61,7 +59,7 @@ func save_character(data: CharacterData = active_character) -> bool:
 	var json_string := JSON.stringify(data.to_dict(), "\t")
 	file.store_string(json_string)
 	file.close()
-	character_saved.emit(data.save_slot)
+	#character_saved.emit(data.save_slot)
 	#print("Character saved: %s (slot %d)" % [data.character_name, data.save_slot])
 	return true
 
@@ -76,8 +74,6 @@ func delete_character(slot: int) -> bool:
 
 func select_character(data: CharacterData) -> void:
 	active_character = data
-	_auto_save_timer = 0.0
-	character_loaded.emit(data)
 
 
 func get_next_free_slot() -> int:
@@ -98,8 +94,8 @@ func capture_player_state(player: Node) -> void:
 
 	# Compute effective stat deltas from tree bonuses to save BASE values
 	var tree_bonuses: Dictionary = player.get_meta("_tree_bonuses", {})
-	var hp_bonus := tree_bonuses.get("max_health", 0.0) + tree_bonuses.get("vitality", 0.0) * 5.0
-	var mp_bonus := tree_bonuses.get("max_mana", 0.0)
+	var hp_bonus: float = tree_bonuses.get("max_health", 0.0) + tree_bonuses.get("vitality", 0.0) * 5.0
+	var mp_bonus: float = tree_bonuses.get("max_mana", 0.0)
 
 	active_character.level = stats.level
 	active_character.experience = stats.experience

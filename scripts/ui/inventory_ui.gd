@@ -287,8 +287,8 @@ func _setup_paperdoll_viewport(w: int, h: int) -> void:
 	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 	cam.fov = 28.0
 	cam.position = Vector3(0, 0.8, 2.8)
-	cam.look_at(Vector3(0, 0.6, 0))
 	_paperdoll_viewport.add_child(cam)
+	cam.look_at(Vector3(0, 0.6, 0))
 
 	# Build the character model from player's appearance
 	var model_script := preload("res://scripts/visuals/model_builder.gd")
@@ -397,7 +397,7 @@ func close_shop() -> void:
 	_shop_placed = []
 	if _shop_panel:
 		_shop_panel.visible = false
-	EventBus.shop_closed.emit()
+	#EventBus.shop_closed.emit()
 
 
 func _on_event_shop_opened(vendor_name: String, stock: Array, _vendor_type: String) -> void:
@@ -869,9 +869,9 @@ func _finish_drag() -> void:
 	# --- Shop buy: dragging from shop grid to player inventory ---
 	if _drag_from_shop:
 		# Can only drop on player grid or equip slot
-		var target_equip := _get_equip_slot_under_mouse()
-		if not target_equip.is_empty():
-			placed = _try_buy_to_equip(target_equip)
+		var shop_target_equip := _get_equip_slot_under_mouse()
+		if not shop_target_equip.is_empty():
+			placed = _try_buy_to_equip(shop_target_equip)
 		if not placed:
 			var grid_cell := _get_grid_cell_under_mouse()
 			if grid_cell.x >= 0:
@@ -1205,7 +1205,7 @@ func _refresh_equipment_display() -> void:
 			slot_label.visible = true
 
 
-func _show_item_tooltip(item: ItemData, stack: int = 1) -> void:
+func _show_item_tooltip(item: ItemData, _stack: int = 1) -> void:
 	if not _tooltip:
 		return
 	_tooltip.visible = true

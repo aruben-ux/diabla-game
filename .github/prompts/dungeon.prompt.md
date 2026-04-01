@@ -9,11 +9,11 @@ Modify the Diabla dungeon generation system. Read the relevant files first befor
 
 ## Key Files
 
-- [scripts/levels/dungeon_generator.gd](scripts/levels/dungeon_generator.gd) — BSP generation, grid encoding, mesh building
-- [scripts/levels/dungeon_level.gd](scripts/levels/dungeon_level.gd) — floor setup, props, lighting, stairs, enemy spawning
-- [scripts/levels/dungeon_props.gd](scripts/levels/dungeon_props.gd) — static prop builder functions
-- [scripts/enemies/dungeon_enemy_spawner.gd](scripts/enemies/dungeon_enemy_spawner.gd) — per-room enemy spawning
-- [data/game_data.json](data/game_data.json) — `world` section for generation params
+- `scripts/levels/dungeon_generator.gd` — BSP generation, grid encoding, mesh building
+- `scripts/levels/dungeon_level.gd` — floor setup, props, lighting, stairs, enemy spawning
+- `scripts/levels/dungeon_props.gd` — static prop builder functions
+- `scripts/enemies/dungeon_enemy_spawner.gd` — per-room enemy spawning
+- `data/game_data.json` — `world` section for generation params
 
 ## Architecture
 

@@ -113,7 +113,7 @@ func interact(player: Node) -> void:
 
 	if multiplayer.is_server():
 		# Server checks inventory space before broadcasting pickup
-		var peer_id := player.get_multiplayer_authority()
+		var _peer_id := player.get_multiplayer_authority()
 		var pickup_item := ItemData.from_dict(item.to_dict())
 		if not player.pick_up_item(pickup_item):
 			return  # Inventory full — keep the drop

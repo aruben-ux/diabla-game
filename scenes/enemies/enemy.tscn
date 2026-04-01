@@ -32,5 +32,3 @@ shape = SubResource("SphereShape3D_hitbox")
 
 [node name="HealthBar3D" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0)
-
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]

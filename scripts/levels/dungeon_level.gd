@@ -534,7 +534,6 @@ func _place_room_lights(room_list: Array) -> void:
 
 		# Central room light — warm, shadows only on large rooms
 		var light := OmniLight3D.new()
-		light.global_position = Vector3(cx, 3.5, cz)
 		light.omni_range = maxf(r.size.x, r.size.y) * generator.TILE_SIZE * 0.75
 		light.light_energy = 3.0
 		light.light_color = Color(1.0, 0.85, 0.6)
@@ -543,6 +542,7 @@ func _place_room_lights(room_list: Array) -> void:
 		if is_large:
 			light.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
 		light_container.add_child(light)
+		light.global_position = Vector3(cx, 3.5, cz)
 
 		# Place wall torches around room perimeter
 		_place_torches_in_room(r)

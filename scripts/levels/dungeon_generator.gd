@@ -725,7 +725,7 @@ func _build_navigation() -> void:
 
 	var nav_mesh := NavigationMesh.new()
 	nav_mesh.cell_size = 0.5
-	nav_mesh.cell_height = 0.2
+	nav_mesh.cell_height = 0.25
 	nav_mesh.agent_radius = 0.5
 	nav_mesh.agent_height = 1.8
 

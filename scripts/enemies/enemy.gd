@@ -27,7 +27,6 @@ enum EnemyType { GRUNT, MAGE, BRUTE, SKELETON, SPIDER, GHOST, ARCHER, SHAMAN, GO
 static var _projectile_counter: int = 0
 
 @onready var model = $Model
-@onready var hitbox: Area3D = $Hitbox
 
 @export var enemy_type: EnemyType = EnemyType.GRUNT
 
@@ -226,7 +225,7 @@ func _state_chase(delta: float) -> void:
 const AVOIDANCE_RADIUS := 2.0  # How close before steering kicks in
 const AVOIDANCE_STRENGTH := 1.5  # How strongly to steer away
 
-func _compute_avoidance_steering(desired_dir: Vector3) -> Vector3:
+func _compute_avoidance_steering(_desired_dir: Vector3) -> Vector3:
 	## Compute a steering vector to avoid nearby enemies.
 	var steer := Vector3.ZERO
 	for other: Node3D in get_tree().get_nodes_in_group("enemies"):
@@ -318,7 +317,7 @@ func take_damage(amount: float, attacker: Node3D = null) -> void:
 		target = attacker
 
 	# Broadcast damage event
-	EventBus.damage_dealt.emit(-1, get_instance_id(), amount)
+	#EventBus.damage_dealt.emit(-1, get_instance_id(), amount)
 	_sync_floating_text.rpc(
 		global_position + Vector3(0, 2, 0),
 		str(int(amount)),
@@ -454,7 +453,8 @@ func _die() -> void:
 
 	state = State.DEAD
 	velocity = Vector3.ZERO
-	EventBus.entity_died.emit(get_instance_id())
+	EventBus.enemy_killed.emit(enemy_type)
+	#EventBus.entity_died.emit(get_instance_id())
 	died.emit(self)
 
 	# Give XP to nearby players (server only)
