@@ -73,7 +73,7 @@ func _process(delta: float) -> void:
 	for other in get_tree().get_nodes_in_group("loot_drops"):
 		if other == self or not is_instance_valid(other):
 			continue
-		var diff := global_position - other.global_position
+		var diff: Vector3 = global_position - other.global_position
 		diff.y = 0.0
 		var dist := diff.length()
 		if dist < 1.2 and dist > 0.001:
