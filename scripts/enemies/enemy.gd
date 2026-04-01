@@ -822,11 +822,11 @@ func _drop_loot() -> void:
 		if p.get("stats") and p.global_position.distance_to(global_position) < 20.0:
 			best_rarity_bonus = maxf(best_rarity_bonus, p.stats.rarity_find_pct)
 	var loot_mult := GameManager.debug_loot_multiplier
-	var drop_chance := 0.25 * (1.0 + best_rarity_bonus) * loot_mult
+	var base_drop := 0.25 * (1.0 + best_rarity_bonus)
 	# At high debug multipliers, roll multiple rounds of drops
 	var rounds := maxi(1, int(loot_mult))
 	for _r in range(rounds):
-		var drops := ItemDatabase.generate_enemy_drops(1, drop_chance / float(rounds))
+		var drops := ItemDatabase.generate_enemy_drops(1, base_drop)
 		for i in drops.size():
 			var offset := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
 			var drop_pos := global_position + offset
