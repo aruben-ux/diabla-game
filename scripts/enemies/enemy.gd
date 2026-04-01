@@ -358,6 +358,34 @@ func _sync_knockback(dir: Vector3, force: float) -> void:
 	_knockback_vel = dir * force
 
 
+func apply_burn(damage_per_sec: float, duration: float) -> void:
+	## Apply a burn DOT to this enemy (from player affixes).
+	if state == State.DEAD:
+		return
+	var tick_count := int(duration / 0.5)
+	var eid := get_instance_id()
+	var dmg_per_tick := damage_per_sec * 0.5
+	for tick in range(tick_count):
+		Engine.get_main_loop().create_timer(float(tick) * 0.5).timeout.connect(func() -> void:
+			var ref = instance_from_id(eid)
+			if ref and ref.state != State.DEAD:
+				ref.take_damage(dmg_per_tick, null)
+		)
+
+
+func apply_slow(speed_mult: float, duration: float) -> void:
+	## Slow this enemy temporarily (from player affixes).
+	if state == State.DEAD:
+		return
+	move_speed *= speed_mult
+	var eid := get_instance_id()
+	Engine.get_main_loop().create_timer(duration).timeout.connect(func() -> void:
+		var ref = instance_from_id(eid)
+		if ref and ref.state != State.DEAD:
+			ref.move_speed /= speed_mult
+	)
+
+
 static func _load_monster_data() -> void:
 	if _monster_data_loaded:
 		return
@@ -777,12 +805,24 @@ func _drop_loot() -> void:
 			g_min = int(m[type_key].get("gold_min", 5))
 			g_max = int(m[type_key].get("gold_max", 15))
 	var gold_amount := randi_range(g_min, g_max) * floor_level
+	# Gold find bonus from nearest player
+	var best_gold_bonus := 0.0
+	for p in get_tree().get_nodes_in_group("players"):
+		if p.get("stats") and p.global_position.distance_to(global_position) < 20.0:
+			best_gold_bonus = maxf(best_gold_bonus, p.stats.gold_find_pct)
+	gold_amount = int(gold_amount * (1.0 + best_gold_bonus))
 	_loot_counter += 1
 	var gold_name := "Gold_%d" % _loot_counter
 	_spawn_gold_drop.rpc(gold_name, gold_amount, global_position + Vector3(randf_range(-0.5, 0.5), 0, randf_range(-0.5, 0.5)))
 
 	# Drop items
-	var drops := ItemDatabase.generate_enemy_drops(1, 0.25)
+	# Rarity find bonus from nearest player
+	var best_rarity_bonus := 0.0
+	for p in get_tree().get_nodes_in_group("players"):
+		if p.get("stats") and p.global_position.distance_to(global_position) < 20.0:
+			best_rarity_bonus = maxf(best_rarity_bonus, p.stats.rarity_find_pct)
+	var drop_chance := 0.25 * (1.0 + best_rarity_bonus)
+	var drops := ItemDatabase.generate_enemy_drops(1, drop_chance)
 	for i in drops.size():
 		var offset := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))
 		var drop_pos := global_position + offset
@@ -835,6 +875,9 @@ func _deal_damage_to_target() -> void:
 			target.receive_damage.rpc(attack_damage)
 			# Notify abilities of the hit
 			EnemyAbilities.on_hit_player(self, target, attack_damage, _abilities)
+			# Thorns - reflect damage back to attacker
+			if target.get("stats") and target.stats.thorns_damage > 0.0:
+				take_damage(target.stats.thorns_damage, target)
 			if model.has_method("spawn_impact_burst"):
 				model.spawn_impact_burst(target.global_position + Vector3(0, 1.0, 0), Color.RED)
 

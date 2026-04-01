@@ -202,6 +202,15 @@ func _load_from_character_data(data: CharacterData) -> void:
 	if data.quest_data.size() > 0:
 		QuestManager.load_from_array(data.quest_data)
 
+	# Restore skill points
+	if skill_manager:
+		skill_manager.skill_points = data.skill_points
+		skill_manager.allocated_points = data.allocated_skill_points.duplicate()
+		# If save has no points at all, recompute from level
+		if skill_manager.skill_points <= 0 and skill_manager.allocated_points.is_empty() and stats.level > 1:
+			skill_manager.skill_points = stats.level - 1
+		skill_manager._rebuild_skill_slots()
+
 
 func _apply_equipment_stats(item: ItemData) -> void:
 	stats.attack_damage += item.bonus_damage
@@ -294,6 +303,15 @@ func _load_from_dict(data: Dictionary) -> void:
 	var quest_arr: Array = data.get("quest_data", [])
 	if quest_arr.size() > 0 and is_multiplayer_authority():
 		QuestManager.load_from_array(quest_arr)
+
+	# Restore skill points
+	if skill_manager:
+		skill_manager.skill_points = int(data.get("skill_points", 0))
+		skill_manager.allocated_points = data.get("allocated_skill_points", {}).duplicate()
+		# If save has no points at all, recompute from level
+		if skill_manager.skill_points <= 0 and skill_manager.allocated_points.is_empty() and stats.level > 1:
+			skill_manager.skill_points = stats.level - 1
+		skill_manager._rebuild_skill_slots()
 
 
 func _update_mouse_target() -> void:
@@ -650,7 +668,8 @@ func _perform_attack() -> void:
 
 			if body.is_in_group("enemies") and body.has_method("take_damage"):
 				var was_alive: bool = body.health > 0.0
-				var dmg := stats.attack_damage * (1.0 + _buff_damage_mult)
+				var dmg := (stats.attack_damage + stats.strength * 0.5) * (1.0 + _buff_damage_mult)
+				dmg += stats.bonus_fire_damage + stats.bonus_cold_damage + stats.bonus_lightning_damage
 				# Poison Blade — add bonus poison damage per hit
 				var has_poison := false
 				for b in active_buffs:
@@ -673,6 +692,15 @@ func _perform_attack() -> void:
 					dmg *= 1.5 + stats.crit_damage_pct
 				body.take_damage(dmg, self)
 				hit_count += 1
+				# Life steal
+				if stats.life_steal_pct > 0.0:
+					stats.heal(dmg * stats.life_steal_pct)
+				# Burn chance
+				if stats.burn_chance_pct > 0.0 and randf() < stats.burn_chance_pct and body.has_method("apply_burn"):
+					body.apply_burn(stats.bonus_fire_damage * 0.5, 3.0)
+				# Slow on hit
+				if stats.slow_on_hit_pct > 0.0 and randf() < stats.slow_on_hit_pct and body.has_method("apply_slow"):
+					body.apply_slow(0.5, 2.0)
 				# Impact burst at enemy position
 				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 1.0, 0))
 				# Knockback — push enemy away from player
@@ -681,6 +709,8 @@ func _perform_attack() -> void:
 				# Hitstop on kill
 				if was_alive and body.health <= 0.0:
 					_trigger_hitstop.rpc(0.06)
+					if stats.heal_on_kill > 0.0:
+						stats.heal(stats.heal_on_kill)
 			elif body.is_in_group("breakables") and body.has_method("take_damage"):
 				body.take_damage(1.0, self)
 				_spawn_hit_effect.rpc(body.global_position + Vector3(0, 0.3, 0))
@@ -738,6 +768,9 @@ func receive_damage(amount: float) -> void:
 		else:
 			amount -= _buff_absorb
 			_buff_absorb = 0.0
+	# Damage reduction from affixes/resonances
+	if stats.damage_reduction_pct > 0.0:
+		amount *= (1.0 - stats.damage_reduction_pct)
 	var actual := stats.take_damage(amount)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.2, 0),
@@ -763,7 +796,8 @@ func grant_xp(amount: float) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func _sync_grant_xp(amount: float) -> void:
-	var levels_gained: int = stats.add_experience(amount)
+	var xp_mult := 1.0 + stats.xp_bonus_pct
+	var levels_gained: int = stats.add_experience(amount * xp_mult)
 	EventBus.show_floating_text.emit(
 		global_position + Vector3(0, 2.5, 0),
 		tr("+%d XP") % int(amount),
@@ -1231,8 +1265,8 @@ func _process_movement(delta: float) -> void:
 	var target_rotation := atan2(direction.x, direction.z)
 	model.rotation.y = lerp_angle(model.rotation.y, target_rotation, ROTATION_SPEED * delta)
 
-	velocity.x = direction.x * MOVE_SPEED * _speed_mod + _knockback_vel.x
-	velocity.z = direction.z * MOVE_SPEED * _speed_mod + _knockback_vel.z
+	velocity.x = direction.x * stats.move_speed * _speed_mod + _knockback_vel.x
+	velocity.z = direction.z * stats.move_speed * _speed_mod + _knockback_vel.z
 
 	_play_animation("run")
 	move_and_slide()

@@ -150,7 +150,7 @@ static func get_rogue_trees() -> Array[Dictionary]:
 			"branch_color": Color(0.25, 0.2, 0.35),
 			"branch_description": "Stealth, evasion, and mobility.",
 			"nodes": [
-				{"id": "r_shadow_1", "name": "Nimble Feet", "description": "+0.5 Move Speed per rank.", "icon_color": Color(0.25, 0.2, 0.35), "max_rank": 3, "requires": [], "row": 0, "col": 0, "type": "passive", "effects": {"move_speed": 0.5}},
+				{"id": "r_shadow_1", "name": "Nimble Feet", "description": "+1.0 Move Speed per rank.", "icon_color": Color(0.25, 0.2, 0.35), "max_rank": 3, "requires": [], "row": 0, "col": 0, "type": "passive", "effects": {"move_speed": 1.0}},
 				{"id": "r_shadow_2", "name": "Shadow Step", "description": "Unlocks Shadow Step: Dash through shadows to a target location.", "icon_color": Color(0.3, 0.25, 0.45), "max_rank": 1, "requires": ["r_shadow_1"], "row": 1, "col": 0, "type": "active", "effects": {"skill_id": "shadow_step"}},
 				{"id": "r_shadow_3", "name": "Evasion", "description": "+4% dodge chance per rank.", "icon_color": Color(0.35, 0.3, 0.5), "max_rank": 3, "requires": ["r_shadow_2"], "row": 2, "col": 0, "type": "passive", "effects": {"dodge_pct": 4}},
 				{"id": "r_shadow_4", "name": "Vanish", "description": "Unlocks Vanish: Become invisible for 4s, next attack deals bonus damage.", "icon_color": Color(0.15, 0.12, 0.25), "max_rank": 1, "requires": ["r_shadow_2"], "row": 3, "col": 0, "type": "active", "effects": {"skill_id": "vanish"}},
