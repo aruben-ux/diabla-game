@@ -204,28 +204,74 @@ func _save_player(peer_id: int) -> void:
 
 	var stats: PlayerStats = player_node.stats
 	var inv: Inventory = player_node.inventory
+	var sm: SkillManager = player_node.skill_manager
+
+	# Subtract tree bonuses to save BASE stats (prevents drift)
+	var tb: Dictionary = player_node.get_meta("_tree_bonuses", {})
+	var hp_bonus: float = tb.get("max_health", 0.0) + tb.get("vitality", 0.0) * 5.0
+	var mp_bonus: float = tb.get("max_mana", 0.0)
+
+	# Subtract equipment bonuses from stats
+	var eq_dmg := 0.0
+	var eq_def := 0.0
+	var eq_hp := 0.0
+	var eq_mp := 0.0
+	var eq_str := 0
+	var eq_dex := 0
+	var eq_int := 0
+	for slot_name: String in inv.equipment:
+		var eq_item: ItemData = inv.equipment[slot_name]
+		if eq_item == null:
+			continue
+		eq_dmg += eq_item.bonus_damage
+		eq_def += eq_item.bonus_defense
+		eq_hp += eq_item.bonus_health
+		eq_mp += eq_item.bonus_mana
+		eq_str += eq_item.bonus_strength
+		eq_dex += eq_item.bonus_dexterity
+		eq_int += eq_item.bonus_intelligence
+		for affix: Dictionary in eq_item.affixes:
+			var stat: String = affix.get("stat", "")
+			var val: float = float(affix.get("value", 0.0))
+			match stat:
+				"bonus_damage": eq_dmg += val
+				"bonus_defense": eq_def += val
+				"bonus_health": eq_hp += val
+				"bonus_mana": eq_mp += val
+				"bonus_strength": eq_str += int(val)
+				"bonus_dexterity": eq_dex += int(val)
+				"bonus_intelligence": eq_int += int(val)
+
+	# Subtract resonance bonuses
+	var res_bonuses: Dictionary = AffixDatabase.get_resonance_stat_bonuses(inv.get_active_resonances())
+	eq_dmg += res_bonuses.get("bonus_damage", 0.0) + res_bonuses.get("attack_damage", 0.0)
+	eq_def += res_bonuses.get("bonus_defense", 0.0)
+	eq_hp += res_bonuses.get("bonus_health", 0.0)
+	eq_mp += res_bonuses.get("bonus_mana", 0.0)
 
 	var save_data := {
 		"level": stats.level,
 		"experience": stats.experience,
-		"max_health": stats.max_health,
-		"max_mana": stats.max_mana,
-		"health": stats.health,
-		"mana": stats.mana,
-		"strength": stats.strength,
-		"dexterity": stats.dexterity,
-		"intelligence": stats.intelligence,
-		"vitality": stats.vitality,
-		"attack_damage": stats.attack_damage,
+		"max_health": stats.max_health - hp_bonus - eq_hp,
+		"max_mana": stats.max_mana - mp_bonus - eq_mp,
+		"health": minf(stats.health, stats.max_health - hp_bonus - eq_hp),
+		"mana": minf(stats.mana, stats.max_mana - mp_bonus - eq_mp),
+		"strength": stats.strength - int(tb.get("strength", 0.0)) - eq_str,
+		"dexterity": stats.dexterity - int(tb.get("dexterity", 0.0)) - eq_dex,
+		"intelligence": stats.intelligence - int(tb.get("intelligence", 0.0)) - eq_int,
+		"vitality": stats.vitality - int(tb.get("vitality", 0.0)),
+		"attack_damage": stats.attack_damage - tb.get("attack_damage", 0.0) - eq_dmg,
 		"attack_speed": stats.attack_speed,
-		"defense": stats.defense,
-		"move_speed": stats.move_speed,
+		"defense": stats.defense - tb.get("defense", 0.0) - eq_def,
+		"move_speed": stats.move_speed - tb.get("move_speed", 0.0),
 		"gold": inv.gold,
 		"health_potions": inv.health_potions,
 		"mana_potions": inv.mana_potions,
 		"inventory_items": inv.serialize_grid(),
 		"equipment": {},
 		"quest_data": player_node.get("_quest_data_cache") if player_node.get("_quest_data_cache") else [],
+		"skill_points": sm.skill_points if sm else 0,
+		"allocated_skill_points": sm.allocated_points.duplicate() if sm else {},
 		"play_time_seconds": info["character_data"].get("play_time_seconds", 0.0) + (Time.get_unix_time_from_system() - info.get("join_time", Time.get_unix_time_from_system())),
 	}
 

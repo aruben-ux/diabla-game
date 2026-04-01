@@ -57,6 +57,9 @@ class CharacterResponse(BaseModel):
     mana_potions: int
     inventory_items: list
     equipment: dict
+    quest_data: list
+    skill_points: int
+    allocated_skill_points: dict
     appearance: dict
     play_time_seconds: float
     created_at: str
@@ -86,6 +89,9 @@ class CharacterUpdate(BaseModel):
     mana_potions: int | None = None
     inventory_items: list | None = None
     equipment: dict | None = None
+    quest_data: list | None = None
+    skill_points: int | None = None
+    allocated_skill_points: dict | None = None
     appearance: dict | None = None
     play_time_seconds: float | None = None
 

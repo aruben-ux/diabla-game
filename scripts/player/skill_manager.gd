@@ -433,6 +433,9 @@ func allocate_point(node_id: String) -> bool:
 	_apply_passive_bonuses()
 	_rebuild_skill_slots()
 	_save_tree_to_character()
+	# Sync to server for online save
+	if player.has_method("sync_skill_tree_to_server"):
+		player.sync_skill_tree_to_server()
 	skill_tree_changed.emit()
 	return true
 

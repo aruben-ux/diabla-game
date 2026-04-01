@@ -893,6 +893,22 @@ func _rpc_sync_quests(data: Array) -> void:
 	_quest_data_cache = data
 
 
+## Called by client to sync skill tree changes to the server for online save.
+func sync_skill_tree_to_server() -> void:
+	if _is_server_auth and multiplayer.has_multiplayer_peer() and not multiplayer.is_server():
+		_rpc_sync_skill_tree.rpc_id(1, skill_manager.skill_points, skill_manager.allocated_points.duplicate())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_sync_skill_tree(sp: int, alloc: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	skill_manager.skill_points = sp
+	skill_manager.allocated_points = alloc
+	skill_manager._apply_passive_bonuses()
+	skill_manager._rebuild_skill_slots()
+
+
 func _use_skill(slot: int) -> void:
 	var target_pos := _raycast_ground()
 	if target_pos == Vector3.INF:

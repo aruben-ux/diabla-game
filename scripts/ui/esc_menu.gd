@@ -278,13 +278,21 @@ func _on_return_to_title() -> void:
 	var tree := get_tree()
 	if not tree:
 		return
-	# In networked mode, closing the peer triggers _on_server_lost which changes scene
+	# Save game for offline/LAN host (server_disconnected only fires on clients)
+	if not GameManager.is_online_mode:
+		for p: Node in tree.get_nodes_in_group("players"):
+			if p.is_multiplayer_authority():
+				CharacterManager.capture_player_state(p)
+				CharacterManager.save_character()
+				break
+	# Close network peer
 	if multiplayer and multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED:
 		multiplayer.multiplayer_peer.close()
+	# Online client: _on_server_lost handles scene change via server_disconnected signal
+	if GameManager.is_online_mode:
 		return
-	# Offline / no peer — change scene directly
+	# Offline/LAN host ? change scene directly
 	tree.change_scene_to_file("res://scenes/ui/main_menu.tscn")
-
 
 func _on_quit() -> void:
 	get_tree().quit()
