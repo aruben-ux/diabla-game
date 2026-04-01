@@ -573,8 +573,8 @@ func _save_tree_to_character() -> void:
 	if cm and cm.get("active_character") and cm.active_character is CharacterData:
 		cm.active_character.set("skill_points", skill_points)
 		cm.active_character.set("allocated_skill_points", allocated_points.duplicate())
-		if cm.has_method("save_active_character"):
-			cm.save_active_character()
+		if cm.has_method("save_character"):
+			cm.save_character()
 
 
 func add_skill_point() -> void:
