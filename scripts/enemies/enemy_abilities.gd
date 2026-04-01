@@ -170,9 +170,11 @@ static func _do_rally_cry(enemy: Enemy) -> void:
 			continue
 		e.move_speed *= 1.3
 		# Reset after 3s
-		enemy.get_tree().create_timer(3.0).timeout.connect(func() -> void:
-			if is_instance_valid(e):
-				e.move_speed /= 1.3
+		var e_id := e.get_instance_id()
+		Engine.get_main_loop().create_timer(3.0).timeout.connect(func() -> void:
+			var ref = instance_from_id(e_id)
+			if ref:
+				ref.move_speed /= 1.3
 		)
 
 
@@ -283,9 +285,11 @@ static func _tick_phase_shift(enemy: Enemy, delta: float) -> void:
 		enemy.set_meta(&"_phase_timer", 1.5)
 		enemy.move_speed *= 2.0
 		enemy.collision_layer = 0  # Can't be hit while phasing
-		enemy.get_tree().create_timer(1.5).timeout.connect(func() -> void:
-			if is_instance_valid(enemy):
-				enemy.move_speed /= 2.0
+		var eid := enemy.get_instance_id()
+		Engine.get_main_loop().create_timer(1.5).timeout.connect(func() -> void:
+			var ref = instance_from_id(eid)
+			if ref:
+				ref.move_speed /= 2.0
 		)
 		_sync_phase.call_deferred(enemy, true)
 
@@ -334,10 +338,12 @@ static func _do_swarm_frenzy(enemy: Enemy) -> void:
 			continue
 		e.move_speed *= 1.4
 		e.attack_damage *= 1.2
-		enemy.get_tree().create_timer(5.0).timeout.connect(func() -> void:
-			if is_instance_valid(e):
-				e.move_speed /= 1.4
-				e.attack_damage /= 1.2
+		var e_id2 := e.get_instance_id()
+		Engine.get_main_loop().create_timer(5.0).timeout.connect(func() -> void:
+			var ref = instance_from_id(e_id2)
+			if ref:
+				ref.move_speed /= 1.4
+				ref.attack_damage /= 1.2
 		)
 
 
@@ -626,18 +632,20 @@ static func _spawn_boulder_impact(enemy: Enemy, pos: Vector3, damage: float) -> 
 	if not is_instance_valid(enemy):
 		return
 	# Delayed impact — boulder falls after 0.6s
-	enemy.get_tree().create_timer(0.6).timeout.connect(func() -> void:
-		if not is_instance_valid(enemy):
+	var eid2 := enemy.get_instance_id()
+	Engine.get_main_loop().create_timer(0.6).timeout.connect(func() -> void:
+		var ref = instance_from_id(eid2)
+		if not ref:
 			return
 		# Damage check
-		for player in enemy.get_tree().get_nodes_in_group("players"):
+		for player in ref.get_tree().get_nodes_in_group("players"):
 			if not is_instance_valid(player):
 				continue
 			if player.global_position.distance_to(pos) <= 1.5:
 				if player.has_method("receive_damage"):
 					player.receive_damage.rpc(damage)
 		# VFX for all
-		enemy._rpc_boulder_impact.rpc(pos)
+		ref._rpc_boulder_impact.rpc(pos)
 	)
 	# Warning circle immediately
 	enemy._rpc_boulder_warning.rpc(pos)

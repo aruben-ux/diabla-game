@@ -147,6 +147,8 @@ func _despawn() -> void:
 func _spawn_impact(pos: Vector3) -> void:
 	if pos == Vector3.ZERO:
 		return
+	if not is_inside_tree():
+		return
 	# Brief flash at impact point
 	var burst := GPUParticles3D.new()
 	burst.emitting = true

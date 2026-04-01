@@ -439,6 +439,7 @@ func _physics_process_server_auth(delta: float) -> void:
 			attack_timer -= delta
 		stats.tick_mana_regen(delta)
 		_tick_buffs(delta)
+		_tick_debuffs(delta)
 		_process_movement(delta)
 		# Broadcast authoritative position to all clients
 		_apply_remote_position.rpc(global_position, model.rotation.y)

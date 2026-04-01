@@ -81,7 +81,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not multiplayer.has_multiplayer_peer():
+	if not multiplayer.has_multiplayer_peer() or multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
 		return
 	if multiplayer.is_server():
 		# Server runs full AI
@@ -582,6 +582,8 @@ func _rpc_fortify_flash() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_enrage_vfx() -> void:
+	if not is_inside_tree():
+		return
 	var ring := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = 1.5
@@ -606,6 +608,8 @@ func _rpc_enrage_vfx() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_reassemble_vfx() -> void:
+	if not is_inside_tree():
+		return
 	var ring := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = 1.0
@@ -630,6 +634,8 @@ func _rpc_reassemble_vfx() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_drain_vfx() -> void:
+	if not is_inside_tree():
+		return
 	var ring := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.5
