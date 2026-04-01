@@ -1226,6 +1226,21 @@ func _show_item_tooltip(item: ItemData, _stack: int = 1) -> void:
 		text += tr("+%d Dexterity") % item.bonus_dexterity + "\n"
 	if item.bonus_intelligence > 0:
 		text += tr("+%d Intelligence") % item.bonus_intelligence + "\n"
+	# Show affixes
+	if item.affixes.size() > 0:
+		text += "\n"
+		for affix: Dictionary in item.affixes:
+			var tag: String = affix.get("tag", "")
+			var tag_color := AffixDatabase.get_tag_color(tag).to_html(false)
+			var desc: String = affix.get("desc", affix.get("label", ""))
+			text += "[color=#%s]\u25C6 %s[/color]\n" % [tag_color, desc]
+		# Show resonance tag summary
+		var tags := item.get_resonance_tags()
+		if tags.size() > 0:
+			var tag_labels: Array[String] = []
+			for t: String in tags:
+				tag_labels.append(AffixDatabase.get_tag_label(t))
+			text += "[color=#888888]" + tr("Resonance: %s") % ", ".join(tag_labels) + "[/color]\n"
 	if item.heal_amount > 0:
 		text += tr("Heals %.0f HP") % item.heal_amount + "\n"
 	if item.mana_restore > 0:

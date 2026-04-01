@@ -4357,7 +4357,131 @@
             0.13,
             0.06,
             0.01
-        ]
+        ],
+        "affixes_per_rarity": [0, 1, 2, 3, 3],
+        "affix_pool": {
+            "searing_edge":       { "tag": "flame",   "stat": "bonus_fire_damage",    "range": [3, 25],    "label": "Searing Edge",       "desc": "+{v} fire damage" },
+            "ignition":           { "tag": "flame",   "stat": "burn_chance_pct",       "range": [0.05, 0.25], "label": "Ignition",         "desc": "+{v}% burn chance" },
+            "ember_ward":         { "tag": "flame",   "stat": "bonus_defense",         "range": [3, 18],    "label": "Ember Ward",         "desc": "+{v} defense (fire)" },
+            "pyroclasm":          { "tag": "flame",   "stat": "bonus_damage",          "range": [4, 20],    "label": "Pyroclasm",          "desc": "+{v} damage" },
+            "inferno_mastery":    { "tag": "flame",   "stat": "spell_damage_pct",      "range": [0.03, 0.12], "label": "Inferno Mastery",  "desc": "+{v}% spell damage" },
+
+            "frostbite":          { "tag": "frost",   "stat": "bonus_cold_damage",     "range": [3, 22],    "label": "Frostbite",          "desc": "+{v} cold damage" },
+            "glacial_ward":       { "tag": "frost",   "stat": "bonus_defense",         "range": [5, 30],    "label": "Glacial Ward",       "desc": "+{v} defense (frost)" },
+            "permafrost":         { "tag": "frost",   "stat": "bonus_health",          "range": [8, 50],    "label": "Permafrost",         "desc": "+{v} health" },
+            "frozen_reflexes":    { "tag": "frost",   "stat": "dodge_pct",             "range": [0.02, 0.08], "label": "Frozen Reflexes",  "desc": "+{v}% dodge" },
+            "chill_touch":        { "tag": "frost",   "stat": "slow_on_hit_pct",       "range": [0.10, 0.30], "label": "Chill Touch",      "desc": "+{v}% slow on hit" },
+
+            "shadow_strike":      { "tag": "shadow",  "stat": "crit_chance_pct",       "range": [0.02, 0.10], "label": "Shadow Strike",    "desc": "+{v}% crit chance" },
+            "lethality":          { "tag": "shadow",  "stat": "crit_damage_pct",       "range": [0.10, 0.40], "label": "Lethality",        "desc": "+{v}% crit damage" },
+            "nightveil":          { "tag": "shadow",  "stat": "dodge_pct",             "range": [0.03, 0.10], "label": "Nightveil",        "desc": "+{v}% dodge" },
+            "assassins_mark":     { "tag": "shadow",  "stat": "bonus_damage",          "range": [5, 28],    "label": "Assassin's Mark",    "desc": "+{v} damage" },
+            "shadowmeld":         { "tag": "shadow",  "stat": "bonus_dexterity",       "range": [2, 12],    "label": "Shadowmeld",         "desc": "+{v} dexterity" },
+
+            "voltaic_reflexes":   { "tag": "thunder", "stat": "attack_speed_pct",      "range": [0.03, 0.12], "label": "Voltaic Reflexes", "desc": "+{v}% attack speed" },
+            "stormcall":          { "tag": "thunder", "stat": "bonus_lightning_damage", "range": [4, 26],    "label": "Stormcall",          "desc": "+{v} lightning damage" },
+            "static_charge":      { "tag": "thunder", "stat": "chain_chance_pct",      "range": [0.05, 0.20], "label": "Static Charge",    "desc": "+{v}% chain lightning" },
+            "thunderstep":        { "tag": "thunder", "stat": "move_speed",            "range": [0.5, 2.0],  "label": "Thunderstep",       "desc": "+{v} move speed" },
+            "galvanic_surge":     { "tag": "thunder", "stat": "bonus_mana",            "range": [8, 40],    "label": "Galvanic Surge",     "desc": "+{v} mana" },
+
+            "vampiric_touch":     { "tag": "blood",   "stat": "life_steal_pct",        "range": [0.01, 0.05], "label": "Vampiric Touch",   "desc": "+{v}% life steal" },
+            "sanguine_vigor":     { "tag": "blood",   "stat": "bonus_health",          "range": [10, 60],   "label": "Sanguine Vigor",     "desc": "+{v} health" },
+            "crimson_fury":       { "tag": "blood",   "stat": "bonus_damage",          "range": [4, 22],    "label": "Crimson Fury",       "desc": "+{v} damage" },
+            "bloodrite":          { "tag": "blood",   "stat": "bonus_strength",        "range": [2, 12],    "label": "Bloodrite",          "desc": "+{v} strength" },
+            "hemomancy":          { "tag": "blood",   "stat": "heal_on_kill",          "range": [3, 20],    "label": "Hemomancy",          "desc": "+{v} HP on kill" },
+
+            "ironclad":           { "tag": "iron",    "stat": "bonus_defense",         "range": [6, 35],    "label": "Ironclad",           "desc": "+{v} defense" },
+            "bulwark":            { "tag": "iron",    "stat": "bonus_health",          "range": [12, 70],   "label": "Bulwark",            "desc": "+{v} health" },
+            "thorns":             { "tag": "iron",    "stat": "thorns_damage",         "range": [3, 18],    "label": "Thorns",             "desc": "+{v} thorns damage" },
+            "fortitude":          { "tag": "iron",    "stat": "bonus_vitality",        "range": [2, 10],    "label": "Fortitude",          "desc": "+{v} vitality" },
+            "unyielding":         { "tag": "iron",    "stat": "damage_reduction_pct",  "range": [0.02, 0.08], "label": "Unyielding",       "desc": "+{v}% damage reduction" },
+
+            "arcane_brilliance":  { "tag": "arcane",  "stat": "spell_damage_pct",      "range": [0.04, 0.15], "label": "Arcane Brilliance","desc": "+{v}% spell damage" },
+            "mana_font":          { "tag": "arcane",  "stat": "mana_regen_pct",        "range": [0.03, 0.12], "label": "Mana Font",        "desc": "+{v}% mana regen" },
+            "spellweave":         { "tag": "arcane",  "stat": "mana_cost_reduction_pct","range": [0.03, 0.10], "label": "Spellweave",      "desc": "+{v}% mana cost reduction" },
+            "mystic_intellect":   { "tag": "arcane",  "stat": "bonus_intelligence",    "range": [2, 14],    "label": "Mystic Intellect",   "desc": "+{v} intelligence" },
+            "arcane_shield":      { "tag": "arcane",  "stat": "bonus_mana",            "range": [10, 50],   "label": "Arcane Shield",      "desc": "+{v} mana" },
+
+            "fortune_finder":     { "tag": "wild",    "stat": "xp_bonus_pct",          "range": [0.05, 0.15], "label": "Fortune Finder",   "desc": "+{v}% XP bonus" },
+            "lucky_strike":       { "tag": "wild",    "stat": "crit_chance_pct",       "range": [0.02, 0.08], "label": "Lucky Strike",     "desc": "+{v}% crit chance" },
+            "scavengers_eye":     { "tag": "wild",    "stat": "rarity_find_pct",       "range": [0.05, 0.20], "label": "Scavenger's Eye",  "desc": "+{v}% rarity find" },
+            "wanderlust":         { "tag": "wild",    "stat": "move_speed",            "range": [0.5, 2.0],  "label": "Wanderlust",        "desc": "+{v} move speed" },
+            "windfall":           { "tag": "wild",    "stat": "gold_find_pct",         "range": [0.10, 0.40], "label": "Windfall",          "desc": "+{v}% gold find" }
+        },
+        "resonance_tags": {
+            "flame": {
+                "label": "Flame Resonance",
+                "color": [1.0, 0.4, 0.1],
+                "tiers": [
+                    { "count": 2, "label": "Smoldering",    "bonuses": { "burn_chance_pct": 0.15 },   "desc": "Attacks have 15% chance to burn for 3s" },
+                    { "count": 3, "label": "Inferno",        "bonuses": { "explode_on_kill": true },    "desc": "Burning enemies explode on death" },
+                    { "count": 4, "label": "Conflagration",  "bonuses": { "bonus_fire_damage": 25 },    "desc": "+25 fire damage to all attacks" }
+                ]
+            },
+            "frost": {
+                "label": "Frost Resonance",
+                "color": [0.3, 0.6, 1.0],
+                "tiers": [
+                    { "count": 2, "label": "Chilling",    "bonuses": { "slow_amplify_pct": 0.15 },    "desc": "Slowed enemies take 15% more damage" },
+                    { "count": 3, "label": "Glacial",      "bonuses": { "freeze_threshold": 0.20 },    "desc": "Freeze enemies below 20% HP" },
+                    { "count": 4, "label": "Absolute Zero", "bonuses": { "frost_aura": true },          "desc": "Nearby enemies are slowed passively" }
+                ]
+            },
+            "shadow": {
+                "label": "Shadow Resonance",
+                "color": [0.6, 0.2, 0.8],
+                "tiers": [
+                    { "count": 2, "label": "Penumbra",    "bonuses": { "crit_chance_pct": 0.10 },     "desc": "+10% crit chance" },
+                    { "count": 3, "label": "Umbral",       "bonuses": { "stealth_on_crit_sec": 0.5 },  "desc": "Crits grant 0.5s invisibility" },
+                    { "count": 4, "label": "Eclipse",      "bonuses": { "crit_damage_pct": 0.50 },     "desc": "+50% crit damage" }
+                ]
+            },
+            "thunder": {
+                "label": "Thunder Resonance",
+                "color": [1.0, 0.9, 0.3],
+                "tiers": [
+                    { "count": 2, "label": "Sparking",    "bonuses": { "attack_speed_pct": 0.15 },    "desc": "+15% attack speed" },
+                    { "count": 3, "label": "Storming",     "bonuses": { "chain_on_hit": true },         "desc": "Hits chain to 1 nearby enemy" },
+                    { "count": 4, "label": "Tempest",      "bonuses": { "bonus_lightning_damage": 30 }, "desc": "+30 lightning damage to all attacks" }
+                ]
+            },
+            "blood": {
+                "label": "Blood Resonance",
+                "color": [0.8, 0.1, 0.1],
+                "tiers": [
+                    { "count": 2, "label": "Sanguine",    "bonuses": { "life_steal_pct": 0.03 },      "desc": "+3% life steal" },
+                    { "count": 3, "label": "Crimson",      "bonuses": { "heal_burst_on_kill": 15 },     "desc": "Heal 15 HP on kill" },
+                    { "count": 4, "label": "Exsanguinate", "bonuses": { "bonus_damage_per_missing_hp_pct": 0.002 }, "desc": "+0.2% damage per 1% missing HP" }
+                ]
+            },
+            "iron": {
+                "label": "Iron Resonance",
+                "color": [0.6, 0.6, 0.7],
+                "tiers": [
+                    { "count": 2, "label": "Tempered",    "bonuses": { "bonus_defense": 20 },          "desc": "+20 defense" },
+                    { "count": 3, "label": "Forged",       "bonuses": { "thorns_damage": 15 },           "desc": "Reflect 15 damage to melee attackers" },
+                    { "count": 4, "label": "Adamantine",   "bonuses": { "damage_reduction_pct": 0.10 },  "desc": "+10% damage reduction" }
+                ]
+            },
+            "arcane": {
+                "label": "Arcane Resonance",
+                "color": [0.4, 0.3, 1.0],
+                "tiers": [
+                    { "count": 2, "label": "Attuned",     "bonuses": { "spell_damage_pct": 0.15 },    "desc": "+15% spell damage" },
+                    { "count": 3, "label": "Enlightened",  "bonuses": { "mana_cost_reduction_pct": 0.25 }, "desc": "Skills cost 25% less mana" },
+                    { "count": 4, "label": "Transcendent", "bonuses": { "spell_echo_pct": 0.15 },       "desc": "15% chance to cast skills twice" }
+                ]
+            },
+            "wild": {
+                "label": "Wild Resonance",
+                "color": [0.2, 0.9, 0.3],
+                "tiers": [
+                    { "count": 2, "label": "Fortunate",   "bonuses": { "xp_bonus_pct": 0.10 },        "desc": "+10% XP gain" },
+                    { "count": 3, "label": "Blessed",      "bonuses": { "rarity_find_pct": 0.25 },      "desc": "+25% rarity find" },
+                    { "count": 4, "label": "Fabled",       "bonuses": { "double_drop_pct": 0.10 },      "desc": "10% chance for double loot" }
+                ]
+            }
+        }
     },
     "skill_slots": [
         "fireball",

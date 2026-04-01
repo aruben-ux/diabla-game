@@ -27,6 +27,24 @@ var mana_regen_pct: float = 0.0
 var mana_cost_reduction_pct: float = 0.0
 var dodge_pct: float = 0.0
 
+## Affix-sourced stats (elemental damage, procs, etc.)
+var bonus_fire_damage: float = 0.0
+var bonus_cold_damage: float = 0.0
+var bonus_lightning_damage: float = 0.0
+var life_steal_pct: float = 0.0
+var thorns_damage: float = 0.0
+var damage_reduction_pct: float = 0.0
+var burn_chance_pct: float = 0.0
+var slow_on_hit_pct: float = 0.0
+var chain_chance_pct: float = 0.0
+var heal_on_kill: float = 0.0
+var xp_bonus_pct: float = 0.0
+var rarity_find_pct: float = 0.0
+var gold_find_pct: float = 0.0
+
+## Resonance proc flags (computed, not saved)
+var resonance_procs: Dictionary = {}
+
 static var _progression: Dictionary = {}
 static var _progression_loaded := false
 

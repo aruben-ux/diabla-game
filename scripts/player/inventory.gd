@@ -243,6 +243,8 @@ func _apply_stat_bonuses(item: ItemData, player: Node) -> void:
 	stats.strength += item.bonus_strength
 	stats.dexterity += item.bonus_dexterity
 	stats.intelligence += item.bonus_intelligence
+	_apply_affix_stats(item, stats, 1.0)
+	recalculate_resonances(player)
 
 
 func _remove_stat_bonuses(item: ItemData, player: Node) -> void:
@@ -258,6 +260,122 @@ func _remove_stat_bonuses(item: ItemData, player: Node) -> void:
 	stats.strength -= item.bonus_strength
 	stats.dexterity -= item.bonus_dexterity
 	stats.intelligence -= item.bonus_intelligence
+	_apply_affix_stats(item, stats, -1.0)
+	recalculate_resonances(player)
+
+
+func _apply_affix_stats(item: ItemData, stats: PlayerStats, sign: float) -> void:
+	## Apply or remove (sign=+1/-1) affix stat bonuses to player stats.
+	for affix: Dictionary in item.affixes:
+		var stat: String = affix.get("stat", "")
+		var value: float = float(affix.get("value", 0.0)) * sign
+		match stat:
+			"bonus_damage": stats.attack_damage += value
+			"bonus_defense": stats.defense += value
+			"bonus_health":
+				stats.max_health += value
+				if sign > 0:
+					stats.health += value
+				else:
+					stats.health = minf(stats.health, stats.max_health)
+			"bonus_mana":
+				stats.max_mana += value
+				if sign > 0:
+					stats.mana += value
+				else:
+					stats.mana = minf(stats.mana, stats.max_mana)
+			"bonus_strength": stats.strength += int(value)
+			"bonus_dexterity": stats.dexterity += int(value)
+			"bonus_intelligence": stats.intelligence += int(value)
+			"bonus_vitality": stats.vitality += int(value)
+			"bonus_fire_damage": stats.bonus_fire_damage += value
+			"bonus_cold_damage": stats.bonus_cold_damage += value
+			"bonus_lightning_damage": stats.bonus_lightning_damage += value
+			"crit_chance_pct": stats.crit_chance_pct += value
+			"crit_damage_pct": stats.crit_damage_pct += value
+			"spell_damage_pct": stats.spell_damage_pct += value
+			"attack_speed_pct": stats.attack_speed_pct += value
+			"mana_regen_pct": stats.mana_regen_pct += value
+			"mana_cost_reduction_pct": stats.mana_cost_reduction_pct += value
+			"dodge_pct": stats.dodge_pct += value
+			"life_steal_pct": stats.life_steal_pct += value
+			"thorns_damage": stats.thorns_damage += value
+			"damage_reduction_pct": stats.damage_reduction_pct += value
+			"burn_chance_pct": stats.burn_chance_pct += value
+			"slow_on_hit_pct": stats.slow_on_hit_pct += value
+			"chain_chance_pct": stats.chain_chance_pct += value
+			"heal_on_kill": stats.heal_on_kill += value
+			"xp_bonus_pct": stats.xp_bonus_pct += value
+			"rarity_find_pct": stats.rarity_find_pct += value
+			"gold_find_pct": stats.gold_find_pct += value
+			"move_speed": stats.move_speed += value
+
+
+## --- Resonance System ---
+
+var _active_resonances: Dictionary = {}
+
+func recalculate_resonances(player: Node) -> void:
+	## Recompute resonances from all equipped items and apply/remove the delta.
+	if not player or not player.get("stats"):
+		return
+	var stats: PlayerStats = player.stats
+
+	# Remove old resonance bonuses
+	var old_bonuses: Dictionary = AffixDatabase.get_resonance_stat_bonuses(_active_resonances)
+	for stat: String in old_bonuses:
+		_apply_single_stat(stats, stat, -old_bonuses[stat])
+
+	# Compute new resonances
+	_active_resonances = AffixDatabase.compute_resonances(equipment)
+
+	# Apply new resonance bonuses
+	var new_bonuses: Dictionary = AffixDatabase.get_resonance_stat_bonuses(_active_resonances)
+	for stat: String in new_bonuses:
+		_apply_single_stat(stats, stat, new_bonuses[stat])
+
+	# Update proc flags
+	stats.resonance_procs = AffixDatabase.get_resonance_procs(_active_resonances)
+
+
+func get_active_resonances() -> Dictionary:
+	return _active_resonances
+
+
+func _apply_single_stat(stats: PlayerStats, stat: String, value: float) -> void:
+	match stat:
+		"bonus_damage", "attack_damage": stats.attack_damage += value
+		"bonus_defense": stats.defense += value
+		"bonus_health":
+			stats.max_health += value
+			if value > 0:
+				stats.health += value
+			else:
+				stats.health = minf(stats.health, stats.max_health)
+		"bonus_mana":
+			stats.max_mana += value
+			if value > 0:
+				stats.mana += value
+			else:
+				stats.mana = minf(stats.mana, stats.max_mana)
+		"crit_chance_pct": stats.crit_chance_pct += value
+		"crit_damage_pct": stats.crit_damage_pct += value
+		"spell_damage_pct": stats.spell_damage_pct += value
+		"attack_speed_pct": stats.attack_speed_pct += value
+		"mana_cost_reduction_pct": stats.mana_cost_reduction_pct += value
+		"dodge_pct": stats.dodge_pct += value
+		"life_steal_pct": stats.life_steal_pct += value
+		"thorns_damage": stats.thorns_damage += value
+		"damage_reduction_pct": stats.damage_reduction_pct += value
+		"burn_chance_pct": stats.burn_chance_pct += value
+		"bonus_fire_damage": stats.bonus_fire_damage += value
+		"bonus_cold_damage": stats.bonus_cold_damage += value
+		"bonus_lightning_damage": stats.bonus_lightning_damage += value
+		"heal_on_kill": stats.heal_on_kill += value
+		"xp_bonus_pct": stats.xp_bonus_pct += value
+		"rarity_find_pct": stats.rarity_find_pct += value
+		"gold_find_pct": stats.gold_find_pct += value
+		"move_speed": stats.move_speed += value
 
 
 func _get_equip_slot(item_type: ItemData.ItemType) -> String:

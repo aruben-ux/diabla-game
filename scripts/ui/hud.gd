@@ -80,6 +80,10 @@ var _cast_bar_label: Label
 var _debuff_container: HBoxContainer
 var _debuff_icons: Dictionary = {}  # id -> Dictionary{panel, label, timer_label, bar}
 
+# Resonance display (above debuffs)
+var _resonance_container: HBoxContainer
+var _resonance_icons: Dictionary = {}  # tag -> PanelContainer
+
 
 func _ready() -> void:
 	respawn_button.pressed.connect(_on_respawn_pressed)
@@ -572,6 +576,18 @@ func _build_debuff_display() -> void:
 	_debuff_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_debuff_container)
 
+	# Resonance icons (above debuffs)
+	_resonance_container = HBoxContainer.new()
+	_resonance_container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_resonance_container.offset_left = -150
+	_resonance_container.offset_right = 150
+	_resonance_container.offset_top = -155
+	_resonance_container.offset_bottom = -115
+	_resonance_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	_resonance_container.add_theme_constant_override("separation", 6)
+	_resonance_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_resonance_container)
+
 
 func _update_debuff_display() -> void:
 	if not tracked_player or not is_instance_valid(tracked_player):
@@ -689,6 +705,70 @@ func _update_debuff_display() -> void:
 			sb.border_color = color
 
 
+func _update_resonance_display() -> void:
+	if not tracked_player or not is_instance_valid(tracked_player):
+		return
+	var inv = tracked_player.get("inventory")
+	if inv == null or not inv.has_method("get_active_resonances"):
+		return
+	var active: Dictionary = inv.get_active_resonances()
+
+	# Remove icons for resonances no longer active
+	var to_remove: Array[String] = []
+	for tag: String in _resonance_icons:
+		if tag not in active:
+			to_remove.append(tag)
+	for tag: String in to_remove:
+		var panel: PanelContainer = _resonance_icons[tag]
+		if is_instance_valid(panel):
+			panel.queue_free()
+		_resonance_icons.erase(tag)
+
+	# Add/update icons for active resonances
+	for tag: String in active:
+		var res: Dictionary = active[tag]
+		var c_arr: Array = res.get("color", [1.0, 1.0, 1.0])
+		var color := Color(c_arr[0], c_arr[1], c_arr[2])
+		var tier_label: String = res.get("tier_label", "")
+		var label_text: String = res.get("label", tag)
+		var desc: String = res.get("desc", "")
+		var count: int = res.get("count", 0)
+
+		if not _resonance_icons.has(tag):
+			var panel := PanelContainer.new()
+			panel.custom_minimum_size = Vector2(40, 40)
+			panel.mouse_filter = Control.MOUSE_FILTER_PASS
+			panel.tooltip_text = "%s (%s)\n%s\n[%d affixes]" % [label_text, tier_label, desc, count]
+
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(color.r * 0.25, color.g * 0.25, color.b * 0.25, 0.9)
+			sb.border_color = color
+			sb.border_width_left = 2
+			sb.border_width_right = 2
+			sb.border_width_top = 2
+			sb.border_width_bottom = 2
+			sb.corner_radius_top_left = 6
+			sb.corner_radius_top_right = 6
+			sb.corner_radius_bottom_left = 6
+			sb.corner_radius_bottom_right = 6
+			panel.add_theme_stylebox_override("panel", sb)
+
+			var icon := Label.new()
+			icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			icon.add_theme_font_size_override("font_size", 16)
+			icon.add_theme_color_override("font_color", color)
+			icon.text = "✦"
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			panel.add_child(icon)
+
+			_resonance_container.add_child(panel)
+			_resonance_icons[tag] = panel
+		else:
+			var panel: PanelContainer = _resonance_icons[tag]
+			panel.tooltip_text = "%s (%s)\n%s\n[%d affixes]" % [label_text, tier_label, desc, count]
+
+
 func _style_potion_panel(panel: Panel, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -763,6 +843,7 @@ func _process(delta: float) -> void:
 	_update_character_panel()
 	_update_cast_bar()
 	_update_debuff_display()
+	_update_resonance_display()
 	_update_skill_badge()
 
 

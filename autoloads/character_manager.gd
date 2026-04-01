@@ -97,19 +97,59 @@ func capture_player_state(player: Node) -> void:
 	var hp_bonus: float = tree_bonuses.get("max_health", 0.0) + tree_bonuses.get("vitality", 0.0) * 5.0
 	var mp_bonus: float = tree_bonuses.get("max_mana", 0.0)
 
+	# Compute equipment bonuses (base stats + affix stats) to subtract from saved values
+	var inv = player.inventory
+	var eq_dmg := 0.0
+	var eq_def := 0.0
+	var eq_hp := 0.0
+	var eq_mp := 0.0
+	var eq_str := 0
+	var eq_dex := 0
+	var eq_int := 0
+	for slot_name: String in inv.equipment:
+		var eq_item: ItemData = inv.equipment[slot_name]
+		if eq_item == null:
+			continue
+		eq_dmg += eq_item.bonus_damage
+		eq_def += eq_item.bonus_defense
+		eq_hp += eq_item.bonus_health
+		eq_mp += eq_item.bonus_mana
+		eq_str += eq_item.bonus_strength
+		eq_dex += eq_item.bonus_dexterity
+		eq_int += eq_item.bonus_intelligence
+		# Also subtract affix bonuses that affect base stats
+		for affix: Dictionary in eq_item.affixes:
+			var stat: String = affix.get("stat", "")
+			var val: float = float(affix.get("value", 0.0))
+			match stat:
+				"bonus_damage": eq_dmg += val
+				"bonus_defense": eq_def += val
+				"bonus_health": eq_hp += val
+				"bonus_mana": eq_mp += val
+				"bonus_strength": eq_str += int(val)
+				"bonus_dexterity": eq_dex += int(val)
+				"bonus_intelligence": eq_int += int(val)
+
+	# Also subtract resonance bonuses that affect saved base stats
+	var res_bonuses: Dictionary = AffixDatabase.get_resonance_stat_bonuses(inv.get_active_resonances())
+	eq_dmg += res_bonuses.get("bonus_damage", 0.0) + res_bonuses.get("attack_damage", 0.0)
+	eq_def += res_bonuses.get("bonus_defense", 0.0)
+	eq_hp += res_bonuses.get("bonus_health", 0.0)
+	eq_mp += res_bonuses.get("bonus_mana", 0.0)
+
 	active_character.level = stats.level
 	active_character.experience = stats.experience
-	active_character.max_health = stats.max_health - hp_bonus
-	active_character.max_mana = stats.max_mana - mp_bonus
+	active_character.max_health = stats.max_health - hp_bonus - eq_hp
+	active_character.max_mana = stats.max_mana - mp_bonus - eq_mp
 	active_character.health = minf(stats.health, active_character.max_health)
 	active_character.mana = minf(stats.mana, active_character.max_mana)
-	active_character.strength = stats.strength - int(tree_bonuses.get("strength", 0.0))
-	active_character.dexterity = stats.dexterity - int(tree_bonuses.get("dexterity", 0.0))
-	active_character.intelligence = stats.intelligence - int(tree_bonuses.get("intelligence", 0.0))
+	active_character.strength = stats.strength - int(tree_bonuses.get("strength", 0.0)) - eq_str
+	active_character.dexterity = stats.dexterity - int(tree_bonuses.get("dexterity", 0.0)) - eq_dex
+	active_character.intelligence = stats.intelligence - int(tree_bonuses.get("intelligence", 0.0)) - eq_int
 	active_character.vitality = stats.vitality - int(tree_bonuses.get("vitality", 0.0))
-	active_character.attack_damage = stats.attack_damage - tree_bonuses.get("attack_damage", 0.0)
+	active_character.attack_damage = stats.attack_damage - tree_bonuses.get("attack_damage", 0.0) - eq_dmg
 	active_character.attack_speed = stats.attack_speed
-	active_character.defense = stats.defense - tree_bonuses.get("defense", 0.0)
+	active_character.defense = stats.defense - tree_bonuses.get("defense", 0.0) - eq_def
 	active_character.move_speed = stats.move_speed - tree_bonuses.get("move_speed", 0.0)
 
 	# Persist skill tree data
@@ -118,7 +158,6 @@ func capture_player_state(player: Node) -> void:
 		active_character.allocated_skill_points = player.skill_manager.allocated_points.duplicate()
 
 	# Serialize inventory (grid-based)
-	var inv: Inventory = player.inventory
 	active_character.gold = inv.gold
 	active_character.health_potions = inv.health_potions
 	active_character.mana_potions = inv.mana_potions

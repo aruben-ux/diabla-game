@@ -46,6 +46,7 @@ func get_random_weapon(enemy_level: int = 1) -> ItemData:
 	item.bonus_damage = (base_dmg + enemy_level * dmg_per_lv) * (1.0 + item.rarity * rar_mult)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
 	_apply_grid_size(item)
+	AffixDatabase.roll_affixes_for_item(item, enemy_level)
 	return item
 
 
@@ -73,6 +74,7 @@ func get_random_armor(enemy_level: int = 1) -> ItemData:
 	item.bonus_health = enemy_level * hp_per_lv * (1.0 + item.rarity * 0.2)
 	item.icon_color = ItemData.get_rarity_color(item.rarity)
 	_apply_grid_size(item)
+	AffixDatabase.roll_affixes_for_item(item, enemy_level)
 	return item
 
 

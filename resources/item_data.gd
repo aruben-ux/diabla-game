@@ -25,6 +25,9 @@ enum Rarity { COMMON, UNCOMMON, RARE, EPIC, LEGENDARY }
 @export var bonus_dexterity: int = 0
 @export var bonus_intelligence: int = 0
 
+# Procedural affixes — each entry: {id: String, tag: String, stat: String, value: float, label: String, desc: String}
+var affixes: Array = []
+
 # Grid inventory size (width x height in cells)
 @export var grid_w: int = 1
 @export var grid_h: int = 1
@@ -89,6 +92,7 @@ func to_dict() -> Dictionary:
 		"grid_w": grid_w,
 		"grid_h": grid_h,
 		"rotated": rotated,
+		"affixes": affixes.duplicate(true),
 	}
 
 
@@ -116,4 +120,15 @@ static func from_dict(d: Dictionary) -> ItemData:
 	item.grid_w = d.get("grid_w", def_size.x)
 	item.grid_h = d.get("grid_h", def_size.y)
 	item.rotated = d.get("rotated", false)
+	item.affixes = d.get("affixes", [])
 	return item
+
+
+func get_resonance_tags() -> Array[String]:
+	## Returns deduplicated list of resonance tags from this item's affixes.
+	var tags: Array[String] = []
+	for affix: Dictionary in affixes:
+		var tag: String = affix.get("tag", "")
+		if tag != "" and tag not in tags:
+			tags.append(tag)
+	return tags

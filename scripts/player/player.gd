@@ -195,6 +195,9 @@ func _load_from_character_data(data: CharacterData) -> void:
 			inventory.equipment[slot_name] = item
 			_apply_equipment_stats(item)
 
+	# Compute initial resonances from loaded equipment
+	inventory.recalculate_resonances(self)
+
 	# Restore quests
 	if data.quest_data.size() > 0:
 		QuestManager.load_from_array(data.quest_data)
@@ -210,6 +213,7 @@ func _apply_equipment_stats(item: ItemData) -> void:
 	stats.strength += item.bonus_strength
 	stats.dexterity += item.bonus_dexterity
 	stats.intelligence += item.bonus_intelligence
+	inventory._apply_affix_stats(item, stats, 1.0)
 
 
 var _name_label: Label3D
@@ -1024,21 +1028,12 @@ func _server_equip_item(slot: String, item_dict: Dictionary) -> void:
 	# Remove old equipment bonuses if something was in this slot
 	if inventory.equipment.has(slot) and inventory.equipment[slot] != null:
 		var old_item: ItemData = inventory.equipment[slot]
-		stats.attack_damage -= old_item.bonus_damage
-		stats.defense -= old_item.bonus_defense
-		stats.max_health -= old_item.bonus_health
-		stats.health = minf(stats.health, stats.max_health)
-		stats.max_mana -= old_item.bonus_mana
-		stats.mana = minf(stats.mana, stats.max_mana)
+		_remove_item_stats(old_item)
 	# Apply new item bonuses
 	var item := ItemData.from_dict(item_dict)
 	inventory.equipment[slot] = item
-	stats.attack_damage += item.bonus_damage
-	stats.defense += item.bonus_defense
-	stats.max_health += item.bonus_health
-	stats.health = minf(stats.health + item.bonus_health, stats.max_health)
-	stats.max_mana += item.bonus_mana
-	stats.mana = minf(stats.mana + item.bonus_mana, stats.max_mana)
+	_apply_item_stats(item)
+	inventory.recalculate_resonances(self)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -1051,13 +1046,35 @@ func _server_unequip_item(slot: String) -> void:
 	if not inventory.equipment.has(slot) or inventory.equipment[slot] == null:
 		return
 	var item: ItemData = inventory.equipment[slot]
+	_remove_item_stats(item)
+	inventory.equipment[slot] = null
+	inventory.recalculate_resonances(self)
+
+
+func _apply_item_stats(item: ItemData) -> void:
+	stats.attack_damage += item.bonus_damage
+	stats.defense += item.bonus_defense
+	stats.max_health += item.bonus_health
+	stats.health = minf(stats.health + item.bonus_health, stats.max_health)
+	stats.max_mana += item.bonus_mana
+	stats.mana = minf(stats.mana + item.bonus_mana, stats.max_mana)
+	stats.strength += item.bonus_strength
+	stats.dexterity += item.bonus_dexterity
+	stats.intelligence += item.bonus_intelligence
+	inventory._apply_affix_stats(item, stats, 1.0)
+
+
+func _remove_item_stats(item: ItemData) -> void:
 	stats.attack_damage -= item.bonus_damage
 	stats.defense -= item.bonus_defense
 	stats.max_health -= item.bonus_health
 	stats.health = minf(stats.health, stats.max_health)
 	stats.max_mana -= item.bonus_mana
 	stats.mana = minf(stats.mana, stats.max_mana)
-	inventory.equipment[slot] = null
+	stats.strength -= item.bonus_strength
+	stats.dexterity -= item.bonus_dexterity
+	stats.intelligence -= item.bonus_intelligence
+	inventory._apply_affix_stats(item, stats, -1.0)
 
 
 ## --- Inventory grid sync (client -> server) ---
