@@ -38,6 +38,7 @@ func setup(p: Node) -> void:
 	if player.get("character_class") != null:
 		character_class = player.character_class
 	_load_tree_from_character()
+	_apply_passive_bonuses()
 	_rebuild_skill_slots()
 
 
