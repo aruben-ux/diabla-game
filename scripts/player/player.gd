@@ -209,6 +209,8 @@ func _load_from_character_data(data: CharacterData) -> void:
 		# If save has no points at all, recompute from level
 		if skill_manager.skill_points <= 0 and skill_manager.allocated_points.is_empty() and stats.level > 1:
 			skill_manager.skill_points = stats.level - 1
+		# Clear stale tree bonuses since we just loaded base stats
+		set_meta("_tree_bonuses", {})
 		skill_manager._apply_passive_bonuses()
 		skill_manager._rebuild_skill_slots()
 
@@ -312,6 +314,8 @@ func _load_from_dict(data: Dictionary) -> void:
 		# If save has no points at all, recompute from level
 		if skill_manager.skill_points <= 0 and skill_manager.allocated_points.is_empty() and stats.level > 1:
 			skill_manager.skill_points = stats.level - 1
+		# Clear stale tree bonuses since we just loaded base stats
+		set_meta("_tree_bonuses", {})
 		skill_manager._apply_passive_bonuses()
 		skill_manager._rebuild_skill_slots()
 
