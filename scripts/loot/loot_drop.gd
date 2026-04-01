@@ -89,7 +89,6 @@ func _process(delta: float) -> void:
 		if result.is_empty():
 			global_position.x = new_xz.x
 			global_position.z = new_xz.z
-			_base_y = global_position.y
 	# Bob + spin
 	var pos := global_position
 	pos.y = _base_y + sin(_time * bob_speed) * bob_height
