@@ -1464,7 +1464,7 @@ func _get_main_game() -> Node:
 # Enemy ability effects on the player
 # =========================================================================
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func apply_speed_modifier(speed_mult: float, duration: float) -> void:
 	_speed_mod = speed_mult
 	# Determine debuff name/color from the multiplier

@@ -81,6 +81,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not multiplayer.has_multiplayer_peer():
+		return
 	if multiplayer.is_server():
 		# Server runs full AI
 		if not is_on_floor():

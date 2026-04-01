@@ -121,7 +121,7 @@ func _physics_process(delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if not _alive:
 		return
-	if not multiplayer.is_server():
+	if not multiplayer.has_multiplayer_peer() or not multiplayer.is_server():
 		return
 	if body.is_in_group("players") and body.has_method("receive_damage"):
 		body.receive_damage.rpc(_damage)

@@ -381,8 +381,15 @@ func _broadcast_all_enemies() -> void:
 	for child in get_children():
 		if child is Enemy and child.state != Enemy.State.DEAD:
 			data.append([child.name, child.position, child.model.rotation.y, child.state, child._is_wandering])
-	if data.size() > 0:
-		_sync_enemy_states.rpc(data)
+	if data.size() == 0:
+		return
+	# Chunk to stay under MTU (~1392 bytes). ~50 bytes per entry → 20 per chunk.
+	var chunk_size := 20
+	var i := 0
+	while i < data.size():
+		var chunk: Array = data.slice(i, i + chunk_size)
+		_sync_enemy_states.rpc(chunk)
+		i += chunk_size
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")
