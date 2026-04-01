@@ -24,6 +24,8 @@ var _debug_center: CenterContainer
 
 # --- Debug state ---
 var _invincible_check: CheckBox
+var _loot_mult_slider: HSlider
+var _loot_mult_label: Label
 
 
 func _ready() -> void:
@@ -387,6 +389,30 @@ func _build_debug_panel() -> void:
 	_invincible_check.toggled.connect(_on_invincible_toggled)
 	vbox.add_child(_invincible_check)
 
+	# Loot drop multiplier slider
+	var loot_row := HBoxContainer.new()
+	loot_row.add_theme_constant_override("separation", 8)
+	var loot_lbl := Label.new()
+	loot_lbl.text = tr("Loot Multiplier")
+	loot_lbl.add_theme_color_override("font_color", Color(0.9, 0.8, 0.6))
+	loot_lbl.custom_minimum_size.x = 130
+	loot_row.add_child(loot_lbl)
+	_loot_mult_slider = HSlider.new()
+	_loot_mult_slider.min_value = 1.0
+	_loot_mult_slider.max_value = 50.0
+	_loot_mult_slider.step = 1.0
+	_loot_mult_slider.value = GameManager.debug_loot_multiplier
+	_loot_mult_slider.custom_minimum_size = Vector2(100, 0)
+	_loot_mult_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_loot_mult_slider.value_changed.connect(_on_loot_mult_changed)
+	loot_row.add_child(_loot_mult_slider)
+	_loot_mult_label = Label.new()
+	_loot_mult_label.text = "%dx" % int(GameManager.debug_loot_multiplier)
+	_loot_mult_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.7))
+	_loot_mult_label.custom_minimum_size.x = 40
+	loot_row.add_child(_loot_mult_label)
+	vbox.add_child(loot_row)
+
 	vbox.add_child(HSeparator.new())
 
 	# Action buttons
@@ -514,6 +540,12 @@ func _on_debug_level_up() -> void:
 		var needed: float = player.stats.experience_to_next_level - player.stats.experience
 		if needed > 0:
 			player.grant_xp(needed + 1.0)
+
+
+func _on_loot_mult_changed(value: float) -> void:
+	GameManager.debug_loot_multiplier = value
+	if _loot_mult_label:
+		_loot_mult_label.text = "%dx" % int(value)
 
 
 func _on_debug_floor_down() -> void:

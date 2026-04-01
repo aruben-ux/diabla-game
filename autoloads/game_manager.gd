@@ -26,6 +26,9 @@ var dedicated_server_secret: String = ""
 ## Maps peer_id -> { account_id, character_id, character_data }
 var online_players: Dictionary = {}
 
+## Debug: multiplies item drop chances (1.0 = normal). Only affects debug builds.
+var debug_loot_multiplier: float = 1.0
+
 
 func _ready() -> void:
 	# If launched with --server flag, switch to the dedicated game server entry point
