@@ -393,10 +393,8 @@ func _load_tree_from_character() -> void:
 
 	if char_data and char_data is CharacterData:
 		character_class = char_data.character_class
-		skill_points = char_data.get("skill_points") if "skill_points" in char_data else _compute_default_skill_points(char_data.level)
-		allocated_points = char_data.get("allocated_skill_points") if "allocated_skill_points" in char_data else {}
-		if allocated_points == null:
-			allocated_points = {}
+		allocated_points = char_data.allocated_skill_points.duplicate() if char_data.allocated_skill_points else {}
+		skill_points = char_data.skill_points if char_data.skill_points > 0 or not allocated_points.is_empty() else _compute_default_skill_points(char_data.level)
 	else:
 		# Fallback for online players without local save
 		skill_points = _compute_default_skill_points(player.stats.level if player.get("stats") else 1)
